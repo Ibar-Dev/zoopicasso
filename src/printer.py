@@ -1,48 +1,27 @@
 # printer.py
-# Formatea y envía el ticket a la impresora térmica pcCom Essential vía LAN (ESC/POS).
+# Formatea y envía el ticket a la impresora térmica POS-80 vía USB (ESC/POS).
 # Depende de python-escpos.
+# En Windows requiere driver WinUSB instalado con Zadig para el dispositivo VID_1FC9 PID_2016.
 
 import logging
-import os
-
-from escpos.exceptions import DeviceNotFoundError
-from escpos.printer import Network
-from src.ticket_model import Ticket
+from escpos.printer import Usb
+from ticket_model import Ticket
 
 logger = logging.getLogger(__name__)
 
-# IP y puerto configurados en la impresora.
-# Ajustar si cambia la configuración de red.
-IMPRESORA_IP = os.getenv("ZOO_PICASSO_PRINTER_IP", "192.168.1.XXX")
-IMPRESORA_PUERTO = int(os.getenv("ZOO_PICASSO_PRINTER_PORT", "9100"))
+# Identificadores USB de la impresora POS-80.
+# Obtenidos desde el PC Windows con Get-PnpDevice.
+VENDOR_ID  = 0x1FC9
+PRODUCT_ID = 0x2016
 
-# Ancho estándar de rollo 58mm: 32 caracteres.
-# Rollo 80mm: 48 caracteres. Ajustar según el rollo instalado.
-ANCHO_TICKET = 32
+# Ancho estándar de rollo 80mm: 48 caracteres.
+# Si se cambia a rollo 58mm, reducir a 32.
+ANCHO_TICKET = 48
 
 
 def _linea_separadora() -> str:
     """Devuelve una línea de guiones del ancho del ticket."""
     return "-" * ANCHO_TICKET
-
-
-def impresora_configurada() -> bool:
-    """Indica si hay una IP real configurada para la impresora."""
-    return bool(IMPRESORA_IP.strip()) and "XXX" not in IMPRESORA_IP
-
-
-if not impresora_configurada():
-    logger.warning(
-        "Impresora no configurada. Define ZOO_PICASSO_PRINTER_IP con la IP real antes de imprimir."
-    )
-
-
-def _validar_configuracion_impresora() -> None:
-    """Evita intentar imprimir con la configuración placeholder por defecto."""
-    if not impresora_configurada():
-        raise ConnectionError(
-            "Impresora no configurada. Define ZOO_PICASSO_PRINTER_IP con la IP real antes de imprimir."
-        )
 
 
 def _formatear_linea_servicio(nombre: str, cantidad: int, precio_u: float, total: float) -> str:
@@ -57,22 +36,20 @@ def _formatear_linea_servicio(nombre: str, cantidad: int, precio_u: float, total
 
 def imprimir_ticket(ticket: Ticket) -> None:
     """
-    Conecta con la impresora y envía el ticket formateado.
+    Conecta con la impresora por USB y envía el ticket formateado.
     Esta es la única función pública del módulo.
 
     Args:
         ticket: Ticket completo y validado listo para imprimir.
 
     Raises:
-        ConnectionError: Si no se puede conectar con la impresora.
-        Exception: Cualquier error durante la impresión.
+        ConnectionError: Si no se puede conectar con la impresora USB.
+        Exception: Cualquier error inesperado durante la impresión.
     """
-    _validar_configuracion_impresora()
-    logger.info(f"Iniciando impresión del ticket #{ticket.numero} en {IMPRESORA_IP}:{IMPRESORA_PUERTO}")
+    logger.info(f"Iniciando impresión del ticket #{ticket.numero} en USB {VENDOR_ID:#06x}:{PRODUCT_ID:#06x}")
 
     try:
-        p = Network(IMPRESORA_IP, IMPRESORA_PUERTO)
-        p.open()
+        p = Usb(VENDOR_ID, PRODUCT_ID)
 
         # --- CABECERA ---
         p.set(align="center", bold=True, double_height=True, double_width=True)
@@ -111,11 +88,12 @@ def imprimir_ticket(ticket: Ticket) -> None:
         p.ln(3)
         p.cut()
 
+        p.close()
         logger.info(f"Ticket #{ticket.numero} impreso correctamente.")
 
-    except (OSError, DeviceNotFoundError) as e:
-        logger.error(f"No se pudo conectar con la impresora en {IMPRESORA_IP}:{IMPRESORA_PUERTO}. Error: {e}")
-        raise ConnectionError(f"Impresora no disponible: {e}") from e
+    except OSError as e:
+        logger.error(f"No se pudo conectar con la impresora USB {VENDOR_ID:#06x}:{PRODUCT_ID:#06x}. Error: {e}")
+        raise ConnectionError(f"Impresora no disponible. Verifica que está conectada y el driver WinUSB está instalado.\n{e}") from e
     except Exception as e:
         logger.error(f"Error inesperado durante la impresión del ticket #{ticket.numero}: {e}")
         raise
