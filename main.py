@@ -4,6 +4,7 @@
 # Abre automáticamente el navegador en localhost.
 
 import logging
+from typing import Callable
 import flet as ft
 
 from src.counter import siguiente_numero
@@ -23,7 +24,7 @@ class FilaServicio:
     Encapsula los controles de una línea de servicio en el formulario.
     """
 
-    def __init__(self, on_change: callable):
+    def __init__(self, on_change: Callable[[], None]):
         """
         Args:
             on_change: Callback para recalcular el total general al modificar campos.
@@ -55,7 +56,7 @@ class FilaServicio:
             bgcolor=ft.Colors.GREY_200,
         )
 
-    def _recalcular(self, on_change: callable):
+    def _recalcular(self, on_change: Callable[[], None]):
         """Recalcula el total de la línea y notifica al callback general."""
         try:
             cantidad = int(self.cantidad.value)
