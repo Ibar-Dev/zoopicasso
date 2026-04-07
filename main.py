@@ -225,8 +225,8 @@ def main(page: ft.Page):
     # Botones añadir / quitar
     botones_filas = ft.Row(
         controls=[
-            ft.ElevatedButton("+ Añadir línea", on_click=agregar_fila),
-            ft.OutlinedButton("- Quitar línea", on_click=quitar_fila),
+            ft.Button("+ Añadir línea", on_click=agregar_fila),
+            ft.Button("- Quitar línea", on_click=quitar_fila),
         ],
         alignment=ft.MainAxisAlignment.START,
     )
@@ -241,8 +241,8 @@ def main(page: ft.Page):
     )
 
     # Botón imprimir
-    boton_imprimir = ft.ElevatedButton(
-        text="IMPRIMIR TICKET",
+    boton_imprimir = ft.Button(
+        "IMPRIMIR TICKET",
         icon=ft.Icons.PRINT,
         bgcolor=ft.Colors.GREEN_700,
         color=ft.Colors.WHITE,
@@ -268,4 +268,4 @@ def main(page: ft.Page):
     agregar_fila()
 
 
-ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8080)
+ft.run(main, view=ft.AppView.WEB_BROWSER, port=8080)
