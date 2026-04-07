@@ -2,23 +2,18 @@
 # Modelo de datos para el ticket de Zoo Picasso.
 # Define las estructuras LineaTicket y Ticket usando dataclasses.
 
-import logging
-import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
 
-_logger = logging.getLogger(__name__)
 
 # Datos constantes del negocio.
 # Centralizar aquí evita repetición y facilita futuros cambios.
 NOMBRE_NEGOCIO = "Zoo Picasso"
-NIF = os.getenv("ZOO_PICASSO_NIF", "XXXXXXXXX")
-
-if "X" in NIF:
-    _logger.warning(
-        "NIF no configurado. Define la variable de entorno ZOO_PICASSO_NIF antes de usar en producción."
-    )
+NIF = "Y3806548Q"
+DIRECCION = "Calle de Pablo Picasso 59"
+TELEFONO = "604 300 492"
+EMAIL = "zoopicasso07@gmail.com"
 
 
 @dataclass

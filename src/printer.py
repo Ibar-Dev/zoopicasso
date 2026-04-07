@@ -5,7 +5,7 @@
 
 import logging
 from escpos.printer import Usb
-from src.ticket_model import Ticket
+from src.ticket_model import Ticket, DIRECCION, TELEFONO, EMAIL
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,10 @@ def imprimir_ticket(ticket: Ticket) -> None:
         p.text(_linea_separadora() + "\n")
         p.text("Gracias por su visita\n")
         p.text("Precios con IVA incluido\n")
+        p.text(_linea_separadora() + "\n")
+        p.text(f"{DIRECCION}\n")
+        p.text(f"Tel: {TELEFONO}\n")
+        p.text(f"{EMAIL}\n")
 
         # Avance de papel y corte
         p.ln(3)
