@@ -4,6 +4,8 @@
 # En Windows requiere driver WinUSB instalado con Zadig para el dispositivo VID_1FC9 PID_2016.
 
 import logging
+import libusb_package
+import usb.backend.libusb1
 from escpos.printer import Usb
 from src.ticket_model import Ticket, DIRECCION, TELEFONO, EMAIL
 
@@ -49,7 +51,9 @@ def imprimir_ticket(ticket: Ticket) -> None:
     logger.info(f"Iniciando impresión del ticket #{ticket.numero} en USB {VENDOR_ID:#06x}:{PRODUCT_ID:#06x}")
 
     try:
-        p = Usb(VENDOR_ID, PRODUCT_ID)
+        # Inyectar el backend de libusb explícitamente para Windows
+        backend = usb.backend.libusb1.get_backend(find_library=lambda x: libusb_package.find())
+        p = Usb(VENDOR_ID, PRODUCT_ID, backend=backend)
 
         # --- CABECERA ---
         p.set(align="center", bold=True, double_height=True, double_width=True)
