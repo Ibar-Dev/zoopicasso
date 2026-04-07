@@ -5,7 +5,7 @@
 
 import logging
 from escpos.printer import Usb
-from ticket_model import Ticket
+from src.ticket_model import Ticket
 
 logger = logging.getLogger(__name__)
 

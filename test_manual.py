@@ -9,7 +9,7 @@ import os
 from src.ticket_model import Ticket, LineaTicket
 from src.counter import siguiente_numero
 from src.excel_writer import guardar_ticket
-from src.printer import IMPRESORA_IP, imprimir_ticket
+from src.printer import imprimir_ticket
 
 # Configuración básica de logging para ver el comportamiento en consola
 logging.basicConfig(
@@ -55,8 +55,7 @@ def main():
     else:
         logger.info(
             "Impresion omitida en el test manual. "
-            "Usa ZOO_PICASSO_TEST_PRINT=1 y configura ZOO_PICASSO_PRINTER_IP para probar la impresora. "
-            f"IP actual: {IMPRESORA_IP}"
+            "Usa ZOO_PICASSO_TEST_PRINT=1 para probar la impresora USB."
         )
 
     logger.info("=== Test completado ===")
