@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 # Ruta del archivo donde se guarda el último número de ticket.
 # Se crea automáticamente si no existe.
-RUTA_CONTADOR = Path("data/contador.json")
+_BASE = Path(__file__).resolve().parent.parent   # → raíz del proyecto
+RUTA_CONTADOR = _BASE / "data" / "contador.json"
 
 
 def _inicializar_contador() -> None:

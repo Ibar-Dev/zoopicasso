@@ -13,7 +13,8 @@ from src.ticket_model import Ticket
 logger = logging.getLogger(__name__)
 
 # Ruta del archivo Excel donde se acumulan todos los tickets.
-RUTA_EXCEL = Path("data/tickets.xlsx")
+_BASE = Path(__file__).resolve().parent.parent   # → raíz del proyecto
+RUTA_EXCEL = _BASE / "data" / "tickets.xlsx"
 
 # Cabeceras de la hoja. El orden debe coincidir con el de _fila_desde_linea().
 CABECERAS = [
