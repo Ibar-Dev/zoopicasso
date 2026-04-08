@@ -1,6 +1,6 @@
 # factura_model.py
 # Modelo de datos para las facturas de Gisselle Marin Tabares.
-# Define LineaFactura y Factura. Los precios son sin IVA; el IVA se desglosa en Factura.
+# Define LineaFactura y Factura. Los precios se consideran finales (IVA incluido).
 
 from dataclasses import dataclass, field
 from datetime import date
@@ -14,13 +14,13 @@ DIRECCION_EMISOR = "Calle de Pablo Picasso 59"
 TELEFONO_EMISOR = "604 300 492"
 EMAIL_EMISOR = "zoopicasso07@gmail.com"
 
-IVA_PCT = 21  # Porcentaje de IVA aplicado a todas las facturas
+IVA_PCT = 21  # Referencia informativa para mostrar "IVA incluido"
 
 
 @dataclass
 class LineaFactura:
     """
-    Una línea de la factura. El precio unitario es sin IVA.
+    Una línea de la factura. El precio unitario es final (IVA incluido).
     El total se calcula automáticamente.
     """
     concepto: str
@@ -40,7 +40,7 @@ class LineaFactura:
 @dataclass
 class Factura:
     """
-    Factura completa con datos del cliente, líneas y desglose de IVA.
+    Factura completa con datos del cliente y líneas con precios finales.
     """
     numero: int
     fecha: date
@@ -54,18 +54,18 @@ class Factura:
 
     @property
     def base_imponible(self) -> float:
-        """Suma de totales de todas las líneas (sin IVA)."""
+        """Suma de totales de todas las líneas (importe final)."""
         return round(sum(l.total for l in self.lineas), 2)
 
     @property
     def cuota_iva(self) -> float:
-        """Importe del IVA sobre la base imponible."""
-        return round(self.base_imponible * IVA_PCT / 100, 2)
+        """Con precios finales, no se suma IVA adicional al total."""
+        return 0.0
 
     @property
     def total_con_iva(self) -> float:
-        """Total final a pagar."""
-        return round(self.base_imponible + self.cuota_iva, 2)
+        """Total final a pagar (ya incluye IVA en los precios unitarios)."""
+        return self.base_imponible
 
     @property
     def numero_formateado(self) -> str:

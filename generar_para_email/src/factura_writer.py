@@ -1,6 +1,7 @@
 # factura_writer.py
 # Genera un archivo .xlsx por factura con formato visual de factura real.
 # Usa openpyxl con estilos: fuentes, bordes, rellenos y alineación.
+# Los importes se consideran finales (IVA incluido).
 #
 # Puntos CRÍTICOS de fallo:
 # - Permisos insuficientes para escribir en RUTA_FACTURAS
@@ -21,7 +22,6 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from src.factura_model import (
     EMAIL_EMISOR,
     DIRECCION_EMISOR,
-    IVA_PCT,
     NOMBRE_EMISOR,
     NIF_EMISOR,
     TELEFONO_EMISOR,
@@ -297,7 +297,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     ws.row_dimensions[11].height = 8
 
     # ── Fila 12: Cabecera de la tabla de líneas ───────────────────────────────
-    headers = ["Concepto", "Cantidad", "P. Unitario (sin IVA)", "Total (sin IVA)"]
+    headers = ["Concepto", "Cantidad", "P. Unitario", "Total"]
     alin_headers = ["left", "center", "right", "right"]
     for col_idx, (header, ali) in enumerate(zip(headers, alin_headers), start=1):
         from openpyxl.utils import get_column_letter
@@ -339,8 +339,8 @@ def generar_factura_xlsx(factura: Factura) -> Path:
         ws[f"D{fila}"].border = _BORDE if negrita else _BORDE_TOP
         ws.row_dimensions[fila].height = 18
 
-    _fila_total(fila_actual, "Base Imponible:", factura.base_imponible)
-    _fila_total(fila_actual + 1, f"IVA ({IVA_PCT}%):", factura.cuota_iva)
+    _fila_total(fila_actual, "Subtotal:", factura.base_imponible)
+    _fila_total(fila_actual + 1, "IVA incluido:", factura.cuota_iva)
     _fila_total(fila_actual + 2, "TOTAL:", factura.total_con_iva, negrita=True)
 
     # Resaltar fila TOTAL

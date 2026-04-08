@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 # Carga la configuración centralizada de logging
 import src.settings  # noqa: E402
 from src.factura_counter import siguiente_numero_factura
-from src.factura_model import IVA_PCT, LineaFactura
+from src.factura_model import LineaFactura
 from src.factura_model import Factura
 from src.factura_writer import RUTA_FACTURAS
 from src.factura_writer import generar_factura_xlsx
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 class FilaConcepto:
     """
     Encapsula los controles de una línea de concepto en el formulario.
-    El precio unitario es sin IVA.
+    El precio unitario es final (IVA incluido).
     """
 
     def __init__(self, on_change: Callable[[], None]):
@@ -52,14 +52,14 @@ class FilaConcepto:
             on_change=lambda _: self._recalcular(on_change),
         )
         self.precio = ft.TextField(
-            label="P. Unit. (sin IVA)",
+            label="P. Unit. (IVA incluido)",
             value="0.00",
             width=130,
             keyboard_type=ft.KeyboardType.NUMBER,
             on_change=lambda _: self._recalcular(on_change),
         )
         self.total = ft.TextField(
-            label="Total (sin IVA)",
+            label="Total",
             value="0.00",
             width=120,
             read_only=True,
@@ -208,14 +208,14 @@ def main(page: ft.Page):
         # ── Callbacks ─────────────────────────────────────────────────────────
         def actualizar_totales():
             try:
-                base = sum(float(f.total.value) for f in filas)
-                iva = round(base * IVA_PCT / 100, 2)
-                total = round(base + iva, 2)
-                lbl_base.value = f"{base:.2f} €"
-                lbl_iva.value = f"{iva:.2f} €"
+                total = round(sum(float(f.total.value) for f in filas), 2)
+                lbl_base.value = f"{total:.2f} €"
+                lbl_iva.value = "Incluido"
                 lbl_total.value = f"{total:.2f} €"
             except ValueError:
-                lbl_base.value = lbl_iva.value = lbl_total.value = "0.00 €"
+                lbl_base.value = "0.00 €"
+                lbl_iva.value = "Incluido"
+                lbl_total.value = "0.00 €"
             page.update()
 
         def agregar_fila(_=None):
@@ -353,7 +353,7 @@ def main(page: ft.Page):
             controls=[
                 ft.Row(
                     controls=[
-                        ft.Text("Base imponible:", size=13, color=ft.Colors.GREY_700),
+                        ft.Text("Subtotal:", size=13, color=ft.Colors.GREY_700),
                         lbl_base,
                     ],
                     alignment=ft.MainAxisAlignment.END,
@@ -361,7 +361,7 @@ def main(page: ft.Page):
                 ),
                 ft.Row(
                     controls=[
-                        ft.Text(f"IVA ({IVA_PCT}%):", size=13, color=ft.Colors.GREY_700),
+                        ft.Text("IVA:", size=13, color=ft.Colors.GREY_700),
                         lbl_iva,
                     ],
                     alignment=ft.MainAxisAlignment.END,
