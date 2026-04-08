@@ -1,0 +1,478 @@
+[2026-04-08 11:43:51] [INFO    ] [src.factura_writer:<module>:34] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 11:43:51] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-0/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 11:43:51] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-0/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 11:43:51] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 11:43:51] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 11:43:51] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-0/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 11:43:51] [INFO    ] [src.factura_writer:generar_factura_xlsx:299] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-0/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:43:51] [INFO    ] [src.factura_writer:generar_factura_xlsx:299] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-0/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:43:51] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:130] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-0/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 11:44:18] [INFO    ] [src.factura_writer:<module>:34] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 11:44:18] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-1/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 11:44:18] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-1/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 11:44:18] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 11:44:18] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 11:44:18] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-1/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 11:44:18] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 11:44:18] [INFO    ] [src.factura_writer:generar_factura_xlsx:299] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-1/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:44:18] [INFO    ] [src.factura_writer:generar_factura_xlsx:299] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-1/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:44:18] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:130] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-1/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 11:44:39] [INFO    ] [src.factura_writer:<module>:34] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 11:44:39] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-2/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 11:44:39] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-2/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 11:44:39] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 11:44:39] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 11:44:39] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-2/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 11:44:39] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 11:44:39] [INFO    ] [src.factura_writer:generar_factura_xlsx:299] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-2/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:44:39] [INFO    ] [src.factura_writer:generar_factura_xlsx:299] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-2/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:44:39] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:130] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-2/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 11:44:39] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-08 11:44:39] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-08 11:44:39] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-08 11:44:39] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-08 11:44:39] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-08 11:44:39] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-08 11:57:27] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 11:57:27] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-3/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:57:27] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-3/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:57:27] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-3/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 11:57:27] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ibardev/pytest-3/test_copia_windows_crea_fallba0/Documents
+[2026-04-08 11:57:27] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-3/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-08 11:57:44] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 11:57:44] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-4/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 11:57:44] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-4/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 11:57:44] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 11:57:44] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 11:57:44] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-4/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 11:57:44] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 11:57:44] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-4/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:57:44] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-4/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 11:57:44] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-4/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 11:57:44] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ibardev/pytest-4/test_copia_windows_crea_fallba0/Documents
+[2026-04-08 11:57:44] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-4/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-08 11:57:44] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-08 11:57:44] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-08 11:57:44] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-08 11:57:44] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-08 11:57:44] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-08 11:57:44] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-08 12:02:37] [INFO    ] [src.factura_writer:<module>:36] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 12:02:37] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-5/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 12:02:37] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-5/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 12:02:37] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 12:02:37] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 12:02:37] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-5/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 12:02:37] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 12:02:37] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-5/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 12:02:37] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-5/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 12:02:37] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:184] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-5/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 12:02:37] [WARNING ] [src.factura_writer:_rutas_documentos_windows:160] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ibardev/pytest-5/test_copia_windows_crea_fallba0/Documents
+[2026-04-08 12:02:37] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:184] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-5/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-08 12:02:37] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-08 12:02:37] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-08 12:02:37] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-08 12:02:37] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-08 12:02:37] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-08 12:02:37] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-08 12:03:02] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 12:03:02] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-6/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 12:03:02] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-6/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 12:03:02] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 12:03:02] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 12:03:02] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-6/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 12:03:02] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 12:03:02] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-6/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 12:03:02] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-6/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 12:03:02] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-6/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 12:03:02] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ibardev/pytest-6/test_copia_windows_crea_fallba0/Documents
+[2026-04-08 12:03:02] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-6/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-08 12:03:02] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-08 12:03:02] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-08 12:03:02] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-08 12:03:02] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-08 12:03:02] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-08 12:03:02] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-08 12:05:46] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 12:05:46] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-7/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 12:05:46] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-7/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 12:05:46] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 12:05:46] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 12:05:46] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-7/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 12:05:46] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 12:05:46] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-7/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 12:05:46] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-7/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 12:05:46] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-7/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 12:05:46] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ibardev/pytest-7/test_copia_windows_crea_fallba0/Documents
+[2026-04-08 12:05:46] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-7/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-08 12:05:46] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-08 12:05:46] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-08 12:05:46] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-08 12:05:46] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-08 12:05:46] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-08 12:05:46] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-08 13:02:46] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:02:46] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-08 13:02:46] [WARNING ] [web.app:login:84] Intento de acceso web fallido.
+[2026-04-08 13:02:46] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-08 13:02:46] [INFO    ] [web.app:login:81] Inicio de sesión correcto (web).
+[2026-04-08 13:02:46] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-08 13:02:46] [INFO    ] [web.app:generar:127] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00
+[2026-04-08 13:02:46] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-08 13:02:46] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/descargar/factura_2026_123.xlsx "HTTP/1.1 200 OK"
+[2026-04-08 13:02:50] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:02:51] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-9/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 13:02:51] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-9/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 13:02:51] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 13:02:51] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 13:02:51] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-9/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 13:02:51] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 13:02:51] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-9/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 13:02:51] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-9/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 13:02:51] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-9/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 13:02:51] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ibardev/pytest-9/test_copia_windows_crea_fallba0/Documents
+[2026-04-08 13:02:51] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-9/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-08 13:02:51] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-08 13:02:51] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-08 13:02:51] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-08 13:02:51] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-08 13:02:51] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-08 13:02:51] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-08 13:08:17] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:08:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-08 13:08:17] [WARNING ] [web.app:login:91] Intento de acceso web fallido.
+[2026-04-08 13:08:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-08 13:08:17] [INFO    ] [web.app:login:88] Inicio de sesión correcto (web).
+[2026-04-08 13:08:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-08 13:08:17] [INFO    ] [web.app:generar:134] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00
+[2026-04-08 13:09:17] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:09:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-08 13:09:17] [WARNING ] [web.app:login:91] Intento de acceso web fallido.
+[2026-04-08 13:09:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-08 13:09:17] [INFO    ] [web.app:login:88] Inicio de sesión correcto (web).
+[2026-04-08 13:09:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-08 13:09:17] [INFO    ] [web.app:generar:134] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00
+[2026-04-08 13:09:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-08 13:09:17] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/descargar/factura_2026_123.xlsx "HTTP/1.1 200 OK"
+[2026-04-08 13:09:17] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:09:17] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-12/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-08 13:09:17] [INFO    ] [src.factura_counter:_inicializar_contador:27] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ibardev/pytest-12/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-08 13:09:17] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 1
+[2026-04-08 13:09:17] [INFO    ] [src.factura_counter:siguiente_numero_factura:71] Número de factura generado: 2
+[2026-04-08 13:09:17] [ERROR   ] [src.factura_counter:_leer:43] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ibardev/pytest-12/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 38, in _leer
+    dato = json.load(f)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-08 13:09:17] [ERROR   ] [src.factura_counter:_escribir:56] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/src/factura_counter.py", line 52, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_factura_counter_real.py", line 52, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-08 13:09:17] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-12/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-08 13:09:17] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ibardev/pytest-12/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-08 13:09:17] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-12/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-08 13:09:17] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ibardev/pytest-12/test_copia_windows_crea_fallba0/Documents
+[2026-04-08 13:09:17] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ibardev/pytest-12/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-08 13:09:17] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-08 13:09:17] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-08 13:09:17] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-08 13:09:17] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-08 13:09:17] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-08 13:09:17] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ibardev/Development/zoo_picasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-08 13:15:48] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:15:48] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-08 13:15:48] [WARNING ] [web.app:login:91] Intento de acceso web fallido.
+[2026-04-08 13:15:48] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-08 13:15:48] [INFO    ] [web.app:login:88] Inicio de sesión correcto (web).
+[2026-04-08 13:15:48] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-08 13:15:48] [INFO    ] [web.app:generar:134] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00
+[2026-04-08 13:15:48] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-08 13:15:48] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/descargar/factura_2026_123.xlsx "HTTP/1.1 200 OK"
+[2026-04-08 13:18:38] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:18:38] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-08 13:18:38] [WARNING ] [web.app:login:91] Intento de acceso web fallido.
+[2026-04-08 13:18:38] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-08 13:18:38] [INFO    ] [web.app:login:88] Inicio de sesión correcto (web).
+[2026-04-08 13:18:38] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-08 13:18:38] [INFO    ] [web.app:generar:134] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00
+[2026-04-08 13:18:38] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-08 13:18:38] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/descargar/factura_2026_123.xlsx "HTTP/1.1 200 OK"
+[2026-04-08 13:21:03] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-08 13:21:03] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-08 13:21:03] [WARNING ] [web.app:login:91] Intento de acceso web fallido.
+[2026-04-08 13:21:03] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-08 13:21:03] [INFO    ] [web.app:login:88] Inicio de sesión correcto (web).
+[2026-04-08 13:21:03] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-08 13:21:03] [INFO    ] [web.app:generar:134] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00
+[2026-04-08 13:21:03] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-08 13:21:03] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/descargar/factura_2026_123.xlsx "HTTP/1.1 200 OK"

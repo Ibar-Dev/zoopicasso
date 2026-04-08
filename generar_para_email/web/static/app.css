@@ -1,0 +1,204 @@
+:root {
+  --bg-1: #fff3dd;
+  --bg-2: #f8dcae;
+  --ink: #1f1b16;
+  --ink-soft: #5f5447;
+  --accent: #c94315;
+  --accent-deep: #8f2b0c;
+  --panel: rgba(255, 253, 249, 0.85);
+  --line: #d8c9b6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 20% 20%, var(--bg-1), var(--bg-2) 55%, #ebc48f 100%);
+  overflow-x: hidden;
+}
+
+.bg-shape {
+  position: fixed;
+  border-radius: 999px;
+  filter: blur(2px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.bg-shape.one {
+  width: 26rem;
+  height: 26rem;
+  background: #f7a940;
+  top: -9rem;
+  right: -6rem;
+}
+
+.bg-shape.two {
+  width: 18rem;
+  height: 18rem;
+  background: #d46c3d;
+  bottom: -6rem;
+  left: -4rem;
+}
+
+.shell {
+  max-width: 980px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+.card {
+  display: none;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 50px rgba(58, 29, 11, 0.2);
+  padding: 1.25rem;
+  animation: rise 220ms ease-out;
+}
+
+.card.active {
+  display: block;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+h1, h2, h3 {
+  margin-top: 0;
+}
+
+p {
+  color: var(--ink-soft);
+}
+
+input, button {
+  font: inherit;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.75rem;
+}
+
+input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  background: #fffdfa;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+button:hover {
+  background: var(--accent-deep);
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+button.cta {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.grid.two {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lineas-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.fila {
+  margin-top: 0.6rem;
+  display: grid;
+  grid-template-columns: 1.8fr 0.6fr 0.8fr 0.7fr auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.fila .parcial {
+  font-family: "IBM Plex Mono", monospace;
+  text-align: right;
+}
+
+.fila .del {
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.totales {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem 1rem;
+  align-items: center;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.ok {
+  color: #1f7a1f;
+  font-weight: 600;
+}
+
+.error {
+  color: #a1112b;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .grid.two {
+    grid-template-columns: 1fr;
+  }
+
+  .fila {
+    grid-template-columns: 1fr;
+  }
+
+  .fila .parcial {
+    text-align: left;
+  }
+}

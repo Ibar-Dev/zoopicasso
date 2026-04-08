@@ -48,8 +48,12 @@ ZOO_PICASSO_TEST_PRINT=1 uv run test_manual.py # Con impresora
 
 ## App de Facturas (Gisselle Marin Tabares)
 
-Genera facturas con IVA desglosado (21%) en formato `.xlsx` para enviar por email.
-Funciona como app de escritorio independiente, sin necesidad de navegador.
+Genera facturas en formato `.xlsx` para enviar por email.
+Los precios son finales (IVA incluido) y no se suma IVA adicional.
+
+Incluye dos modos:
+- Escritorio (Flet)
+- Web (FastAPI + login en navegador)
 
 ### Ejecutar facturas
 
@@ -58,6 +62,135 @@ uv run generar_para_email/main.py
 ```
 
 Las facturas se guardan en `generar_para_email/facturas/factura_YYYY_NNN.xlsx`.
+
+### Ejecutar versión web (local)
+
+```bash
+cd generar_para_email
+uv run uvicorn web.app:app --host 127.0.0.1 --port 8000
+```
+
+Abrir en navegador: `http://127.0.0.1:8000`
+
+### Deploy barato en VPS (recomendado)
+
+Recomendación de coste: VPS básico (3-6 EUR/mes) para evitar suspensión y pérdida de persistencia.
+
+1. Subir repo al VPS en `/opt/facturas-app`
+2. Ejecutar:
+
+```bash
+cd /opt/facturas-app/generar_para_email
+chmod +x deploy/install_vps.sh
+./deploy/install_vps.sh tu-dominio.com /opt/facturas-app
+```
+
+Sin dominio (modo mas barato):
+
+```bash
+cd /opt/facturas-app/generar_para_email
+chmod +x deploy/install_vps.sh
+./deploy/install_vps.sh NO_DOMAIN /opt/facturas-app
+```
+
+Este modo publica por IP en HTTP y omite Let's Encrypt.
+
+Esto configura:
+- Servicio systemd `facturas-web`
+- Nginx reverse proxy
+- HTTPS con Let's Encrypt
+
+Alternativas de dominio gratis para habilitar HTTPS luego:
+- DuckDNS
+- No-IP (plan gratuito)
+
+### HTTPS gratis con DuckDNS (recomendado)
+
+1. Crear subdominio gratis en DuckDNS (ejemplo: `misfacturas.duckdns.org`) y copiar token.
+2. En el VPS crear credenciales:
+
+```bash
+sudo mkdir -p /etc/facturas
+sudo tee /etc/facturas/duckdns.env > /dev/null <<'EOF'
+DUCKDNS_SUBDOMAIN=misfacturas
+DUCKDNS_TOKEN=TU_TOKEN_DUCKDNS
+EOF
+sudo chmod 600 /etc/facturas/duckdns.env
+```
+
+3. Activar auto-actualización de IP:
+
+```bash
+cd /opt/facturas-app/generar_para_email
+chmod +x deploy/duckdns_update.sh
+sudo cp deploy/duckdns-update.service /etc/systemd/system/
+sudo cp deploy/duckdns-update.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now duckdns-update.timer
+sudo systemctl start duckdns-update.service
+```
+
+4. Reconfigurar app con dominio DuckDNS:
+
+```bash
+cd /opt/facturas-app/generar_para_email
+./deploy/install_vps.sh misfacturas.duckdns.org /opt/facturas-app
+```
+
+5. Verificar:
+
+```bash
+curl -I https://misfacturas.duckdns.org/api/health
+```
+
+Archivos de despliegue:
+- `generar_para_email/deploy/install_vps.sh`
+- `generar_para_email/deploy/facturas-web.service`
+- `generar_para_email/deploy/facturas-nginx.conf`
+
+### Operación y mantenimiento (VPS)
+
+Scripts incluidos:
+- `generar_para_email/deploy/backup_data.sh`
+- `generar_para_email/deploy/restore_data.sh`
+- `generar_para_email/deploy/update_app.sh`
+
+Dar permisos una sola vez:
+
+```bash
+cd /opt/facturas-app/generar_para_email/deploy
+chmod +x backup_data.sh restore_data.sh update_app.sh
+```
+
+Backup manual:
+
+```bash
+./backup_data.sh /opt/facturas-app/generar_para_email /var/backups/facturas 30
+```
+
+Restore:
+
+```bash
+./restore_data.sh /opt/facturas-app/generar_para_email /var/backups/facturas/facturas_backup_YYYYMMDD_HHMMSS.tar.gz
+```
+
+Actualizar app (pull + sync + test web + restart):
+
+```bash
+./update_app.sh /opt/facturas-app
+```
+
+Backup automático diario (cron):
+
+```bash
+sudo crontab -e
+```
+
+Añadir línea:
+
+```bash
+30 2 * * * /opt/facturas-app/generar_para_email/deploy/backup_data.sh /opt/facturas-app/generar_para_email /var/backups/facturas 30 >> /var/log/facturas_backup.log 2>&1
+```
 
 ### Instalación en Windows (ordenador de Gisselle)
 

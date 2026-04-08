@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Facturas | Zoo Picasso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div class="bg-shape one"></div>
+  <div class="bg-shape two"></div>
+
+  <main class="shell">
+    <section id="login-card" class="card active">
+      <h1>Generador de Facturas</h1>
+      <p>Zoo Picasso · Acceso seguro</p>
+      <label>Usuario
+        <input id="usuario" type="text" placeholder="Giselle" autocomplete="username" />
+      </label>
+      <label>Contraseña
+        <input id="password" type="password" autocomplete="current-password" />
+      </label>
+      <button id="btn-login">Entrar</button>
+      <p id="login-error" class="error"></p>
+    </section>
+
+    <section id="app-card" class="card">
+      <div class="header-row">
+        <div>
+          <h2>Factura Web</h2>
+          <p id="estado">Completa los datos y genera el Excel.</p>
+        </div>
+        <button id="btn-logout" class="ghost">Salir</button>
+      </div>
+
+      <div class="grid two">
+        <label>Cliente (opcional)
+          <input id="cliente_nombre" type="text" />
+        </label>
+        <label>NIF/CIF (opcional)
+          <input id="cliente_nif" type="text" />
+        </label>
+      </div>
+
+      <div class="lineas-head">
+        <h3>Líneas</h3>
+        <button id="btn-add" class="ghost">+ Añadir línea</button>
+      </div>
+      <div id="lineas"></div>
+
+      <div class="totales">
+        <span>Subtotal:</span><strong id="subtotal">0.00 €</strong>
+        <span>IVA:</span><strong>Incluido</strong>
+        <span>Total:</span><strong id="total">0.00 €</strong>
+      </div>
+
+      <button id="btn-generar" class="cta">Generar factura y descargar</button>
+      <p id="resultado" class="ok"></p>
+      <p id="error" class="error"></p>
+    </section>
+  </main>
+
+  <script>
+    const loginCard = document.getElementById('login-card');
+    const appCard = document.getElementById('app-card');
+    const lineasEl = document.getElementById('lineas');
+    const subtotalEl = document.getElementById('subtotal');
+    const totalEl = document.getElementById('total');
+    const estadoEl = document.getElementById('estado');
+    const resultadoEl = document.getElementById('resultado');
+    const errorEl = document.getElementById('error');
+
+    function sha256(text) {
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(buf =>
+        [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+      );
+    }
+
+    function toggleView(loggedIn) {
+      loginCard.classList.toggle('active', !loggedIn);
+      appCard.classList.toggle('active', loggedIn);
+    }
+
+    function calcTotals() {
+      const filas = [...lineasEl.querySelectorAll('.fila')];
+      let total = 0;
+      for (const fila of filas) {
+        const cant = parseInt(fila.querySelector('.cantidad').value || '0', 10);
+        const precio = parseFloat(fila.querySelector('.precio').value || '0');
+        const parcial = Number.isFinite(cant) && Number.isFinite(precio) ? cant * precio : 0;
+        fila.querySelector('.parcial').textContent = parcial.toFixed(2);
+        total += parcial;
+      }
+      subtotalEl.textContent = `${total.toFixed(2)} €`;
+      totalEl.textContent = `${total.toFixed(2)} €`;
+    }
+
+    function addLinea(concepto = '', cantidad = 1, precio = 0) {
+      const row = document.createElement('div');
+      row.className = 'fila';
+      row.innerHTML = `
+        <input class="concepto" placeholder="Concepto" value="${concepto}" />
+        <input class="cantidad" type="number" min="1" value="${cantidad}" />
+        <input class="precio" type="number" min="0" step="0.01" value="${precio}" />
+        <span class="parcial">0.00</span>
+        <button class="del" type="button">×</button>
+      `;
+      row.querySelector('.cantidad').addEventListener('input', calcTotals);
+      row.querySelector('.precio').addEventListener('input', calcTotals);
+      row.querySelector('.del').addEventListener('click', () => {
+        if (lineasEl.children.length <= 1) return;
+        row.remove();
+        calcTotals();
+      });
+      lineasEl.appendChild(row);
+      calcTotals();
+    }
+
+    async function request(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        credentials: 'same-origin',
+        ...options,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || 'Error inesperado');
+      }
+      return res.json().catch(() => ({}));
+    }
+
+    document.getElementById('btn-login').addEventListener('click', async () => {
+      const usuario = document.getElementById('usuario').value.trim();
+      const password = document.getElementById('password').value;
+      const error = document.getElementById('login-error');
+      error.textContent = '';
+
+      try {
+        const password_hash = await sha256(password);
+        await request('/api/login', {
+          method: 'POST',
+          body: JSON.stringify({ usuario, password_hash }),
+        });
+        toggleView(true);
+      } catch (e) {
+        error.textContent = e.message;
+      }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      await request('/api/logout', { method: 'POST', body: '{}' });
+      toggleView(false);
+    });
+
+    document.getElementById('btn-add').addEventListener('click', () => addLinea());
+
+    document.getElementById('btn-generar').addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+
+      const lineas = [...lineasEl.querySelectorAll('.fila')].map((fila) => ({
+        concepto: fila.querySelector('.concepto').value.trim(),
+        cantidad: Number(fila.querySelector('.cantidad').value),
+        precio_unitario: Number(fila.querySelector('.precio').value),
+      }));
+
+      try {
+        const data = await request('/api/generar', {
+          method: 'POST',
+          body: JSON.stringify({
+            cliente_nombre: document.getElementById('cliente_nombre').value,
+            cliente_nif: document.getElementById('cliente_nif').value,
+            lineas,
+          }),
+        });
+
+        resultadoEl.textContent = `Factura ${data.numero} generada. Descargando...`;
+        estadoEl.textContent = `Última factura: ${data.numero}`;
+        const a = document.createElement('a');
+        a.href = data.download_url;
+        a.download = data.archivo;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {
+        errorEl.textContent = e.message;
+      }
+    });
+
+    async function bootstrap() {
+      try {
+        const session = await request('/api/session');
+        toggleView(Boolean(session.logged_in));
+      } catch {
+        toggleView(false);
+      }
+      addLinea();
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>

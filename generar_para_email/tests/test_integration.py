@@ -34,13 +34,13 @@ class TestIntegrationFlowCompleto:
         lineas = [LineaFactura(**d) for d in sample_factura_data["lineas"]]
         factura = Factura(**{**sample_factura_data, "lineas": lineas})
 
-        # Cálculos esperados:
+        # Cálculos esperados (IVA incluido en precios):
         # Línea 1: 1 x 100 = 100
         # Línea 2: 2 x 50 = 100
-        # Total: 200 + IVA 42 = 242
+        # Total: 200
         assert factura.base_imponible == 200.00
-        assert factura.cuota_iva == 42.00
-        assert factura.total_con_iva == 242.00
+        assert factura.cuota_iva == 0.00
+        assert factura.total_con_iva == 200.00
 
     def test_contador_incremento_secuencial(self, temp_contador_file):
         """Simular incremento secuencial del contador."""
@@ -142,7 +142,7 @@ class TestIntegrationFlowCompleto:
         # 4. Verificar que es válida
         assert factura.numero == 1
         assert factura.cliente_nombre == ""
-        assert factura.total_con_iva == 242.00
+        assert factura.total_con_iva == 200.00
 
         # 5. Guardar archivo
         facturas_dir = temp_dir / "facturas"
