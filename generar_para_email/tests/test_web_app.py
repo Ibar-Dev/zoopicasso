@@ -10,6 +10,14 @@ from fastapi.testclient import TestClient
 from web.app import app
 
 
+def test_index_ok():
+    client = TestClient(app)
+    res = client.get("/")
+
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+
+
 def test_health_ok():
     client = TestClient(app)
     res = client.get("/api/health")
