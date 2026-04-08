@@ -12,6 +12,7 @@
 import logging
 import os
 import shutil
+import ctypes
 from pathlib import Path
 
 import openpyxl
@@ -72,9 +73,46 @@ def _aplicar_fila_tabla(ws, fila: int, valores: list, alternar: bool) -> None:
 
 
 def _rutas_documentos_windows() -> list[Path]:
-    """Devuelve posibles rutas de Documentos en Windows (incluyendo OneDrive)."""
+    """Devuelve posibles rutas de Documentos en Windows (incluyendo fallback)."""
     if os.name != "nt":
         return []
+
+    def _ruta_documentos_windows_sistema() -> Path | None:
+        """
+        Obtiene la carpeta real de Documentos usando la API de Windows.
+        Esta vía funciona aunque el sistema esté en otro idioma o la ruta se haya movido.
+        """
+        class _GUID(ctypes.Structure):
+            _fields_ = [
+                ("Data1", ctypes.c_uint32),
+                ("Data2", ctypes.c_uint16),
+                ("Data3", ctypes.c_uint16),
+                ("Data4", ctypes.c_ubyte * 8),
+            ]
+
+        folder_id = _GUID(
+            0xFDD39AD0,
+            0x238F,
+            0x46AF,
+            (ctypes.c_ubyte * 8)(0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7),
+        )
+
+        try:
+            path_ptr = ctypes.c_wchar_p()
+            resultado = ctypes.windll.shell32.SHGetKnownFolderPath(
+                ctypes.byref(folder_id),
+                0,
+                None,
+                ctypes.byref(path_ptr),
+            )
+            if resultado != 0 or not path_ptr.value:
+                return None
+
+            ruta = Path(path_ptr.value)
+            ctypes.windll.ole32.CoTaskMemFree(ctypes.cast(path_ptr, ctypes.c_void_p))
+            return ruta
+        except Exception:
+            return None
 
     ruta_env = os.getenv("FACTURAS_DIR_WINDOWS", "").strip()
     if ruta_env:
@@ -82,6 +120,11 @@ def _rutas_documentos_windows() -> list[Path]:
         if not ruta.is_absolute():
             ruta = (Path.home() / ruta).resolve()
         return [ruta]
+
+    rutas_preferidas = []
+    ruta_docs_sistema = _ruta_documentos_windows_sistema()
+    if ruta_docs_sistema is not None:
+        rutas_preferidas.append(ruta_docs_sistema)
 
     base = Path.home()
     candidatas = [
@@ -101,13 +144,23 @@ def _rutas_documentos_windows() -> list[Path]:
 
     vistas = set()
     rutas_validas = []
-    for ruta in candidatas:
+    for ruta in rutas_preferidas + candidatas:
         ruta_resuelta = ruta.resolve()
         if ruta_resuelta in vistas:
             continue
         vistas.add(ruta_resuelta)
         if ruta.exists() and ruta.is_dir():
             rutas_validas.append(ruta)
+
+    # Fallback final: crear Documents bajo HOME si no se detectó ninguna carpeta.
+    if not rutas_validas:
+        fallback = Path.home() / "Documents"
+        rutas_validas.append(fallback)
+        logger.warning(
+            "No se encontró carpeta de Documentos en Windows. "
+            f"Se usará fallback: {fallback}"
+        )
+
     return rutas_validas
 
 

@@ -76,3 +76,18 @@ def test_rutas_documentos_windows_env_relativa(monkeypatch, tmp_path):
 
     assert len(rutas) == 1
     assert str(rutas[0]).endswith("mis-facturas")
+
+
+def test_copia_windows_crea_fallback_documents(monkeypatch, tmp_path):
+    monkeypatch.setattr(factura_writer.os, "name", "nt", raising=False)
+    monkeypatch.delenv("FACTURAS_DIR_WINDOWS", raising=False)
+    monkeypatch.setattr(factura_writer.Path, "home", classmethod(lambda cls: tmp_path))
+
+    archivo = tmp_path / "factura.xlsx"
+    archivo.write_bytes(b"excel")
+
+    destino = factura_writer._copiar_en_documentos_windows(archivo)
+
+    assert destino is not None
+    assert destino.exists()
+    assert (tmp_path / "Documents" / "Facturas").exists()

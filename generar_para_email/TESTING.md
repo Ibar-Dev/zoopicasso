@@ -2,14 +2,14 @@
 
 ## Overview
 
-Comprehensive test suite for the invoice generation system with **90 tests** covering all modules.
+Comprehensive test suite for the invoice generation system with **91 tests** covering all modules.
 
 ### Test Statistics
-- **Total Tests**: 90
-- **Passing**: 90 ✅
+- **Total Tests**: 91
+- **Passing**: 91 ✅
 - **Failing**: 0
 - **Execution Time**: ~0.10-0.21 seconds
-- **Code Coverage**: 88% overall
+- **Code Coverage**: 90% overall
 
 ## Test Structure
 
@@ -130,12 +130,13 @@ These tests execute real module logic with monkeypatching of filesystem-dependen
 - `test_leer_contador_corrupto_lanza_json_error`: Corrupted JSON handling
 - `test_escribir_error_io_propagado`: I/O write error propagation
 
-#### test_factura_writer_real.py (5 tests)
+#### test_factura_writer_real.py (6 tests)
 - `test_generar_factura_xlsx_crea_archivo`: Real XLSX generation
 - `test_generar_factura_xlsx_contenido_basico`: Validates key workbook cells
 - `test_copiar_en_documentos_windows_sin_rutas`: No-copy branch
 - `test_copiar_en_documentos_windows_ok`: Copy success branch
 - `test_rutas_documentos_windows_env_relativa`: Windows env path resolution
+- `test_copia_windows_crea_fallback_documents`: Creates fallback Documents/Facturas when needed
 
 #### test_settings_real.py (5 tests)
 - `test_cargar_env_carga_variables`: Real .env parsing
@@ -218,7 +219,7 @@ def sample_factura_data():
 
 ## Code Coverage
 
-**Overall**: 88% (308/351 statements)
+**Overall**: 90% (337/374 statements)
 
 **By Module**:
 | Module | Coverage | Statements |
@@ -226,7 +227,7 @@ def sample_factura_data():
 | factura_model.py | 100% | 38/38 ✅ |
 | __init__.py | 100% | 0/0 ✅ |
 | factura_counter.py | 81% | 38/47 |
-| factura_writer.py | 85% | 167/197 |
+| factura_writer.py | 89% | 196/220 |
 | settings.py | 94% | 65/69 |
 
 **Note**: Remaining uncovered lines are mostly defensive/error branches that require deep fault injection.
