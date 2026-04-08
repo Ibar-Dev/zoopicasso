@@ -104,6 +104,22 @@ Alternativas de dominio gratis para habilitar HTTPS luego:
 - DuckDNS
 - No-IP (plan gratuito)
 
+### Deploy en Render (muy simple)
+
+Este repo ya incluye `render.yaml` para desplegar la app web de facturas.
+
+1. En Render: **New +** → **Blueprint**
+2. Conectar el repo `Ibar-Dev/zoopicasso`
+3. Render detecta `render.yaml` y crea el servicio `facturas-gisselle-web`
+4. Esperar a que termine el deploy y abrir la URL pública (`https://...onrender.com`)
+
+Notas:
+
+- La app web queda publicada desde `generar_para_email`.
+- `WEB_SESSION_SECRET` se genera automáticamente en Render.
+- En Render se usa HTTPS, por eso `WEB_SESSION_HTTPS_ONLY=true`.
+- Si el servicio free queda inactivo, Render puede tardar unos segundos en “despertar”.
+
 ### HTTPS gratis con DuckDNS (recomendado)
 
 1. Crear subdominio gratis en DuckDNS (ejemplo: `misfacturas.duckdns.org`) y copiar token.

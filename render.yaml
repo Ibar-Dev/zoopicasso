@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: facturas-gisselle-web
+    runtime: python
+    rootDir: generar_para_email
+    buildCommand: pip install --upgrade pip && pip install fastapi uvicorn jinja2 itsdangerous openpyxl
+    startCommand: uvicorn web.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: WEB_SESSION_SECRET
+        generateValue: true
+      - key: WEB_SESSION_HTTPS_ONLY
+        value: "true"
+      - key: WEB_SESSION_SAME_SITE
+        value: "lax"
