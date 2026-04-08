@@ -2,14 +2,14 @@
 
 ## Overview
 
-Comprehensive test suite for the invoice generation system with **75 tests** covering all modules.
+Comprehensive test suite for the invoice generation system with **90 tests** covering all modules.
 
 ### Test Statistics
-- **Total Tests**: 75
-- **Passing**: 75 ✅
+- **Total Tests**: 90
+- **Passing**: 90 ✅
 - **Failing**: 0
-- **Execution Time**: ~0.06-0.18 seconds
-- **Code Coverage**: 11% overall (factura_model.py: 100%)
+- **Execution Time**: ~0.10-0.21 seconds
+- **Code Coverage**: 88% overall
 
 ## Test Structure
 
@@ -119,6 +119,31 @@ End-to-end workflow tests combining multiple modules.
 - `test_formateo_numero_factura_consistente`: Invoice number formatting
 - `test_formateo_fecha_consistente`: Date formatting
 
+### 3. Real-Execution Tests (15 tests)
+
+These tests execute real module logic with monkeypatching of filesystem-dependent paths.
+
+#### test_factura_counter_real.py (5 tests)
+- `test_inicializar_contador_crea_archivo`: Creates counter file and initializes with 0
+- `test_leer_y_escribir_contador_real`: Reads and writes real JSON values
+- `test_siguiente_numero_factura_incrementa`: Sequential increments via public API
+- `test_leer_contador_corrupto_lanza_json_error`: Corrupted JSON handling
+- `test_escribir_error_io_propagado`: I/O write error propagation
+
+#### test_factura_writer_real.py (5 tests)
+- `test_generar_factura_xlsx_crea_archivo`: Real XLSX generation
+- `test_generar_factura_xlsx_contenido_basico`: Validates key workbook cells
+- `test_copiar_en_documentos_windows_sin_rutas`: No-copy branch
+- `test_copiar_en_documentos_windows_ok`: Copy success branch
+- `test_rutas_documentos_windows_env_relativa`: Windows env path resolution
+
+#### test_settings_real.py (5 tests)
+- `test_cargar_env_carga_variables`: Real .env parsing
+- `test_ruta_desde_env_relativa`: Relative path resolution
+- `test_ruta_desde_env_defecto`: Default path fallback
+- `test_configurar_logging_crea_rotating_handler`: Real rotating handler setup
+- `test_configurar_logging_valores_invalidos`: Invalid numeric fallback values
+
 ## Test Fixtures (conftest.py)
 
 Reusable pytest fixtures for test isolation:
@@ -193,22 +218,18 @@ def sample_factura_data():
 
 ## Code Coverage
 
-**Overall**: 11% (38/351 statements)
+**Overall**: 88% (308/351 statements)
 
 **By Module**:
 | Module | Coverage | Statements |
 |--------|----------|------------|
 | factura_model.py | 100% | 38/38 ✅ |
 | __init__.py | 100% | 0/0 ✅ |
-| factura_counter.py | 0% | 0/47 |
-| factura_writer.py | 0% | 0/197 |
-| settings.py | 0% | 0/69 |
+| factura_counter.py | 81% | 38/47 |
+| factura_writer.py | 85% | 167/197 |
+| settings.py | 94% | 65/69 |
 
-**Note**: Low overall coverage is intentional:
-- Data model layer (factura_model.py) has 100% coverage
-- I/O layers tested via isolation (mocks, fixtures)
-- Integration tests validate workflows without full imports
-- Approach prioritizes error handling and edge cases
+**Note**: Remaining uncovered lines are mostly defensive/error branches that require deep fault injection.
 
 ## Testing Approach
 
@@ -250,6 +271,7 @@ ptw
 Test suite tracked in commits:
 - `e5afbdd`: Initial 63 unit and settings tests
 - `d90d911`: 12 integration tests (75 total)
+- `63da075`: Testing documentation baseline
 
 Run tests before committing:
 ```bash
