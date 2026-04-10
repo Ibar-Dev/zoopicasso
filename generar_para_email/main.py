@@ -239,7 +239,14 @@ def main(page: ft.Page):
             try:
                 ruta_generada = generar_factura_xlsx(factura)
                 destino.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(ruta_generada, destino)
+                if ruta_generada.resolve() != destino.resolve():
+                    shutil.copy2(ruta_generada, destino)
+                else:
+                    logger.info(
+                        "La factura %s ya estaba en la ruta seleccionada: %s",
+                        factura.numero_formateado,
+                        destino,
+                    )
             except Exception as ex:
                 lbl_estado.value = f"Error al generar/guardar el archivo: {ex}"
                 lbl_estado.color = ft.Colors.RED_600
