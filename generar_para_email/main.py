@@ -5,6 +5,7 @@
 import hashlib
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from datetime import date
@@ -205,6 +206,61 @@ def main(page: ft.Page):
             width=200,
         )
 
+        selector_guardado = ft.FilePicker()
+
+        def _ruta_guardado_con_extension(path_str: str) -> Path:
+            ruta = Path(path_str)
+            if ruta.suffix.lower() != ".xlsx":
+                ruta = ruta.with_suffix(".xlsx")
+            return ruta
+
+        async def _guardar_factura_con_dialogo(factura: Factura) -> None:
+            try:
+                destino_path = await selector_guardado.save_file(
+                    dialog_title="Guardar factura Calc",
+                    file_name=f"factura_{factura.fecha.year}_{factura.numero:03d}.xlsx",
+                    file_type=ft.FilePickerFileType.CUSTOM,
+                    allowed_extensions=["xlsx"],
+                )
+            except Exception as ex:
+                lbl_estado.value = f"No se pudo abrir el selector de guardado: {ex}"
+                lbl_estado.color = ft.Colors.RED_600
+                logger.error("Error al abrir diálogo de guardado: %s", ex, exc_info=True)
+                page.update()
+                return
+
+            if not destino_path:
+                lbl_estado.value = "Generación cancelada. No se seleccionó carpeta de guardado."
+                lbl_estado.color = ft.Colors.ORANGE_700
+                page.update()
+                return
+
+            destino = _ruta_guardado_con_extension(destino_path)
+            try:
+                ruta_generada = generar_factura_xlsx(factura)
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ruta_generada, destino)
+            except Exception as ex:
+                lbl_estado.value = f"Error al generar/guardar el archivo: {ex}"
+                lbl_estado.color = ft.Colors.RED_600
+                logger.error(
+                    "Error al generar factura %s en destino %s: %s",
+                    factura.numero_formateado,
+                    destino,
+                    ex,
+                    exc_info=True,
+                )
+                page.update()
+                return
+
+            logger.info("Factura %s guardada en %s", factura.numero_formateado, destino)
+            lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {destino}"
+            lbl_estado.color = ft.Colors.GREEN_700
+            page.update()
+            resetear()
+
+        page.overlay.append(selector_guardado)
+
         # ── Callbacks ─────────────────────────────────────────────────────────
         def actualizar_totales():
             try:
@@ -266,8 +322,6 @@ def main(page: ft.Page):
                 page.update()
 
         def generar(_=None):
-            nonlocal numero_factura
-
             # Validar y construir líneas
             try:
                 lineas = [f.a_linea_factura() for f in filas]
@@ -290,27 +344,10 @@ def main(page: ft.Page):
                 f"Cliente: {cliente_log} · "
                 f"Total: {factura.total_con_iva:.2f} €"
             )
-
-            try:
-                ruta = generar_factura_xlsx(factura)
-            except Exception as e:
-                lbl_estado.value = f"Error al generar el archivo: {e}"
-                lbl_estado.color = ft.Colors.RED_600
-                logger.error(
-                    "Error al generar factura %s: %s",
-                    factura.numero_formateado,
-                    e,
-                    exc_info=True,
-                )
-                page.update()
-                return
-
-            lbl_estado.value = (
-                f"✓  Factura {factura.numero_formateado} generada: {ruta.name}"
-            )
-            lbl_estado.color = ft.Colors.GREEN_700
+            lbl_estado.value = "Selecciona dónde guardar el archivo Calc (.xlsx)..."
+            lbl_estado.color = ft.Colors.BLUE_700
             page.update()
-            resetear()
+            page.run_task(_guardar_factura_con_dialogo, factura)
 
         # ── Construcción de la UI ─────────────────────────────────────────────
 
