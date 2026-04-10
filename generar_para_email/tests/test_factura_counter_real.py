@@ -1,9 +1,34 @@
 import json
+import importlib
 from pathlib import Path
 
 import pytest
 
 from src import factura_counter
+
+
+def test_ruta_contador_por_defecto_apunta_a_data_del_proyecto(monkeypatch):
+    monkeypatch.delenv("CONTADOR_PATH", raising=False)
+    modulo = importlib.reload(factura_counter)
+
+    esperado = (Path(modulo.__file__).resolve().parent.parent / "data" / "contador_facturas.json").resolve()
+    assert modulo.RUTA_CONTADOR == esperado
+
+
+def test_ruta_contador_usa_contador_path_absoluto(monkeypatch, tmp_path):
+    ruta_override = (tmp_path / "custom" / "contador.json").resolve()
+    monkeypatch.setenv("CONTADOR_PATH", str(ruta_override))
+    modulo = importlib.reload(factura_counter)
+
+    assert modulo.RUTA_CONTADOR == ruta_override
+
+
+def test_ruta_contador_usa_contador_path_relativo(monkeypatch):
+    monkeypatch.setenv("CONTADOR_PATH", "tmp/contador_relativo.json")
+    modulo = importlib.reload(factura_counter)
+
+    esperado = (Path(modulo.__file__).resolve().parent.parent / "tmp" / "contador_relativo.json").resolve()
+    assert modulo.RUTA_CONTADOR == esperado
 
 
 def test_inicializar_contador_crea_archivo(tmp_path, monkeypatch):

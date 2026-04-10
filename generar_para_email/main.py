@@ -262,6 +262,7 @@ def main(page: ft.Page):
             except Exception as e:
                 lbl_estado.value = f"No se pudo abrir la carpeta: {e}"
                 lbl_estado.color = ft.Colors.RED_600
+                logger.error("Error al abrir carpeta de facturas: %s", e, exc_info=True)
                 page.update()
 
         def generar(_=None):
@@ -295,7 +296,12 @@ def main(page: ft.Page):
             except Exception as e:
                 lbl_estado.value = f"Error al generar el archivo: {e}"
                 lbl_estado.color = ft.Colors.RED_600
-                logger.error(f"Error al generar factura {factura.numero_formateado}: {e}")
+                logger.error(
+                    "Error al generar factura %s: %s",
+                    factura.numero_formateado,
+                    e,
+                    exc_info=True,
+                )
                 page.update()
                 return
 

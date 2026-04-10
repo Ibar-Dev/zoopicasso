@@ -9,6 +9,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,21 @@ logger = logging.getLogger(__name__)
 # Ruta relativa a la ubicación de este archivo, no al directorio de ejecución.
 # Funciona igual en Linux (desarrollo) y Windows (instalación en casa de Gisselle).
 _BASE = Path(__file__).resolve().parent.parent   # → generar_para_email/
-RUTA_CONTADOR = _BASE / "data" / "contador_facturas.json"
+
+
+def _ruta_contador_desde_env() -> Path:
+    """Resuelve la ruta del contador desde CONTADOR_PATH o usa la ruta por defecto."""
+    valor = os.getenv("CONTADOR_PATH", "").strip()
+    if not valor:
+        return (_BASE / "data" / "contador_facturas.json").resolve()
+
+    ruta = Path(valor).expanduser()
+    if not ruta.is_absolute():
+        ruta = _BASE / ruta
+    return ruta.resolve()
+
+
+RUTA_CONTADOR = _ruta_contador_desde_env()
 
 
 def _inicializar_contador() -> None:

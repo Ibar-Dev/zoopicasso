@@ -20,6 +20,11 @@ LOG_MAX_BYTES=5242880
 
 # Cantidad de archivos de log rotados a mantener (default: 5)
 LOG_BACKUP_COUNT=5
+
+# Ruta del contador de facturas (opcional).
+# Si es relativa, se resuelve desde generar_para_email/.
+# Si no se define, usa: data/contador_facturas.json
+CONTADOR_PATH=data/contador_facturas.json
 ```
 
 ## Niveles de Logging

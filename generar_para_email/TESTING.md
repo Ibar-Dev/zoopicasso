@@ -207,6 +207,15 @@ def sample_factura_data():
 ./.venv/bin/python -m pytest tests/test_factura_model.py -v
 ```
 
+### Validate counter path behavior
+```bash
+# Default behavior (uses data/contador_facturas.json)
+PYTHONPATH=. uv run --active pytest tests/test_factura_counter_real.py::test_ruta_contador_por_defecto_apunta_a_data_del_proyecto -q
+
+# Override with absolute path via CONTADOR_PATH
+PYTHONPATH=. CONTADOR_PATH=/tmp/contador.json uv run --active pytest tests/test_factura_counter_real.py::test_ruta_contador_usa_contador_path_absoluto -q
+```
+
 ### Run with coverage report
 ```bash
 ./.venv/bin/python -m pytest tests/ --cov=src --cov-report=html

@@ -66,6 +66,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 def _requiere_login(request: Request) -> None:
     if not request.session.get("logged_in"):
+        logger.warning("Acceso no autenticado a endpoint protegido.")
         raise HTTPException(status_code=401, detail="No autenticado")
 
 
@@ -94,7 +95,9 @@ def login(payload: LoginPayload, request: Request) -> JSONResponse:
 
 @app.post("/api/logout")
 def logout(request: Request) -> dict[str, bool]:
+    usuario = request.session.get("usuario", "(desconocido)")
     request.session.clear()
+    logger.info("Cierre de sesión web: %s", usuario)
     return {"ok": True}
 
 
@@ -153,9 +156,13 @@ def descargar(nombre_archivo: str, request: Request) -> FileResponse:
 
     ruta = (RUTA_FACTURAS / nombre_archivo).resolve()
     if not str(ruta).startswith(str(RUTA_FACTURAS.resolve())):
+        logger.warning("Intento de descarga con nombre inválido: %s", nombre_archivo)
         raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
     if not ruta.exists():
+        logger.warning("Archivo solicitado no encontrado: %s", ruta)
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    logger.info("Descarga de factura: %s", ruta.name)
 
     return FileResponse(
         path=ruta,
