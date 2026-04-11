@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import re
 from datetime import date
 from pathlib import Path
 from typing import Callable
@@ -53,7 +54,7 @@ class FilaConcepto:
             on_change=lambda _: self._recalcular(on_change),
         )
         self.precio = ft.TextField(
-            label="P. Unit. (IVA incluido)",
+            label="P. Unit. (EUR, IVA incluido)",
             value="0.00",
             width=130,
             keyboard_type=ft.KeyboardType.NUMBER,
@@ -67,10 +68,17 @@ class FilaConcepto:
             bgcolor=ft.Colors.GREY_200,
         )
 
+    def _precio_valido(self, texto: str) -> bool:
+        patron = r"^(0|[1-9]\d*)([\.,]\d{1,2})?$"
+        return bool(re.fullmatch(patron, texto))
+
     def _recalcular(self, on_change: Callable[[], None]):
         try:
+            precio_txt = self.precio.value.strip()
+            if not self._precio_valido(precio_txt):
+                raise ValueError("Formato de precio invalido")
             cantidad = int(self.cantidad.value)
-            precio = float(self.precio.value)
+            precio = float(precio_txt.replace(",", "."))
             self.total.value = f"{round(cantidad * precio, 2):.2f}"
         except ValueError:
             self.total.value = "0.00"
@@ -87,7 +95,12 @@ class FilaConcepto:
         if not concepto:
             raise ValueError("El concepto no puede estar vacío.")
         cantidad = int(self.cantidad.value)
-        precio = float(self.precio.value)
+        precio_txt = self.precio.value.strip()
+        if not self._precio_valido(precio_txt):
+            raise ValueError(
+                "Precio inválido: usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50)."
+            )
+        precio = float(precio_txt.replace(",", "."))
         return LineaFactura(concepto=concepto, cantidad=cantidad, precio_unitario=precio)
 
 
@@ -190,7 +203,6 @@ def main(page: ft.Page):
             color=ft.Colors.GREY_700,
         )
 
-        lbl_base = ft.Text(value="0.00 €", size=13, color=ft.Colors.GREY_800)
         lbl_iva = ft.Text(value="0.00 €", size=13, color=ft.Colors.GREY_800)
         lbl_total = ft.Text(
             value="0.00 €",
@@ -202,11 +214,15 @@ def main(page: ft.Page):
         lbl_total_dia = ft.Text(value="0.00 €", size=15, weight=ft.FontWeight.BOLD)
         lbl_estado = ft.Text(value="", size=13)
         txt_ajuste = ft.TextField(
-            label="Ajuste manual (-)",
-            hint_text="Ej: 12.50",
+            label="Ajuste manual (- EUR)",
+            hint_text="Ej: 12.50 EUR",
             width=170,
             keyboard_type=ft.KeyboardType.NUMBER,
         )
+
+        def _importe_eur_valido(texto: str) -> bool:
+            patron = r"^(0|[1-9]\d*)([\.,]\d{1,2})?$"
+            return bool(re.fullmatch(patron, texto))
 
         txt_cliente_nombre = ft.TextField(
             label="Nombre / Empresa del cliente (opcional)",
@@ -316,11 +332,9 @@ def main(page: ft.Page):
         def actualizar_totales():
             try:
                 total = round(sum(float(f.total.value) for f in filas), 2)
-                lbl_base.value = f"{total:.2f} €"
                 lbl_iva.value = "Incluido"
                 lbl_total.value = f"{total:.2f} €"
             except ValueError:
-                lbl_base.value = "0.00 €"
                 lbl_iva.value = "Incluido"
                 lbl_total.value = "0.00 €"
             page.update()
@@ -404,6 +418,14 @@ def main(page: ft.Page):
             nonlocal total_dia
 
             valor_txt = txt_ajuste.value.strip().replace(",", ".")
+            if not _importe_eur_valido(valor_txt):
+                lbl_estado.value = (
+                    "Importe invalido: usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50)."
+                )
+                lbl_estado.color = ft.Colors.RED_600
+                page.update()
+                return
+
             try:
                 ajuste = float(valor_txt)
             except ValueError:
@@ -478,14 +500,6 @@ def main(page: ft.Page):
 
         bloque_totales = ft.Column(
             controls=[
-                ft.Row(
-                    controls=[
-                        ft.Text("Subtotal:", size=13, color=ft.Colors.GREY_700),
-                        lbl_base,
-                    ],
-                    alignment=ft.MainAxisAlignment.END,
-                    spacing=8,
-                ),
                 ft.Row(
                     controls=[
                         ft.Text("IVA:", size=13, color=ft.Colors.GREY_700),
