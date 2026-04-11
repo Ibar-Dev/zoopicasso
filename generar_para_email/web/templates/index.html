@@ -55,6 +55,7 @@
         <span>Subtotal:</span><strong id="subtotal">0.00 €</strong>
         <span>IVA:</span><strong>Incluido</strong>
         <span>Total:</span><strong id="total">0.00 €</strong>
+        <span>Facturas del día:</span><strong id="facturas-dia">0</strong>
         <span>Acumulado del día:</span><strong id="acumulado-dia">0.00 €</strong>
       </div>
 
@@ -70,11 +71,13 @@
     const lineasEl = document.getElementById('lineas');
     const subtotalEl = document.getElementById('subtotal');
     const totalEl = document.getElementById('total');
+    const facturasDiaEl = document.getElementById('facturas-dia');
     const acumuladoDiaEl = document.getElementById('acumulado-dia');
     const estadoEl = document.getElementById('estado');
     const resultadoEl = document.getElementById('resultado');
     const errorEl = document.getElementById('error');
     let acumuladoDia = 0;
+    let facturasDia = 0;
 
     function sha256(text) {
       return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(buf =>
@@ -169,6 +172,8 @@
         return;
       }
       await request('/api/logout', { method: 'POST', body: '{}' });
+      facturasDia = 0;
+      facturasDiaEl.textContent = '0';
       acumuladoDia = 0;
       acumuladoDiaEl.textContent = '0.00 €';
       resetFormulario();
@@ -199,6 +204,8 @@
 
         resultadoEl.textContent = `Factura ${data.numero} generada. Descargando...`;
         estadoEl.textContent = `Última factura: ${data.numero}`;
+        facturasDia += 1;
+        facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia += Number(data.total);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
         const a = document.createElement('a');
