@@ -55,7 +55,8 @@ class FilaConcepto:
         )
         self.precio = ft.TextField(
             label="P. Unit. (EUR, IVA incluido)",
-            value="0.00",
+            value="",
+            hint_text="€",
             width=130,
             keyboard_type=ft.KeyboardType.NUMBER,
             on_change=lambda _: self._recalcular(on_change),
