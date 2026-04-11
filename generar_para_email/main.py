@@ -179,6 +179,7 @@ def main(page: ft.Page):
         filas: list[FilaConcepto] = []
         numero_factura = siguiente_numero_factura()
         total_dia = 0.0
+        facturas_dia = 0
 
         # ── Controles dinámicos ───────────────────────────────────────────────
         contenedor_filas = ft.Column(spacing=6)
@@ -197,6 +198,7 @@ def main(page: ft.Page):
             weight=ft.FontWeight.BOLD,
             color=ft.Colors.BLUE_800,
         )
+        lbl_facturas_dia = ft.Text(value="0", size=15, weight=ft.FontWeight.BOLD)
         lbl_total_dia = ft.Text(value="0.00 €", size=15, weight=ft.FontWeight.BOLD)
         lbl_estado = ft.Text(value="", size=13)
 
@@ -219,7 +221,7 @@ def main(page: ft.Page):
             return ruta
 
         async def _guardar_factura_con_dialogo(factura: Factura) -> None:
-            nonlocal total_dia
+            nonlocal total_dia, facturas_dia
             try:
                 destino_path = await selector_guardado.save_file(
                     dialog_title="Guardar factura Calc",
@@ -266,7 +268,9 @@ def main(page: ft.Page):
                 return
 
             logger.info("Factura %s guardada en %s", factura.numero_formateado, destino)
+            facturas_dia += 1
             total_dia = round(total_dia + factura.total_con_iva, 2)
+            lbl_facturas_dia.value = str(facturas_dia)
             lbl_total_dia.value = f"{total_dia:.2f} €"
             lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {destino}"
             lbl_estado.color = ft.Colors.GREEN_700
@@ -455,6 +459,19 @@ def main(page: ft.Page):
                     controls=[
                         ft.Text("TOTAL:", size=18, weight=ft.FontWeight.BOLD),
                         lbl_total,
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                    spacing=8,
+                ),
+                ft.Row(
+                    controls=[
+                        ft.Text(
+                            "FACTURAS DEL DÍA:",
+                            size=13,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                        lbl_facturas_dia,
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=8,
