@@ -59,6 +59,14 @@
         <span>Acumulado del día:</span><strong id="acumulado-dia">0.00 €</strong>
       </div>
 
+      <div class="lineas-head">
+        <h3>Ajuste Manual</h3>
+      </div>
+      <div class="fila">
+        <input id="ajuste" type="number" min="0" step="0.01" placeholder="Importe a restar del acumulado" />
+        <button id="btn-restar" class="ghost" type="button">Restar</button>
+      </div>
+
       <button id="btn-generar" class="cta">Generar factura y descargar</button>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
@@ -76,6 +84,7 @@
     const estadoEl = document.getElementById('estado');
     const resultadoEl = document.getElementById('resultado');
     const errorEl = document.getElementById('error');
+    const ajusteEl = document.getElementById('ajuste');
     let acumuladoDia = 0;
     let facturasDia = 0;
 
@@ -136,6 +145,26 @@
       return window.confirm(mensaje);
     }
 
+    function restarAcumulado() {
+      errorEl.textContent = '';
+      const ajuste = Number((ajusteEl.value || '').replace(',', '.'));
+
+      if (!Number.isFinite(ajuste) || ajuste <= 0) {
+        errorEl.textContent = 'Introduce un importe válido mayor que 0 para ajustar.';
+        return;
+      }
+
+      if (ajuste > acumuladoDia) {
+        errorEl.textContent = 'El ajuste no puede superar el acumulado del día.';
+        return;
+      }
+
+      acumuladoDia = Number((acumuladoDia - ajuste).toFixed(2));
+      acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
+      resultadoEl.textContent = `Ajuste aplicado: -${ajuste.toFixed(2)} € al acumulado.`;
+      ajusteEl.value = '';
+    }
+
     async function request(path, options = {}) {
       const res = await fetch(path, {
         headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
@@ -181,6 +210,13 @@
     });
 
     document.getElementById('btn-add').addEventListener('click', () => addLinea());
+    document.getElementById('btn-restar').addEventListener('click', restarAcumulado);
+    ajusteEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        restarAcumulado();
+      }
+    });
 
     document.getElementById('btn-generar').addEventListener('click', async () => {
       resultadoEl.textContent = '';
