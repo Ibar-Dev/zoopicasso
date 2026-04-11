@@ -34,6 +34,112 @@ from src.factura_writer import generar_factura_xlsx
 logger = logging.getLogger(__name__)
 
 
+def _normalizar_importe(valor: float) -> str:
+    return f"{valor:.2f} EUR"
+
+
+def _comprimir_texto(texto: str, max_chars: int) -> str:
+    texto = " ".join(texto.split())
+    if len(texto) <= max_chars:
+        return texto
+    if max_chars <= 3:
+        return texto[:max_chars]
+    return texto[: max_chars - 3] + "..."
+
+
+def _generar_ticket_escpos(factura: Factura, ancho: int = 42) -> bytes:
+    """Construye ticket ESC/POS para papel de 80mm usando maquetado de 72mm."""
+    lineas: list[bytes] = []
+
+    def cmd(x: bytes) -> None:
+        lineas.append(x)
+
+    def txt(s: str = "") -> None:
+        lineas.append((s + "\n").encode("cp850", errors="replace"))
+
+    def separador(char: str = "-") -> None:
+        txt(char * ancho)
+
+    # Init + centrado cabecera
+    cmd(b"\x1b@")
+    cmd(b"\x1ba\x01")
+    cmd(b"\x1bE\x01")
+    txt("ZOO PICASSO")
+    cmd(b"\x1bE\x00")
+    txt("Ticket de venta")
+    txt(f"Factura {factura.numero_formateado}")
+    txt(f"Fecha {factura.fecha_formateada}")
+    cmd(b"\x1ba\x00")
+    separador()
+
+    if factura.cliente_nombre:
+        txt("Cliente: " + _comprimir_texto(factura.cliente_nombre, ancho - 9))
+    if factura.cliente_nif:
+        txt("NIF/CIF: " + _comprimir_texto(factura.cliente_nif, ancho - 9))
+    if factura.cliente_nombre or factura.cliente_nif:
+        separador()
+
+    txt("Concepto")
+    txt("Cant x P.Unit                      Total")
+    separador()
+
+    for linea in factura.lineas:
+        txt(_comprimir_texto(linea.concepto, ancho))
+        detalle = f"{linea.cantidad} x {_normalizar_importe(linea.precio_unitario)}"
+        total = _normalizar_importe(linea.total)
+        espacio = max(1, ancho - len(detalle) - len(total))
+        txt(detalle + (" " * espacio) + total)
+
+    separador()
+    total = _normalizar_importe(factura.total_con_iva)
+    etiqueta = "TOTAL"
+    espacio_total = max(1, ancho - len(etiqueta) - len(total))
+    cmd(b"\x1bE\x01")
+    txt(etiqueta + (" " * espacio_total) + total)
+    cmd(b"\x1bE\x00")
+    txt("IVA incluido")
+    separador()
+    cmd(b"\x1ba\x01")
+    txt("Gracias por tu compra")
+    txt("Zoo Picasso")
+
+    # Avance y corte total
+    cmd(b"\n\n\n")
+    cmd(b"\x1dV\x00")
+    return b"".join(lineas)
+
+
+def _imprimir_ticket_usb_windows(ticket: bytes) -> str:
+    """Imprime ticket ESC/POS en impresora predeterminada de Windows por RAW."""
+    if not sys.platform.startswith("win"):
+        raise RuntimeError("La impresion ESC/POS USB esta habilitada solo en Windows.")
+
+    try:
+        import win32print  # type: ignore[import-not-found]
+    except Exception as ex:
+        raise RuntimeError(
+            "No se encontro pywin32. Ejecuta sincronizacion de dependencias en Windows."
+        ) from ex
+
+    impresora = os.getenv("ESC_POS_PRINTER_NAME", "").strip() or win32print.GetDefaultPrinter()
+    if not impresora:
+        raise RuntimeError("No hay impresora predeterminada disponible.")
+
+    hprinter = win32print.OpenPrinter(impresora)
+    try:
+        hjob = win32print.StartDocPrinter(hprinter, 1, ("Ticket factura", None, "RAW"))
+        try:
+            win32print.StartPagePrinter(hprinter)
+            win32print.WritePrinter(hprinter, ticket)
+            win32print.EndPagePrinter(hprinter)
+        finally:
+            win32print.EndDocPrinter(hprinter)
+    finally:
+        win32print.ClosePrinter(hprinter)
+
+    return impresora
+
+
 class FilaConcepto:
     """
     Encapsula los controles de una línea de concepto en el formulario.
@@ -298,7 +404,55 @@ def main(page: ft.Page):
             lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {destino}"
             lbl_estado.color = ft.Colors.GREEN_700
             page.update()
-            resetear()
+
+            def _cerrar_dialogo_si_abierto() -> None:
+                try:
+                    page.pop_dialog()
+                except Exception:
+                    pass
+
+            def _no_imprimir(_=None) -> None:
+                _cerrar_dialogo_si_abierto()
+                resetear()
+
+            def _imprimir(_=None) -> None:
+                _cerrar_dialogo_si_abierto()
+                try:
+                    ticket = _generar_ticket_escpos(factura, ancho=42)
+                    impresora = _imprimir_ticket_usb_windows(ticket)
+                    logger.info(
+                        "Ticket impreso para factura %s en impresora %s",
+                        factura.numero_formateado,
+                        impresora,
+                    )
+                except Exception as ex:
+                    lbl_estado.value = (
+                        "Factura guardada, pero no se pudo imprimir ticket: "
+                        f"{ex}"
+                    )
+                    lbl_estado.color = ft.Colors.ORANGE_700
+                    logger.warning(
+                        "Fallo de impresion ticket para factura %s: %s",
+                        factura.numero_formateado,
+                        ex,
+                        exc_info=True,
+                    )
+                    page.update()
+                resetear()
+
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Imprimir ticket"),
+                content=ft.Text(
+                    "La factura Calc se guardo correctamente. ¿Deseas imprimir ticket ahora?"
+                ),
+                actions=[
+                    ft.TextButton("No", on_click=_no_imprimir),
+                    ft.FilledButton("Si, imprimir", on_click=_imprimir),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            page.show_dialog(dlg)
 
         page.overlay.append(selector_guardado)
 
