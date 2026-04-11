@@ -52,7 +52,6 @@
       <div id="lineas"></div>
 
       <div class="totales">
-        <span>Subtotal:</span><strong id="subtotal">0.00 €</strong>
         <span>IVA:</span><strong>Incluido</strong>
         <span>Total:</span><strong id="total">0.00 €</strong>
         <span>Facturas del día:</span><strong id="facturas-dia">0</strong>
@@ -63,7 +62,7 @@
         <h3>Ajuste Manual</h3>
       </div>
       <div class="fila">
-        <input id="ajuste" type="number" min="0" step="0.01" placeholder="Importe a restar del acumulado" />
+        <input id="ajuste" type="text" inputmode="decimal" placeholder="Importe EUR a restar del acumulado" />
         <button id="btn-restar" class="ghost" type="button">Restar</button>
       </div>
 
@@ -77,7 +76,6 @@
     const loginCard = document.getElementById('login-card');
     const appCard = document.getElementById('app-card');
     const lineasEl = document.getElementById('lineas');
-    const subtotalEl = document.getElementById('subtotal');
     const totalEl = document.getElementById('total');
     const facturasDiaEl = document.getElementById('facturas-dia');
     const acumuladoDiaEl = document.getElementById('acumulado-dia');
@@ -99,17 +97,23 @@
       appCard.classList.toggle('active', loggedIn);
     }
 
+    function importeEurValido(valor) {
+      return /^(0|[1-9]\d*)([\.,]\d{1,2})?$/.test(valor);
+    }
+
     function calcTotals() {
       const filas = [...lineasEl.querySelectorAll('.fila')];
       let total = 0;
       for (const fila of filas) {
         const cant = parseInt(fila.querySelector('.cantidad').value || '0', 10);
-        const precio = parseFloat(fila.querySelector('.precio').value || '0');
+        const precioRaw = (fila.querySelector('.precio').value || '').trim();
+        const precio = importeEurValido(precioRaw)
+          ? Number(precioRaw.replace(',', '.'))
+          : Number.NaN;
         const parcial = Number.isFinite(cant) && Number.isFinite(precio) ? cant * precio : 0;
         fila.querySelector('.parcial').textContent = parcial.toFixed(2);
         total += parcial;
       }
-      subtotalEl.textContent = `${total.toFixed(2)} €`;
       totalEl.textContent = `${total.toFixed(2)} €`;
     }
 
@@ -119,14 +123,20 @@
       row.innerHTML = `
         <input class="concepto" placeholder="Concepto" value="${concepto}" />
         <input class="cantidad" type="number" min="1" value="${cantidad}" />
-        <input class="precio" type="number" min="0" step="0.01" value="${precio}" />
+        <input class="precio" type="text" inputmode="decimal" value="${precio}" />
         <span class="parcial">0.00</span>
         <button class="del" type="button">×</button>
       `;
       row.querySelector('.cantidad').addEventListener('input', calcTotals);
       row.querySelector('.precio').addEventListener('input', calcTotals);
       row.querySelector('.del').addEventListener('click', () => {
-        if (lineasEl.children.length <= 1) return;
+        if (lineasEl.children.length <= 1) {
+          row.querySelector('.concepto').value = '';
+          row.querySelector('.cantidad').value = '1';
+          row.querySelector('.precio').value = '0.00';
+          calcTotals();
+          return;
+        }
         row.remove();
         calcTotals();
       });
@@ -147,7 +157,12 @@
 
     function restarAcumulado() {
       errorEl.textContent = '';
-      const ajuste = Number((ajusteEl.value || '').replace(',', '.'));
+      const ajusteRaw = (ajusteEl.value || '').trim();
+      if (!importeEurValido(ajusteRaw)) {
+        errorEl.textContent = 'Importe invalido: usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50).';
+        return;
+      }
+      const ajuste = Number(ajusteRaw.replace(',', '.'));
 
       if (!Number.isFinite(ajuste) || ajuste <= 0) {
         errorEl.textContent = 'Introduce un importe válido mayor que 0 para ajustar.';
@@ -225,8 +240,16 @@
       const lineas = [...lineasEl.querySelectorAll('.fila')].map((fila) => ({
         concepto: fila.querySelector('.concepto').value.trim(),
         cantidad: Number(fila.querySelector('.cantidad').value),
-        precio_unitario: Number(fila.querySelector('.precio').value),
+        precio_unitario: Number((fila.querySelector('.precio').value || '').replace(',', '.')),
       }));
+
+      const precioInvalido = [...lineasEl.querySelectorAll('.fila')].some(
+        (fila) => !importeEurValido((fila.querySelector('.precio').value || '').trim())
+      );
+      if (precioInvalido) {
+        errorEl.textContent = 'Hay precios invalidos. Usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50).';
+        return;
+      }
 
       try {
         const data = await request('/api/generar', {
