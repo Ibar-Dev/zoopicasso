@@ -127,7 +127,7 @@ def _imprimir_ticket_usb_windows(ticket: bytes) -> str:
 
     hprinter = win32print.OpenPrinter(impresora)
     try:
-        hjob = win32print.StartDocPrinter(hprinter, 1, ("Ticket factura", None, "RAW"))
+        hjob = win32print.StartDocPrinter(hprinter, 1, ("Ticket factura", "", "RAW"))
         try:
             win32print.StartPagePrinter(hprinter)
             win32print.WritePrinter(hprinter, ticket)
