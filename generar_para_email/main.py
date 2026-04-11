@@ -201,6 +201,12 @@ def main(page: ft.Page):
         lbl_facturas_dia = ft.Text(value="0", size=15, weight=ft.FontWeight.BOLD)
         lbl_total_dia = ft.Text(value="0.00 €", size=15, weight=ft.FontWeight.BOLD)
         lbl_estado = ft.Text(value="", size=13)
+        txt_ajuste = ft.TextField(
+            label="Ajuste manual (-)",
+            hint_text="Ej: 12.50",
+            width=170,
+            keyboard_type=ft.KeyboardType.NUMBER,
+        )
 
         txt_cliente_nombre = ft.TextField(
             label="Nombre / Empresa del cliente (opcional)",
@@ -394,6 +400,39 @@ def main(page: ft.Page):
             page.update()
             page.run_task(_guardar_factura_con_dialogo, factura)
 
+        def restar_acumulado(_=None):
+            nonlocal total_dia
+
+            valor_txt = txt_ajuste.value.strip().replace(",", ".")
+            try:
+                ajuste = float(valor_txt)
+            except ValueError:
+                lbl_estado.value = "Introduce un importe válido para restar del acumulado."
+                lbl_estado.color = ft.Colors.RED_600
+                page.update()
+                return
+
+            if ajuste <= 0:
+                lbl_estado.value = "El ajuste debe ser mayor que 0."
+                lbl_estado.color = ft.Colors.RED_600
+                page.update()
+                return
+
+            if ajuste > total_dia:
+                lbl_estado.value = "El ajuste no puede superar el acumulado del día."
+                lbl_estado.color = ft.Colors.RED_600
+                page.update()
+                return
+
+            total_dia = round(total_dia - ajuste, 2)
+            lbl_total_dia.value = f"{total_dia:.2f} €"
+            txt_ajuste.value = ""
+            lbl_estado.value = f"Ajuste aplicado: -{ajuste:.2f} € al acumulado diario."
+            lbl_estado.color = ft.Colors.BLUE_700
+            page.update()
+
+        txt_ajuste.on_submit = restar_acumulado
+
         # ── Construcción de la UI ─────────────────────────────────────────────
 
         cabecera = ft.Column(
@@ -485,6 +524,18 @@ def main(page: ft.Page):
                             color=ft.Colors.GREY_700,
                         ),
                         lbl_total_dia,
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                    spacing=8,
+                ),
+                ft.Row(
+                    controls=[
+                        txt_ajuste,
+                        ft.OutlinedButton(
+                            "Restar",
+                            icon=ft.Icons.REMOVE,
+                            on_click=restar_acumulado,
+                        ),
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=8,
