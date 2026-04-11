@@ -117,13 +117,13 @@
       totalEl.textContent = `${total.toFixed(2)} €`;
     }
 
-    function addLinea(concepto = '', cantidad = 1, precio = 0) {
+    function addLinea(concepto = '', cantidad = 1, precio = '') {
       const row = document.createElement('div');
       row.className = 'fila';
       row.innerHTML = `
         <input class="concepto" placeholder="Concepto" value="${concepto}" />
         <input class="cantidad" type="number" min="1" value="${cantidad}" />
-        <input class="precio" type="text" inputmode="decimal" value="${precio}" />
+        <input class="precio" type="text" inputmode="decimal" placeholder="€" value="${precio}" />
         <span class="parcial">0.00</span>
         <button class="del" type="button">×</button>
       `;
@@ -133,7 +133,7 @@
         if (lineasEl.children.length <= 1) {
           row.querySelector('.concepto').value = '';
           row.querySelector('.cantidad').value = '1';
-          row.querySelector('.precio').value = '0.00';
+          row.querySelector('.precio').value = '';
           calcTotals();
           return;
         }
