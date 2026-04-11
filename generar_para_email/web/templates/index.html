@@ -55,6 +55,7 @@
         <span>Subtotal:</span><strong id="subtotal">0.00 €</strong>
         <span>IVA:</span><strong>Incluido</strong>
         <span>Total:</span><strong id="total">0.00 €</strong>
+        <span>Acumulado del día:</span><strong id="acumulado-dia">0.00 €</strong>
       </div>
 
       <button id="btn-generar" class="cta">Generar factura y descargar</button>
@@ -69,9 +70,11 @@
     const lineasEl = document.getElementById('lineas');
     const subtotalEl = document.getElementById('subtotal');
     const totalEl = document.getElementById('total');
+    const acumuladoDiaEl = document.getElementById('acumulado-dia');
     const estadoEl = document.getElementById('estado');
     const resultadoEl = document.getElementById('resultado');
     const errorEl = document.getElementById('error');
+    let acumuladoDia = 0;
 
     function sha256(text) {
       return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(buf =>
@@ -119,6 +122,17 @@
       calcTotals();
     }
 
+    function resetFormulario() {
+      document.getElementById('cliente_nombre').value = '';
+      document.getElementById('cliente_nif').value = '';
+      lineasEl.innerHTML = '';
+      addLinea();
+    }
+
+    function confirmarSalida(mensaje) {
+      return window.confirm(mensaje);
+    }
+
     async function request(path, options = {}) {
       const res = await fetch(path, {
         headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
@@ -151,7 +165,13 @@
     });
 
     document.getElementById('btn-logout').addEventListener('click', async () => {
+      if (!confirmarSalida('Si sales ahora, se reiniciará la sumatoria diaria de esta sesión. ¿Deseas continuar?')) {
+        return;
+      }
       await request('/api/logout', { method: 'POST', body: '{}' });
+      acumuladoDia = 0;
+      acumuladoDiaEl.textContent = '0.00 €';
+      resetFormulario();
       toggleView(false);
     });
 
@@ -179,15 +199,26 @@
 
         resultadoEl.textContent = `Factura ${data.numero} generada. Descargando...`;
         estadoEl.textContent = `Última factura: ${data.numero}`;
+        acumuladoDia += Number(data.total);
+        acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
         const a = document.createElement('a');
         a.href = data.download_url;
         a.download = data.archivo;
         document.body.appendChild(a);
         a.click();
         a.remove();
+        resetFormulario();
       } catch (e) {
         errorEl.textContent = e.message;
       }
+    });
+
+    window.addEventListener('beforeunload', (event) => {
+      if (!appCard.classList.contains('active')) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = 'Si cierras la pestaña se reiniciará la sumatoria diaria de esta sesión.';
     });
 
     async function bootstrap() {

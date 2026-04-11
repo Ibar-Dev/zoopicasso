@@ -172,10 +172,13 @@ def main(page: ft.Page):
         page.scroll = ft.ScrollMode.AUTO
         page.padding = 24
         page.controls.clear()
+        page.window.prevent_close = True
+        page.window.on_event = None
 
         # ── Estado ────────────────────────────────────────────────────────────
         filas: list[FilaConcepto] = []
         numero_factura = siguiente_numero_factura()
+        total_dia = 0.0
 
         # ── Controles dinámicos ───────────────────────────────────────────────
         contenedor_filas = ft.Column(spacing=6)
@@ -194,6 +197,7 @@ def main(page: ft.Page):
             weight=ft.FontWeight.BOLD,
             color=ft.Colors.BLUE_800,
         )
+        lbl_total_dia = ft.Text(value="0.00 €", size=15, weight=ft.FontWeight.BOLD)
         lbl_estado = ft.Text(value="", size=13)
 
         txt_cliente_nombre = ft.TextField(
@@ -215,6 +219,7 @@ def main(page: ft.Page):
             return ruta
 
         async def _guardar_factura_con_dialogo(factura: Factura) -> None:
+            nonlocal total_dia
             try:
                 destino_path = await selector_guardado.save_file(
                     dialog_title="Guardar factura Calc",
@@ -261,12 +266,41 @@ def main(page: ft.Page):
                 return
 
             logger.info("Factura %s guardada en %s", factura.numero_formateado, destino)
+            total_dia = round(total_dia + factura.total_con_iva, 2)
+            lbl_total_dia.value = f"{total_dia:.2f} €"
             lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {destino}"
             lbl_estado.color = ft.Colors.GREEN_700
             page.update()
             resetear()
 
         page.overlay.append(selector_guardado)
+
+        async def _confirmar_cierre(evento: ft.WindowEvent) -> None:
+            if evento.type != ft.WindowEventType.CLOSE:
+                return
+
+            def _salir(_=None) -> None:
+                page.pop_dialog()
+                page.run_task(page.window.destroy)
+
+            def _cancelar(_=None) -> None:
+                page.pop_dialog()
+
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Confirmar cierre"),
+                content=ft.Text(
+                    "Si cierras ahora, se reiniciará la sumatoria diaria de esta sesión."
+                ),
+                actions=[
+                    ft.TextButton("Cancelar", on_click=_cancelar),
+                    ft.FilledButton("Salir", on_click=_salir),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            page.show_dialog(dlg)
+
+        page.window.on_event = _confirmar_cierre
 
         # ── Callbacks ─────────────────────────────────────────────────────────
         def actualizar_totales():
@@ -421,6 +455,19 @@ def main(page: ft.Page):
                     controls=[
                         ft.Text("TOTAL:", size=18, weight=ft.FontWeight.BOLD),
                         lbl_total,
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                    spacing=8,
+                ),
+                ft.Row(
+                    controls=[
+                        ft.Text(
+                            "ACUMULADO DEL DÍA:",
+                            size=13,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                        lbl_total_dia,
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=8,
