@@ -4,6 +4,46 @@
 
 Comprehensive test suite for the invoice generation system with **91 tests** covering all modules.
 
+## Manual QA (funcionalidades recientes)
+
+Checklist recomendado antes de publicar cambios:
+
+### Desktop (`main.py`)
+
+1. Login valido muestra pantalla principal.
+2. Al generar factura se abre selector de guardado.
+3. Si se cancela el selector, se muestra aviso y no se guarda.
+4. Si se guarda correctamente, el formulario se limpia (cliente, lineas y totales).
+5. `FACTURAS DEL DIA` incrementa en cada guardado exitoso.
+6. `ACUMULADO DEL DIA` suma cada factura guardada.
+7. Ajuste manual: al pulsar `Enter` en `Ajuste manual (-)` resta del acumulado.
+8. Ajuste manual: boton `Restar` hace la misma operacion.
+9. Validaciones de ajuste:
+    - importe invalido -> error.
+    - importe <= 0 -> error.
+    - importe mayor al acumulado -> error.
+10. Al cerrar la ventana aparece dialogo de confirmacion.
+
+### Web (`web/app.py` + `web/templates/index.html`)
+
+1. Login valido muestra app web.
+2. `Generar factura y descargar` descarga el archivo y limpia formulario.
+3. `Facturas del dia` incrementa por cada generacion exitosa.
+4. `Acumulado del dia` suma por cada generacion exitosa.
+5. Ajuste manual (Enter y boton `Restar`) descuenta del acumulado con mismas validaciones del desktop.
+6. `Salir` pide confirmacion antes de cerrar sesion.
+7. Cerrar/recargar pestana con sesion activa dispara confirmacion del navegador.
+
+### Deploy (simulacro obligatorio)
+
+Antes de push de cambios en `deploy/`:
+
+```bash
+DRY_RUN=1 bash deploy/install_vps.sh NO_DOMAIN /ruta/del/proyecto_padre
+```
+
+Verificar en salida que se imprimen pasos `[1/8]` a `[8/8]` con prefijo `[DRY_RUN]` en comandos de sistema.
+
 ### Test Statistics
 - **Total Tests**: 91
 - **Passing**: 91 ✅
