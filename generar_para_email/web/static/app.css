@@ -189,6 +189,41 @@ button.cta {
   font-weight: 600;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 14, 10, 0.45);
+  backdrop-filter: blur(2px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 1rem;
+}
+
+.modal-backdrop.active {
+  display: flex;
+}
+
+.modal-card {
+  width: min(460px, 100%);
+  background: #fffaf3;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 44px rgba(31, 20, 10, 0.28);
+  padding: 1rem;
+}
+
+.modal-card p {
+  margin-bottom: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 @media (max-width: 760px) {
   .grid.two {
     grid-template-columns: 1fr;
@@ -200,5 +235,9 @@ button.cta {
 
   .fila .parcial {
     text-align: left;
+  }
+
+  .modal-actions {
+    flex-direction: column;
   }
 }

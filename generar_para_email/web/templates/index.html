@@ -66,11 +66,23 @@
         <button id="btn-restar" class="ghost" type="button">Restar</button>
       </div>
 
-      <button id="btn-generar" class="cta">Generar factura y descargar</button>
+      <button id="btn-generar" class="cta">Generar factura</button>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
     </section>
   </main>
+
+  <div id="ticket-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title">
+      <h3 id="ticket-modal-title">Imprimir ticket</h3>
+      <p>La factura se va a generar y descargar. ¿Deseas imprimir ticket térmico ahora?</p>
+      <div class="modal-actions">
+        <button id="btn-ticket-cancelar" class="ghost" type="button">Cancelar</button>
+        <button id="btn-ticket-no" class="ghost" type="button">No imprimir</button>
+        <button id="btn-ticket-si" type="button">Sí, imprimir</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const loginCard = document.getElementById('login-card');
@@ -83,8 +95,13 @@
     const resultadoEl = document.getElementById('resultado');
     const errorEl = document.getElementById('error');
     const ajusteEl = document.getElementById('ajuste');
+    const ticketModalEl = document.getElementById('ticket-modal');
+    const btnTicketCancelar = document.getElementById('btn-ticket-cancelar');
+    const btnTicketNo = document.getElementById('btn-ticket-no');
+    const btnTicketSi = document.getElementById('btn-ticket-si');
     let acumuladoDia = 0;
     let facturasDia = 0;
+    let resolverTicketModal = null;
 
     function sha256(text) {
       return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(buf =>
@@ -153,6 +170,25 @@
 
     function confirmarSalida(mensaje) {
       return window.confirm(mensaje);
+    }
+
+    function cerrarModalTicket(valor) {
+      ticketModalEl.classList.remove('active');
+      ticketModalEl.setAttribute('aria-hidden', 'true');
+      if (resolverTicketModal) {
+        const resolve = resolverTicketModal;
+        resolverTicketModal = null;
+        resolve(valor);
+      }
+    }
+
+    function pedirImpresionTicket() {
+      return new Promise((resolve) => {
+        resolverTicketModal = resolve;
+        ticketModalEl.classList.add('active');
+        ticketModalEl.setAttribute('aria-hidden', 'false');
+        btnTicketSi.focus();
+      });
     }
 
     function restarAcumulado() {
@@ -233,9 +269,30 @@
       }
     });
 
+    btnTicketCancelar.addEventListener('click', () => cerrarModalTicket(null));
+    btnTicketNo.addEventListener('click', () => cerrarModalTicket(false));
+    btnTicketSi.addEventListener('click', () => cerrarModalTicket(true));
+
+    ticketModalEl.addEventListener('click', (e) => {
+      if (e.target === ticketModalEl) {
+        cerrarModalTicket(null);
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && ticketModalEl.classList.contains('active')) {
+        cerrarModalTicket(null);
+      }
+    });
+
     document.getElementById('btn-generar').addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
+      const deseaImprimirTicket = await pedirImpresionTicket();
+      if (deseaImprimirTicket === null) {
+        resultadoEl.textContent = 'Generación cancelada por el usuario.';
+        return;
+      }
 
       const lineas = [...lineasEl.querySelectorAll('.fila')].map((fila) => ({
         concepto: fila.querySelector('.concepto').value.trim(),
@@ -258,10 +315,14 @@
             cliente_nombre: document.getElementById('cliente_nombre').value,
             cliente_nif: document.getElementById('cliente_nif').value,
             lineas,
+            imprimir_ticket: deseaImprimirTicket,
           }),
         });
 
-        resultadoEl.textContent = `Factura ${data.numero} generada. Descargando...`;
+        resultadoEl.textContent = `Factura ${data.numero} generada. Descarga iniciada.`;
+        if (data.ticket_estado) {
+          resultadoEl.textContent += ` ${data.ticket_estado}`;
+        }
         estadoEl.textContent = `Última factura: ${data.numero}`;
         facturasDia += 1;
         facturasDiaEl.textContent = String(facturasDia);

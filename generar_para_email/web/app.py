@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -27,6 +28,109 @@ USUARIO_VALIDO = "Giselle"
 HASH_PASSWORD = "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda"
 
 
+def _normalizar_importe(valor: float) -> str:
+    return f"{valor:.2f} EUR"
+
+
+def _comprimir_texto(texto: str, max_chars: int) -> str:
+    texto = " ".join(texto.split())
+    if len(texto) <= max_chars:
+        return texto
+    if max_chars <= 3:
+        return texto[:max_chars]
+    return texto[: max_chars - 3] + "..."
+
+
+def _generar_ticket_escpos(factura: Factura, ancho: int = 42) -> bytes:
+    """Construye ticket ESC/POS para papel de 80mm usando maquetado de 72mm."""
+    lineas: list[bytes] = []
+
+    def cmd(x: bytes) -> None:
+        lineas.append(x)
+
+    def txt(s: str = "") -> None:
+        lineas.append((s + "\n").encode("cp850", errors="replace"))
+
+    def separador(char: str = "-") -> None:
+        txt(char * ancho)
+
+    cmd(b"\x1b@")
+    cmd(b"\x1ba\x01")
+    cmd(b"\x1bE\x01")
+    txt("ZOO PICASSO")
+    cmd(b"\x1bE\x00")
+    txt("Ticket de venta")
+    txt(f"Factura {factura.numero_formateado}")
+    txt(f"Fecha {factura.fecha_formateada}")
+    cmd(b"\x1ba\x00")
+    separador()
+
+    if factura.cliente_nombre:
+        txt("Cliente: " + _comprimir_texto(factura.cliente_nombre, ancho - 9))
+    if factura.cliente_nif:
+        txt("NIF/CIF: " + _comprimir_texto(factura.cliente_nif, ancho - 9))
+    if factura.cliente_nombre or factura.cliente_nif:
+        separador()
+
+    txt("Concepto")
+    txt("Cant x P.Unit                      Total")
+    separador()
+
+    for linea in factura.lineas:
+        txt(_comprimir_texto(linea.concepto, ancho))
+        detalle = f"{linea.cantidad} x {_normalizar_importe(linea.precio_unitario)}"
+        total = _normalizar_importe(linea.total)
+        espacio = max(1, ancho - len(detalle) - len(total))
+        txt(detalle + (" " * espacio) + total)
+
+    separador()
+    total = _normalizar_importe(factura.total_con_iva)
+    etiqueta = "TOTAL"
+    espacio_total = max(1, ancho - len(etiqueta) - len(total))
+    cmd(b"\x1bE\x01")
+    txt(etiqueta + (" " * espacio_total) + total)
+    cmd(b"\x1bE\x00")
+    txt("IVA incluido")
+    separador()
+    cmd(b"\x1ba\x01")
+    txt("Gracias por tu compra")
+    txt("Zoo Picasso")
+    cmd(b"\n\n\n")
+    cmd(b"\x1dV\x00")
+    return b"".join(lineas)
+
+
+def _imprimir_ticket_usb_windows(ticket: bytes) -> str:
+    """Imprime ticket ESC/POS en impresora predeterminada de Windows por RAW."""
+    if not sys.platform.startswith("win"):
+        raise RuntimeError("La impresion ESC/POS USB esta habilitada solo en Windows.")
+
+    try:
+        import win32print  # type: ignore[import-not-found]
+    except Exception as ex:
+        raise RuntimeError(
+            "No se encontro pywin32. Ejecuta sincronizacion de dependencias en Windows."
+        ) from ex
+
+    impresora = os.getenv("ESC_POS_PRINTER_NAME", "").strip() or win32print.GetDefaultPrinter()
+    if not impresora:
+        raise RuntimeError("No hay impresora predeterminada disponible.")
+
+    hprinter = win32print.OpenPrinter(impresora)
+    try:
+        win32print.StartDocPrinter(hprinter, 1, ("Ticket factura", "", "RAW"))
+        try:
+            win32print.StartPagePrinter(hprinter)
+            win32print.WritePrinter(hprinter, ticket)
+            win32print.EndPagePrinter(hprinter)
+        finally:
+            win32print.EndDocPrinter(hprinter)
+    finally:
+        win32print.ClosePrinter(hprinter)
+
+    return impresora
+
+
 def _bool_env(name: str, default: bool) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -49,6 +153,7 @@ class FacturaPayload(BaseModel):
     cliente_nombre: Optional[str] = ""
     cliente_nif: Optional[str] = ""
     lineas: list[LineaPayload] = Field(min_length=1)
+    imprimir_ticket: bool = False
 
 
 app = FastAPI(title="Facturas Gisselle API", version="1.0.0")
@@ -141,12 +246,36 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, str | bool]:
         factura.total_con_iva,
     )
 
+    ticket_impreso = False
+    ticket_estado = "Ticket no solicitado."
+    if payload.imprimir_ticket:
+        try:
+            ticket = _generar_ticket_escpos(factura, ancho=42)
+            impresora = _imprimir_ticket_usb_windows(ticket)
+            ticket_impreso = True
+            ticket_estado = f"Ticket enviado a impresora: {impresora}"
+            logger.info(
+                "Ticket impreso para factura web %s en impresora %s",
+                factura.numero_formateado,
+                impresora,
+            )
+        except Exception as exc:
+            ticket_estado = f"No se pudo imprimir ticket: {exc}"
+            logger.warning(
+                "Fallo de impresion ticket para factura web %s: %s",
+                factura.numero_formateado,
+                exc,
+                exc_info=True,
+            )
+
     return {
         "ok": True,
         "numero": factura.numero_formateado,
         "archivo": ruta.name,
         "total": f"{factura.total_con_iva:.2f}",
         "download_url": f"/api/descargar/{ruta.name}",
+        "ticket_impreso": ticket_impreso,
+        "ticket_estado": ticket_estado,
     }
 
 
