@@ -340,6 +340,7 @@ def main(page: ft.Page):
             contenedor_filas.controls.append(fila.como_row())
             logger.info(f"Línea añadida. Total: {len(filas)}")
             page.update()
+            fila.concepto.focus()
 
         def quitar_fila(_=None):
             if len(filas) <= 1:
