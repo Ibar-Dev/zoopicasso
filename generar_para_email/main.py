@@ -5,7 +5,6 @@
 import hashlib
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import re
@@ -295,126 +294,7 @@ def main(page: ft.Page):
             width=200,
         )
 
-        selector_guardado = ft.FilePicker()
 
-        def _ruta_guardado_con_extension(path_str: str) -> Path:
-            ruta = Path(path_str)
-            if ruta.suffix.lower() != ".xlsx":
-                ruta = ruta.with_suffix(".xlsx")
-            return ruta
-
-        async def _guardar_factura_con_dialogo(factura: Factura) -> None:
-            nonlocal total_dia, facturas_dia
-            try:
-                destino_path = await selector_guardado.save_file(
-                    dialog_title="Guardar factura Calc",
-                    file_name=f"factura_{factura.fecha.year}_{factura.numero:03d}.xlsx",
-                    file_type=ft.FilePickerFileType.CUSTOM,
-                    allowed_extensions=["xlsx"],
-                )
-            except Exception as ex:
-                lbl_estado.value = f"No se pudo abrir el selector de guardado: {ex}"
-                lbl_estado.color = ft.Colors.RED_600
-                logger.error("Error al abrir diálogo de guardado: %s", ex, exc_info=True)
-                page.update()
-                return
-
-            if not destino_path:
-                lbl_estado.value = "Generación cancelada. No se seleccionó carpeta de guardado."
-                lbl_estado.color = ft.Colors.ORANGE_700
-                page.update()
-                return
-
-            destino = _ruta_guardado_con_extension(destino_path)
-            try:
-                ruta_generada = generar_factura_xlsx(factura)
-                destino.parent.mkdir(parents=True, exist_ok=True)
-                if ruta_generada.resolve() != destino.resolve():
-                    shutil.copy2(ruta_generada, destino)
-                else:
-                    logger.info(
-                        "La factura %s ya estaba en la ruta seleccionada: %s",
-                        factura.numero_formateado,
-                        destino,
-                    )
-            except Exception as ex:
-                lbl_estado.value = f"Error al generar/guardar el archivo: {ex}"
-                lbl_estado.color = ft.Colors.RED_600
-                logger.error(
-                    "Error al generar factura %s en destino %s: %s",
-                    factura.numero_formateado,
-                    destino,
-                    ex,
-                    exc_info=True,
-                )
-                page.update()
-                return
-
-            logger.info("Factura %s guardada en %s", factura.numero_formateado, destino)
-            facturas_dia += 1
-            total_dia = round(total_dia + factura.total_con_iva, 2)
-            lbl_facturas_dia.value = str(facturas_dia)
-            lbl_total_dia.value = f"{total_dia:.2f} €"
-            if animal_actual["value"] and animal_actual["value"] in totales_por_animal:
-                nombre_animal = animal_actual["value"]
-                totales_por_animal[nombre_animal] = round(
-                    totales_por_animal[nombre_animal] + factura.total_con_iva, 2
-                )
-                _actualizar_tabla_animales(nombre_animal)
-            lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {destino}"
-            lbl_estado.color = ft.Colors.GREEN_700
-            page.update()
-
-            def _cerrar_dialogo_si_abierto() -> None:
-                try:
-                    page.pop_dialog()
-                except Exception:
-                    pass
-
-            def _no_imprimir(_=None) -> None:
-                _cerrar_dialogo_si_abierto()
-                resetear()
-
-            def _imprimir(_=None) -> None:
-                _cerrar_dialogo_si_abierto()
-                try:
-                    ticket = generar_ticket_escpos(factura, ancho=42)
-                    impresora = imprimir_ticket_usb_windows(ticket)
-                    logger.info(
-                        "Ticket impreso para factura %s en impresora %s",
-                        factura.numero_formateado,
-                        impresora,
-                    )
-                except Exception as ex:
-                    lbl_estado.value = (
-                        "Factura guardada, pero no se pudo imprimir ticket: "
-                        f"{ex}"
-                    )
-                    lbl_estado.color = ft.Colors.ORANGE_700
-                    logger.warning(
-                        "Fallo de impresion ticket para factura %s: %s",
-                        factura.numero_formateado,
-                        ex,
-                        exc_info=True,
-                    )
-                    page.update()
-                resetear()
-
-            dlg = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("Imprimir ticket"),
-                content=ft.Text(
-                    "La factura Calc se guardo correctamente. ¿Deseas imprimir ticket ahora?"
-                ),
-                actions=[
-                    ft.TextButton("No", on_click=_no_imprimir),
-                    ft.FilledButton("Si, imprimir", on_click=_imprimir),
-                ],
-                actions_alignment=ft.MainAxisAlignment.END,
-            )
-            page.show_dialog(dlg)
-
-        page.overlay.append(selector_guardado)
 
         async def _confirmar_cierre(evento: ft.WindowEvent) -> None:
             if evento.type != ft.WindowEventType.CLOSE:
@@ -504,6 +384,15 @@ def main(page: ft.Page):
                 page.update()
 
         def generar(_=None):
+            nonlocal total_dia, facturas_dia
+
+            # Validar categoría animal
+            if not animal_actual["value"]:
+                lbl_estado.value = "Selecciona una categoría de animal."
+                lbl_estado.color = ft.Colors.RED_600
+                page.update()
+                return
+
             # Validar y construir líneas
             try:
                 lineas = [f.a_linea_factura() for f in filas]
@@ -520,16 +409,91 @@ def main(page: ft.Page):
                 cliente_nif=txt_cliente_nif.value.strip(),
                 lineas=lineas,
             )
+
+            # Generar xlsx directamente en carpeta facturas/
+            try:
+                ruta = generar_factura_xlsx(factura)
+            except Exception as ex:
+                lbl_estado.value = f"Error al generar factura: {ex}"
+                lbl_estado.color = ft.Colors.RED_600
+                logger.error("Error al generar factura %s: %s", factura.numero_formateado, ex, exc_info=True)
+                page.update()
+                return
+
             cliente_log = factura.cliente_nombre or "(sin cliente)"
             logger.info(
                 f"Factura {factura.numero_formateado} · "
                 f"Cliente: {cliente_log} · "
-                f"Total: {factura.total_con_iva:.2f} €"
+                f"Total: {factura.total_con_iva:.2f} € · "
+                f"Categoría: {animal_actual['value']}"
             )
-            lbl_estado.value = "Selecciona dónde guardar el archivo Calc (.xlsx)..."
-            lbl_estado.color = ft.Colors.BLUE_700
+
+            # Acumular totales del día
+            facturas_dia += 1
+            total_dia = round(total_dia + factura.total_con_iva, 2)
+            lbl_facturas_dia.value = str(facturas_dia)
+            lbl_total_dia.value = f"{total_dia:.2f} €"
+
+            # Acumular por categoría animal
+            nombre_animal = animal_actual["value"]
+            totales_por_animal[nombre_animal] = round(
+                totales_por_animal[nombre_animal] + factura.total_con_iva, 2
+            )
+            _actualizar_tabla_animales(nombre_animal)
+
+            lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {ruta}"
+            lbl_estado.color = ft.Colors.GREEN_700
             page.update()
-            page.run_task(_guardar_factura_con_dialogo, factura)
+
+            # Diálogo de impresión
+            def _cerrar_dialogo_si_abierto() -> None:
+                try:
+                    page.pop_dialog()
+                except Exception:
+                    pass
+
+            def _no_imprimir(_=None) -> None:
+                _cerrar_dialogo_si_abierto()
+                resetear()
+
+            def _imprimir(_=None) -> None:
+                _cerrar_dialogo_si_abierto()
+                try:
+                    ticket = generar_ticket_escpos(factura, ancho=42)
+                    impresora = imprimir_ticket_usb_windows(ticket)
+                    logger.info(
+                        "Ticket impreso para factura %s en impresora %s",
+                        factura.numero_formateado,
+                        impresora,
+                    )
+                except Exception as ex:
+                    lbl_estado.value = (
+                        "Factura guardada, pero no se pudo imprimir ticket: "
+                        f"{ex}"
+                    )
+                    lbl_estado.color = ft.Colors.ORANGE_700
+                    logger.warning(
+                        "Fallo de impresion ticket para factura %s: %s",
+                        factura.numero_formateado,
+                        ex,
+                        exc_info=True,
+                    )
+                    page.update()
+                resetear()
+
+            dlg = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Imprimir ticket"),
+                content=ft.Text(
+                    "La factura Calc se guardó correctamente. ¿Deseas imprimir ticket ahora?"
+                ),
+                actions=[
+                    ft.TextButton("No", on_click=_no_imprimir),
+                    ft.FilledButton("Sí, imprimir", on_click=_imprimir),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            page.show_dialog(dlg)
 
         def restar_acumulado(_=None):
             nonlocal total_dia
