@@ -216,6 +216,14 @@
     }
 
     async function imprimirTicketNavegador(datos) {
+      const emisor = datos.emisor || {};
+      const negocio = emisor.negocio || 'Zoo Picasso';
+      const nombreEmisor = emisor.nombre_completo || 'Gisselle Marin Tabares';
+      const nifEmisor = emisor.nif || '';
+      const direccionEmisor = emisor.direccion || '';
+      const telefonoEmisor = emisor.telefono || '';
+      const emailEmisor = emisor.email || '';
+
       const lineasHtml = datos.lineas.map((linea) => {
         const detalle = `${linea.cantidad} x ${formatoImporte(linea.precio_unitario)}`;
         const total = formatoImporte(linea.total_linea);
@@ -226,6 +234,17 @@
           </div>
         `;
       }).join('');
+
+      const emisorHtml = `
+        <div class="emisor-block">
+          <div class="center bold">${escaparHtml(negocio)}</div>
+          <div class="center">${escaparHtml(nombreEmisor)}</div>
+          ${nifEmisor ? `<div>NIF: ${escaparHtml(nifEmisor)}</div>` : ''}
+          ${direccionEmisor ? `<div>${escaparHtml(direccionEmisor)}</div>` : ''}
+          ${telefonoEmisor ? `<div>Tel: ${escaparHtml(telefonoEmisor)}</div>` : ''}
+          ${emailEmisor ? `<div>${escaparHtml(emailEmisor)}</div>` : ''}
+        </div>
+      `;
 
       const clienteHtml = (datos.cliente_nombre || datos.cliente_nif)
         ? `
@@ -258,13 +277,14 @@
   </style>
 </head>
 <body>
-  <div class="center bold">ZOO PICASSO</div>
+  ${emisorHtml}
+  <div class="sep"></div>
   <div class="center">Ticket de venta</div>
   <div class="center">Factura ${escaparHtml(datos.numero)}</div>
   <div class="center">Fecha ${escaparHtml(datos.fecha)}</div>
   ${clienteHtml}
   <div class="sep"></div>
-  <div>Concepto</div>
+  <div>Productos / Servicios</div>
   <div class="detalle-fila"><span>Cant x P.Unit</span><span>Total</span></div>
   <div class="sep"></div>
   ${lineasHtml}
@@ -531,6 +551,7 @@
               cliente_nif: clienteNif,
               lineas: lineasTicket,
               total: Number(data.total),
+              emisor: data.emisor || null,
             });
             resultadoEl.textContent += ' Se abrió la vista de impresión del ticket.';
           } catch (err) {

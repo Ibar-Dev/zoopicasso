@@ -29,6 +29,29 @@ Aplicacion para generar facturas en formato `.xlsx` en dos modos:
 - Python 3.11+ (el proyecto corre con entornos mas nuevos tambien).
 - `uv` para gestionar dependencias.
 
+## Datos del emisor (ticket web)
+
+Para evitar hardcodear datos del negocio, el modo web usa variables de entorno
+con estos valores por defecto:
+
+- `EMISOR_NIF` (default: `Y3806548Q`)
+- `EMISOR_NOMBRE` (default: `Gisselle Marin Tabares`)
+- `EMISOR_DIRECCION` (default: `Calle de Pablo Picasso 59`)
+- `EMISOR_TELEFONO` (default: `604 300 492`)
+- `EMISOR_EMAIL` (default: `zoopicasso07@gmail.com`)
+- `EMISOR_NEGOCIO` (default: `Zoo Picasso`)
+
+Ejemplo en `.env`:
+
+```bash
+EMISOR_NIF=Y3806548Q
+EMISOR_NOMBRE=Gisselle Marin Tabares
+EMISOR_DIRECCION=Calle de Pablo Picasso 59
+EMISOR_TELEFONO=604 300 492
+EMISOR_EMAIL=zoopicasso07@gmail.com
+EMISOR_NEGOCIO=Zoo Picasso
+```
+
 ## Ejecutar en local
 
 Desde la carpeta del proyecto:

@@ -28,6 +28,21 @@ USUARIO_VALIDO = "Giselle"
 HASH_PASSWORD = "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda"
 
 
+def _env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name, "").strip()
+    return value or default
+
+
+EMISOR_FACTURA = {
+    "nif": _env_or_default("EMISOR_NIF", "Y3806548Q"),
+    "nombre_completo": _env_or_default("EMISOR_NOMBRE", "Gisselle Marin Tabares"),
+    "direccion": _env_or_default("EMISOR_DIRECCION", "Calle de Pablo Picasso 59"),
+    "telefono": _env_or_default("EMISOR_TELEFONO", "604 300 492"),
+    "email": _env_or_default("EMISOR_EMAIL", "zoopicasso07@gmail.com"),
+    "negocio": _env_or_default("EMISOR_NEGOCIO", "Zoo Picasso"),
+}
+
+
 def _normalizar_importe(valor: float) -> str:
     return f"{valor:.2f} EUR"
 
@@ -212,7 +227,7 @@ def session_status(request: Request) -> dict[str, bool]:
 
 
 @app.post("/api/generar")
-def generar(payload: FacturaPayload, request: Request) -> dict[str, str | bool]:
+def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     _requiere_login(request)
 
     try:
@@ -276,6 +291,7 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, str | bool]:
         "download_url": f"/api/descargar/{ruta.name}",
         "ticket_impreso": ticket_impreso,
         "ticket_estado": ticket_estado,
+        "emisor": EMISOR_FACTURA,
     }
 
 
