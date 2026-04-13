@@ -72,7 +72,7 @@
     </section>
   </main>
 
-  <div id="ticket-modal" class="modal-backdrop" aria-hidden="true">
+  <div id="ticket-modal" class="modal-backdrop" aria-hidden="true" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title">
       <h3 id="ticket-modal-title">Imprimir ticket</h3>
       <p>La factura se va a generar y descargar. ¿Deseas imprimir ticket térmico ahora?</p>
@@ -112,6 +112,11 @@
     function toggleView(loggedIn) {
       loginCard.classList.toggle('active', !loggedIn);
       appCard.classList.toggle('active', loggedIn);
+      if (!loggedIn) {
+        ticketModalEl.hidden = true;
+        ticketModalEl.classList.remove('active');
+        ticketModalEl.setAttribute('aria-hidden', 'true');
+      }
     }
 
     function importeEurValido(valor) {
@@ -175,6 +180,7 @@
     function cerrarModalTicket(valor) {
       ticketModalEl.classList.remove('active');
       ticketModalEl.setAttribute('aria-hidden', 'true');
+      ticketModalEl.hidden = true;
       if (resolverTicketModal) {
         const resolve = resolverTicketModal;
         resolverTicketModal = null;
@@ -184,9 +190,14 @@
 
     function pedirImpresionTicket() {
       return new Promise((resolve) => {
+        if (!appCard.classList.contains('active')) {
+          resolve(null);
+          return;
+        }
         resolverTicketModal = resolve;
         ticketModalEl.classList.add('active');
         ticketModalEl.setAttribute('aria-hidden', 'false');
+        ticketModalEl.hidden = false;
         btnTicketSi.focus();
       });
     }

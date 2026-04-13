@@ -201,6 +201,11 @@ button.cta {
   padding: 1rem;
 }
 
+.modal-backdrop[hidden],
+.modal-backdrop[aria-hidden="true"] {
+  display: none !important;
+}
+
 .modal-backdrop.active {
   display: flex;
 }
