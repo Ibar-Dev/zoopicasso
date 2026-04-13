@@ -306,10 +306,33 @@
         iframe.style.height = '0';
         iframe.style.border = '0';
 
+        let resuelto = false;
+        let timeoutId = null;
+
         const limpiar = () => {
-          setTimeout(() => {
-            iframe.remove();
-          }, 1200);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          iframe.remove();
+        };
+
+        const resolverOk = () => {
+          if (resuelto) {
+            return;
+          }
+          resuelto = true;
+          limpiar();
+          resolve();
+        };
+
+        const resolverError = (err) => {
+          if (resuelto) {
+            return;
+          }
+          resuelto = true;
+          limpiar();
+          reject(err);
         };
 
         const onLoad = () => {
@@ -318,13 +341,18 @@
             if (!win) {
               throw new Error('No fue posible preparar la impresión del ticket.');
             }
+
+            // Espera al ciclo de impresión antes de limpiar el iframe,
+            // evitando cortes de contenido en algunos drivers térmicos.
+            win.addEventListener('afterprint', resolverOk, { once: true });
+
             win.focus();
             win.print();
-            limpiar();
-            resolve();
+
+            // Fallback si afterprint no dispara (según navegador/driver).
+            timeoutId = setTimeout(resolverOk, 12000);
           } catch (err) {
-            limpiar();
-            reject(err);
+            resolverError(err);
           }
         };
 
@@ -345,8 +373,7 @@
           doc.write(html);
           doc.close();
         } catch (err) {
-          limpiar();
-          reject(err);
+          resolverError(err);
         }
       });
     }
