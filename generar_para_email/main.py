@@ -28,116 +28,22 @@ import src.settings  # noqa: E402
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import LineaFactura
 from src.factura_model import Factura
+from src.printer import generar_ticket_escpos
+from src.printer import imprimir_ticket_usb_windows
 from src.factura_writer import RUTA_FACTURAS
 from src.factura_writer import generar_factura_xlsx
 
 logger = logging.getLogger(__name__)
 
-
-def _normalizar_importe(valor: float) -> str:
-    return f"{valor:.2f} EUR"
-
-
-def _comprimir_texto(texto: str, max_chars: int) -> str:
-    texto = " ".join(texto.split())
-    if len(texto) <= max_chars:
-        return texto
-    if max_chars <= 3:
-        return texto[:max_chars]
-    return texto[: max_chars - 3] + "..."
-
-
-def _generar_ticket_escpos(factura: Factura, ancho: int = 42) -> bytes:
-    """Construye ticket ESC/POS para papel de 80mm usando maquetado de 72mm."""
-    lineas: list[bytes] = []
-
-    def cmd(x: bytes) -> None:
-        lineas.append(x)
-
-    def txt(s: str = "") -> None:
-        lineas.append((s + "\n").encode("cp850", errors="replace"))
-
-    def separador(char: str = "-") -> None:
-        txt(char * ancho)
-
-    # Init + centrado cabecera
-    cmd(b"\x1b@")
-    cmd(b"\x1ba\x01")
-    cmd(b"\x1bE\x01")
-    txt("ZOO PICASSO")
-    cmd(b"\x1bE\x00")
-    txt("Ticket de venta")
-    txt(f"Factura {factura.numero_formateado}")
-    txt(f"Fecha {factura.fecha_formateada}")
-    cmd(b"\x1ba\x00")
-    separador()
-
-    if factura.cliente_nombre:
-        txt("Cliente: " + _comprimir_texto(factura.cliente_nombre, ancho - 9))
-    if factura.cliente_nif:
-        txt("NIF/CIF: " + _comprimir_texto(factura.cliente_nif, ancho - 9))
-    if factura.cliente_nombre or factura.cliente_nif:
-        separador()
-
-    txt("Concepto")
-    txt("Cant x P.Unit                      Total")
-    separador()
-
-    for linea in factura.lineas:
-        txt(_comprimir_texto(linea.concepto, ancho))
-        detalle = f"{linea.cantidad} x {_normalizar_importe(linea.precio_unitario)}"
-        total = _normalizar_importe(linea.total)
-        espacio = max(1, ancho - len(detalle) - len(total))
-        txt(detalle + (" " * espacio) + total)
-
-    separador()
-    total = _normalizar_importe(factura.total_con_iva)
-    etiqueta = "TOTAL"
-    espacio_total = max(1, ancho - len(etiqueta) - len(total))
-    cmd(b"\x1bE\x01")
-    txt(etiqueta + (" " * espacio_total) + total)
-    cmd(b"\x1bE\x00")
-    txt("IVA incluido")
-    separador()
-    cmd(b"\x1ba\x01")
-    txt("Gracias por tu compra")
-    txt("Zoo Picasso")
-
-    # Avance y corte total
-    cmd(b"\n\n\n")
-    cmd(b"\x1dV\x00")
-    return b"".join(lineas)
-
-
-def _imprimir_ticket_usb_windows(ticket: bytes) -> str:
-    """Imprime ticket ESC/POS en impresora predeterminada de Windows por RAW."""
-    if not sys.platform.startswith("win"):
-        raise RuntimeError("La impresion ESC/POS USB esta habilitada solo en Windows.")
-
-    try:
-        import win32print  # type: ignore[import-not-found]
-    except Exception as ex:
-        raise RuntimeError(
-            "No se encontro pywin32. Ejecuta sincronizacion de dependencias en Windows."
-        ) from ex
-
-    impresora = os.getenv("ESC_POS_PRINTER_NAME", "").strip() or win32print.GetDefaultPrinter()
-    if not impresora:
-        raise RuntimeError("No hay impresora predeterminada disponible.")
-
-    hprinter = win32print.OpenPrinter(impresora)
-    try:
-        hjob = win32print.StartDocPrinter(hprinter, 1, ("Ticket factura", "", "RAW"))
-        try:
-            win32print.StartPagePrinter(hprinter)
-            win32print.WritePrinter(hprinter, ticket)
-            win32print.EndPagePrinter(hprinter)
-        finally:
-            win32print.EndDocPrinter(hprinter)
-    finally:
-        win32print.ClosePrinter(hprinter)
-
-    return impresora
+ANIMALES: dict[str, str] = {
+    "1": "perro",
+    "2": "gato",
+    "3": "conejo",
+    "4": "ave",
+    "5": "peces",
+    "6": "reptiles",
+    "7": "peluqueria",
+}
 
 
 class FilaConcepto:
@@ -300,6 +206,8 @@ def main(page: ft.Page):
         numero_factura = siguiente_numero_factura()
         total_dia = 0.0
         facturas_dia = 0
+        totales_por_animal: dict[str, float] = {v: 0.0 for v in ANIMALES.values()}
+        animal_actual: dict[str, str | None] = {"key": None, "value": None}
 
         # ── Controles dinámicos ───────────────────────────────────────────────
         contenedor_filas = ft.Column(spacing=6)
@@ -325,6 +233,52 @@ def main(page: ft.Page):
             hint_text="Ej: 12.50 EUR",
             width=170,
             keyboard_type=ft.KeyboardType.NUMBER,
+        )
+
+        # ── Tabla de ventas por animal ─────────────────────────────────────────
+        tabla_animales = ft.DataTable(
+            columns=[
+                ft.DataColumn(label=ft.Text("Categoría", weight=ft.FontWeight.BOLD)),
+                ft.DataColumn(label=
+                    ft.Text("Total del día (€)", weight=ft.FontWeight.BOLD),
+                    numeric=True,
+                ),
+            ],
+            rows=[
+                ft.DataRow(cells=[
+                    ft.DataCell(ft.Text(nombre)),
+                    ft.DataCell(ft.Text("0.00")),
+                ])
+                for nombre in ANIMALES.values()
+            ],
+            border=ft.border.all(1, ft.Colors.GREY_300),
+            border_radius=8,
+            vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_200),
+        )
+
+        fila_animal_por_nombre: dict[str, ft.DataRow] = {
+            row.cells[0].content.value: row  # type: ignore[union-attr]
+            for row in tabla_animales.rows
+        }
+
+        def _actualizar_tabla_animales(nombre: str) -> None:
+            fila = fila_animal_por_nombre[nombre]
+            fila.cells[1].content = ft.Text(  # type: ignore[union-attr]
+                f"{totales_por_animal[nombre]:.2f}",
+                weight=ft.FontWeight.BOLD,
+                color=ft.Colors.BLUE_800,
+            )
+
+        def on_select_animal(e: ft.AutoCompleteSelectEvent) -> None:
+            animal_actual["key"] = e.selection.key
+            animal_actual["value"] = e.selection.value
+
+        categoria_animal = ft.AutoComplete(
+            suggestions=[
+                ft.AutoCompleteSuggestion(key=k, value=v)
+                for k, v in ANIMALES.items()
+            ],
+            on_select=on_select_animal,
         )
 
         def _importe_eur_valido(texto: str) -> bool:
@@ -401,6 +355,12 @@ def main(page: ft.Page):
             total_dia = round(total_dia + factura.total_con_iva, 2)
             lbl_facturas_dia.value = str(facturas_dia)
             lbl_total_dia.value = f"{total_dia:.2f} €"
+            if animal_actual["value"] and animal_actual["value"] in totales_por_animal:
+                nombre_animal = animal_actual["value"]
+                totales_por_animal[nombre_animal] = round(
+                    totales_por_animal[nombre_animal] + factura.total_con_iva, 2
+                )
+                _actualizar_tabla_animales(nombre_animal)
             lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {destino}"
             lbl_estado.color = ft.Colors.GREEN_700
             page.update()
@@ -418,8 +378,8 @@ def main(page: ft.Page):
             def _imprimir(_=None) -> None:
                 _cerrar_dialogo_si_abierto()
                 try:
-                    ticket = _generar_ticket_escpos(factura, ancho=42)
-                    impresora = _imprimir_ticket_usb_windows(ticket)
+                    ticket = generar_ticket_escpos(factura, ancho=42)
+                    impresora = imprimir_ticket_usb_windows(ticket)
                     logger.info(
                         "Ticket impreso para factura %s en impresora %s",
                         factura.numero_formateado,
@@ -518,6 +478,8 @@ def main(page: ft.Page):
             contenedor_filas.controls.clear()
             txt_cliente_nombre.value = ""
             txt_cliente_nif.value = ""
+            animal_actual["key"] = None
+            animal_actual["value"] = None
             numero_factura = siguiente_numero_factura()
             lbl_numero.value = f"Factura  {date.today().year}-{numero_factura:03d}"
             lbl_estado.value = ""
@@ -645,6 +607,35 @@ def main(page: ft.Page):
             spacing=6,
         )
 
+        bloque_animal = ft.Column(
+            controls=[
+                ft.Text("CATEGORÍA DEL ANIMAL", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600),
+                ft.Row(
+                    controls=[
+                        ft.Text("Animal:", weight=ft.FontWeight.BOLD, width=70),
+                        ft.Container(content=categoria_animal, width=220),
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=8,
+                ),
+            ],
+            spacing=6,
+        )
+
+        bloque_tabla_animales = ft.Column(
+            controls=[
+                ft.Text(
+                    "VENTAS DEL DÍA POR CATEGORÍA",
+                    size=12,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.GREY_600,
+                ),
+                tabla_animales,
+            ],
+            spacing=6,
+        )
+
         botones_filas = ft.Row(
             controls=[
                 ft.Button("+ Añadir línea", on_click=agregar_fila),
@@ -735,6 +726,8 @@ def main(page: ft.Page):
             ft.Divider(),
             bloque_cliente,
             ft.Divider(),
+            bloque_animal,
+            ft.Divider(),
             ft.Text("LÍNEAS DE LA FACTURA", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600),
             contenedor_filas,
             botones_filas,
@@ -743,6 +736,8 @@ def main(page: ft.Page):
             ft.Divider(),
             ft.Row([boton_generar, boton_abrir_carpeta], alignment=ft.MainAxisAlignment.CENTER, spacing=12),
             lbl_estado,
+            ft.Divider(),
+            bloque_tabla_animales,
         )
         page.update()
         agregar_fila()

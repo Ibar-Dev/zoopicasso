@@ -37,7 +37,7 @@ con estos valores por defecto:
 - `EMISOR_NIF` (default: `Y3806548Q`)
 - `EMISOR_NOMBRE` (default: `Gisselle Marin Tabares`)
 - `EMISOR_DIRECCION` (default: `Calle de Pablo Picasso 59`)
-- `EMISOR_TELEFONO` (default: `604 300 492`)
+- `EMISOR_TELEFONO` (default: `642 342 110`)
 - `EMISOR_EMAIL` (default: `zoopicasso07@gmail.com`)
 - `EMISOR_NEGOCIO` (default: `Zoo Picasso`)
 
@@ -47,7 +47,7 @@ Ejemplo en `.env`:
 EMISOR_NIF=Y3806548Q
 EMISOR_NOMBRE=Gisselle Marin Tabares
 EMISOR_DIRECCION=Calle de Pablo Picasso 59
-EMISOR_TELEFONO=604 300 492
+EMISOR_TELEFONO=642 342 110
 EMISOR_EMAIL=zoopicasso07@gmail.com
 EMISOR_NEGOCIO=Zoo Picasso
 ```

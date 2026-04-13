@@ -11,7 +11,7 @@ from typing import List
 NOMBRE_EMISOR = "Gisselle Marin Tabares"
 NIF_EMISOR = "Y3806548Q"
 DIRECCION_EMISOR = "Calle de Pablo Picasso 59"
-TELEFONO_EMISOR = "604 300 492"
+TELEFONO_EMISOR = "642 342 110"
 EMAIL_EMISOR = "zoopicasso07@gmail.com"
 
 IVA_PCT = 21  # Referencia informativa para mostrar "IVA incluido"

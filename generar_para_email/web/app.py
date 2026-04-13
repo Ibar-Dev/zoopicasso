@@ -1,9 +1,8 @@
 import logging
 import os
-import sys
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -16,6 +15,8 @@ from starlette.middleware.sessions import SessionMiddleware
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura
+from src.printer import generar_ticket_escpos
+from src.printer import imprimir_ticket_usb_windows
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
 
 logger = logging.getLogger(__name__)
@@ -37,113 +38,10 @@ EMISOR_FACTURA = {
     "nif": _env_or_default("EMISOR_NIF", "Y3806548Q"),
     "nombre_completo": _env_or_default("EMISOR_NOMBRE", "Gisselle Marin Tabares"),
     "direccion": _env_or_default("EMISOR_DIRECCION", "Calle de Pablo Picasso 59"),
-    "telefono": _env_or_default("EMISOR_TELEFONO", "604 300 492"),
+    "telefono": _env_or_default("EMISOR_TELEFONO", "642 342 110"),
     "email": _env_or_default("EMISOR_EMAIL", "zoopicasso07@gmail.com"),
     "negocio": _env_or_default("EMISOR_NEGOCIO", "Zoo Picasso"),
 }
-
-
-def _normalizar_importe(valor: float) -> str:
-    return f"{valor:.2f} EUR"
-
-
-def _comprimir_texto(texto: str, max_chars: int) -> str:
-    texto = " ".join(texto.split())
-    if len(texto) <= max_chars:
-        return texto
-    if max_chars <= 3:
-        return texto[:max_chars]
-    return texto[: max_chars - 3] + "..."
-
-
-def _generar_ticket_escpos(factura: Factura, ancho: int = 42) -> bytes:
-    """Construye ticket ESC/POS para papel de 80mm usando maquetado de 72mm."""
-    lineas: list[bytes] = []
-
-    def cmd(x: bytes) -> None:
-        lineas.append(x)
-
-    def txt(s: str = "") -> None:
-        lineas.append((s + "\n").encode("cp850", errors="replace"))
-
-    def separador(char: str = "-") -> None:
-        txt(char * ancho)
-
-    cmd(b"\x1b@")
-    cmd(b"\x1ba\x01")
-    cmd(b"\x1bE\x01")
-    txt("ZOO PICASSO")
-    cmd(b"\x1bE\x00")
-    txt("Ticket de venta")
-    txt(f"Factura {factura.numero_formateado}")
-    txt(f"Fecha {factura.fecha_formateada}")
-    cmd(b"\x1ba\x00")
-    separador()
-
-    if factura.cliente_nombre:
-        txt("Cliente: " + _comprimir_texto(factura.cliente_nombre, ancho - 9))
-    if factura.cliente_nif:
-        txt("NIF/CIF: " + _comprimir_texto(factura.cliente_nif, ancho - 9))
-    if factura.cliente_nombre or factura.cliente_nif:
-        separador()
-
-    txt("Concepto")
-    txt("Cant x P.Unit                      Total")
-    separador()
-
-    for linea in factura.lineas:
-        txt(_comprimir_texto(linea.concepto, ancho))
-        detalle = f"{linea.cantidad} x {_normalizar_importe(linea.precio_unitario)}"
-        total = _normalizar_importe(linea.total)
-        espacio = max(1, ancho - len(detalle) - len(total))
-        txt(detalle + (" " * espacio) + total)
-
-    separador()
-    total = _normalizar_importe(factura.total_con_iva)
-    etiqueta = "TOTAL"
-    espacio_total = max(1, ancho - len(etiqueta) - len(total))
-    cmd(b"\x1bE\x01")
-    txt(etiqueta + (" " * espacio_total) + total)
-    cmd(b"\x1bE\x00")
-    txt("IVA incluido")
-    separador()
-    cmd(b"\x1ba\x01")
-    txt("Gracias por tu compra")
-    txt("Zoo Picasso")
-    cmd(b"\n\n\n")
-    cmd(b"\x1dV\x00")
-    return b"".join(lineas)
-
-
-def _imprimir_ticket_usb_windows(ticket: bytes) -> str:
-    """Imprime ticket ESC/POS en impresora predeterminada de Windows por RAW."""
-    if not sys.platform.startswith("win"):
-        raise RuntimeError("La impresion ESC/POS USB esta habilitada solo en Windows.")
-
-    try:
-        import win32print  # type: ignore[import-not-found]
-    except Exception as ex:
-        raise RuntimeError(
-            "No se encontro pywin32. Ejecuta sincronizacion de dependencias en Windows."
-        ) from ex
-
-    impresora = os.getenv("ESC_POS_PRINTER_NAME", "").strip() or win32print.GetDefaultPrinter()
-    if not impresora:
-        raise RuntimeError("No hay impresora predeterminada disponible.")
-
-    hprinter = win32print.OpenPrinter(impresora)
-    try:
-        win32print.StartDocPrinter(hprinter, 1, ("Ticket factura", "", "RAW"))
-        try:
-            win32print.StartPagePrinter(hprinter)
-            win32print.WritePrinter(hprinter, ticket)
-            win32print.EndPagePrinter(hprinter)
-        finally:
-            win32print.EndDocPrinter(hprinter)
-    finally:
-        win32print.ClosePrinter(hprinter)
-
-    return impresora
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -176,7 +74,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("WEB_SESSION_SECRET", "cambia-esta-clave-en-produccion"),
     max_age=60 * 60 * 10,
-    same_site=os.getenv("WEB_SESSION_SAME_SITE", "lax"),
+    same_site=os.getenv("WEB_SESSION_SAME_SITE", "lax"),  # type: ignore
     https_only=_bool_env("WEB_SESSION_HTTPS_ONLY", False),
 )
 
@@ -265,8 +163,8 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     ticket_estado = "Ticket no solicitado."
     if payload.imprimir_ticket:
         try:
-            ticket = _generar_ticket_escpos(factura, ancho=42)
-            impresora = _imprimir_ticket_usb_windows(ticket)
+            ticket = generar_ticket_escpos(factura, ancho=42)
+            impresora = imprimir_ticket_usb_windows(ticket)
             ticket_impreso = True
             ticket_estado = f"Ticket enviado a impresora: {impresora}"
             logger.info(

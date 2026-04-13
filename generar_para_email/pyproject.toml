@@ -12,3 +12,8 @@ dependencies = [
     "itsdangerous>=2.2.0",
     "pywin32>=306; platform_system == 'Windows'",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
