@@ -228,9 +228,10 @@
         const detalle = `${linea.cantidad} x ${formatoImporte(linea.precio_unitario)}`;
         const total = formatoImporte(linea.total_linea);
         return `
-          <div class="linea">
-            <div class="concepto">${escaparHtml(linea.concepto)}</div>
-            <div class="detalle-fila"><span>${escaparHtml(detalle)}</span><span>${escaparHtml(total)}</span></div>
+          <div class="linea-item">
+            <div class="linea-concepto">${escaparHtml(linea.concepto)}</div>
+            <div class="linea-detalle">${escaparHtml(detalle)}</div>
+            <div class="linea-total">${escaparHtml(total)}</div>
           </div>
         `;
       }).join('');
@@ -261,38 +262,84 @@
   <title>Ticket ${escaparHtml(datos.numero)}</title>
   <style>
     @page { size: 80mm auto; margin: 0; }
-    html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-    body { font-family: Consolas, 'Courier New', monospace; width: 72mm; padding: 3mm 4mm; font-size: 12px; line-height: 1.25; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New', Consolas, monospace;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      width: 80mm;
+      max-width: 80mm;
+      padding: 2mm 2.5mm;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .ticket { width: 100%; }
     .center { text-align: center; }
     .bold { font-weight: 700; }
-    .sep { border-top: 1px dashed #000; margin: 6px 0; }
-    .detalle-fila { display: flex; justify-content: space-between; gap: 8px; }
-    .linea { margin-bottom: 5px; }
-    .concepto { word-break: break-word; }
-    .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; }
-    .foot { margin-top: 8px; text-align: center; }
+    .sep {
+      border-top: 1px dashed #000;
+      margin: 5px 0;
+    }
+    .linea-item {
+      margin: 0 0 6px 0;
+      padding: 0;
+    }
+    .linea-concepto {
+      font-weight: 700;
+      word-break: break-word;
+      margin-bottom: 1px;
+    }
+    .linea-detalle {
+      font-size: 12px;
+      word-break: break-word;
+    }
+    .linea-total {
+      text-align: right;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+    .totales {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .foot {
+      margin-top: 8px;
+      text-align: center;
+    }
     @media screen {
-      body { margin: 8px auto; border: 1px solid #ddd; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+      body {
+        margin: 10px auto;
+        border: 1px solid #ddd;
+      }
     }
   </style>
 </head>
 <body>
-  ${emisorHtml}
-  <div class="sep"></div>
-  <div class="center">Ticket de venta</div>
-  <div class="center">Factura ${escaparHtml(datos.numero)}</div>
-  <div class="center">Fecha ${escaparHtml(datos.fecha)}</div>
-  ${clienteHtml}
-  <div class="sep"></div>
-  <div>Productos / Servicios</div>
-  <div class="detalle-fila"><span>Cant x P.Unit</span><span>Total</span></div>
-  <div class="sep"></div>
-  ${lineasHtml}
-  <div class="sep"></div>
-  <div class="total"><span>TOTAL</span><span>${escaparHtml(formatoImporte(datos.total))}</span></div>
-  <div>IVA incluido</div>
-  <div class="sep"></div>
-  <div class="foot">Gracias por tu compra<br/>Zoo Picasso</div>
+  <div class="ticket">
+    ${emisorHtml}
+    <div class="sep"></div>
+    <div class="center">Ticket de venta</div>
+    <div class="center">Factura ${escaparHtml(datos.numero)}</div>
+    <div class="center">Fecha ${escaparHtml(datos.fecha)}</div>
+    ${clienteHtml}
+    <div class="sep"></div>
+    <div class="bold">Productos / Servicios</div>
+    <div class="sep"></div>
+    ${lineasHtml || '<div>Sin líneas de detalle</div>'}
+    <div class="sep"></div>
+    <div class="totales"><span>TOTAL</span><span>${escaparHtml(formatoImporte(datos.total))}</span></div>
+    <div>IVA incluido</div>
+    <div class="sep"></div>
+    <div class="foot">Gracias por tu compra<br/>${escaparHtml(negocio)}</div>
+  </div>
 </body>
 </html>`;
 
