@@ -215,12 +215,7 @@
       return `${Number(valor || 0).toFixed(2)} EUR`;
     }
 
-    function imprimirTicketNavegador(datos) {
-      const ventana = window.open('', '_blank', 'noopener,noreferrer,width=420,height=760');
-      if (!ventana) {
-        throw new Error('El navegador bloqueó la ventana de impresión. Permite popups para este sitio.');
-      }
-
+    async function imprimirTicketNavegador(datos) {
       const lineasHtml = datos.lineas.map((linea) => {
         const detalle = `${linea.cantidad} x ${formatoImporte(linea.precio_unitario)}`;
         const total = formatoImporte(linea.total_linea);
@@ -281,11 +276,59 @@
 </body>
 </html>`;
 
-      ventana.document.open();
-      ventana.document.write(html);
-      ventana.document.close();
-      ventana.focus();
-      ventana.print();
+      await new Promise((resolve, reject) => {
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+
+        const limpiar = () => {
+          setTimeout(() => {
+            iframe.remove();
+          }, 1200);
+        };
+
+        const onLoad = () => {
+          try {
+            const win = iframe.contentWindow;
+            if (!win) {
+              throw new Error('No fue posible preparar la impresión del ticket.');
+            }
+            win.focus();
+            win.print();
+            limpiar();
+            resolve();
+          } catch (err) {
+            limpiar();
+            reject(err);
+          }
+        };
+
+        iframe.addEventListener('load', onLoad, { once: true });
+        document.body.appendChild(iframe);
+
+        if ('srcdoc' in iframe) {
+          iframe.srcdoc = html;
+          return;
+        }
+
+        try {
+          const doc = iframe.contentDocument;
+          if (!doc) {
+            throw new Error('No fue posible generar la vista de ticket.');
+          }
+          doc.open();
+          doc.write(html);
+          doc.close();
+        } catch (err) {
+          limpiar();
+          reject(err);
+        }
+      });
     }
 
     function restarAcumulado() {
@@ -481,7 +524,7 @@
           }));
 
           try {
-            imprimirTicketNavegador({
+            await imprimirTicketNavegador({
               numero: data.numero,
               fecha: fechaTicket,
               cliente_nombre: clienteNombre,
