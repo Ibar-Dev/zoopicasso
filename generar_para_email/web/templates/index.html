@@ -45,6 +45,19 @@
         </label>
       </div>
 
+      <label>Categoría del animal
+        <select id="categoria_animal">
+          <option value="">— Selecciona categoría —</option>
+          <option value="perro">Perro</option>
+          <option value="gato">Gato</option>
+          <option value="conejo">Conejo</option>
+          <option value="ave">Ave</option>
+          <option value="peces">Peces</option>
+          <option value="reptiles">Reptiles</option>
+          <option value="peluqueria">Peluquería</option>
+        </select>
+      </label>
+
       <div class="lineas-head">
         <h3>Líneas</h3>
         <button id="btn-add" class="ghost">+ Añadir línea</button>
@@ -61,7 +74,7 @@
       <div class="lineas-head">
         <h3>Ajuste Manual</h3>
       </div>
-      <div class="
+      <div class="fila">
         <input id="ajuste" type="text" inputmode="decimal" placeholder="Importe EUR a restar del acumulado" />
         <button id="btn-restar" class="ghost" type="button">Restar</button>
       </div>
@@ -69,6 +82,24 @@
       <button id="btn-generar" class="cta">Generar factura</button>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
+
+      <div class="lineas-head">
+        <h3>Ventas del día por categoría</h3>
+      </div>
+      <table id="tabla-animales" class="tabla-categorias">
+        <thead>
+          <tr><th>Categoría</th><th>Total (€)</th></tr>
+        </thead>
+        <tbody>
+          <tr data-cat="perro"><td>Perro</td><td>0.00</td></tr>
+          <tr data-cat="gato"><td>Gato</td><td>0.00</td></tr>
+          <tr data-cat="conejo"><td>Conejo</td><td>0.00</td></tr>
+          <tr data-cat="ave"><td>Ave</td><td>0.00</td></tr>
+          <tr data-cat="peces"><td>Peces</td><td>0.00</td></tr>
+          <tr data-cat="reptiles"><td>Reptiles</td><td>0.00</td></tr>
+          <tr data-cat="peluqueria"><td>Peluquería</td><td>0.00</td></tr>
+        </tbody>
+      </table>
     </section>
   </main>
 
@@ -99,8 +130,12 @@
     const btnTicketCancelar = document.getElementById('btn-ticket-cancelar');
     const btnTicketNo = document.getElementById('btn-ticket-no');
     const btnTicketSi = document.getElementById('btn-ticket-si');
+    const categoriaAnimalEl = document.getElementById('categoria_animal');
     let acumuladoDia = 0;
     let facturasDia = 0;
+    const totalesPorAnimal = {
+      perro: 0, gato: 0, conejo: 0, ave: 0, peces: 0, reptiles: 0, peluqueria: 0,
+    };
     let resolverTicketModal = null;
 
     function sha256(text) {
@@ -169,8 +204,17 @@
     function resetFormulario() {
       document.getElementById('cliente_nombre').value = '';
       document.getElementById('cliente_nif').value = '';
+      categoriaAnimalEl.value = '';
       lineasEl.innerHTML = '';
       addLinea();
+    }
+
+    function actualizarTablaAnimales(categoria, importe) {
+      totalesPorAnimal[categoria] = Number((totalesPorAnimal[categoria] + importe).toFixed(2));
+      const fila = document.querySelector(`#tabla-animales tr[data-cat="${categoria}"]`);
+      if (fila) {
+        fila.cells[1].textContent = totalesPorAnimal[categoria].toFixed(2);
+      }
     }
 
     function confirmarSalida(mensaje) {
@@ -558,6 +602,13 @@
     document.getElementById('btn-generar').addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
+
+      const categoriaSeleccionada = categoriaAnimalEl.value;
+      if (!categoriaSeleccionada) {
+        errorEl.textContent = 'Selecciona una categoría de animal.';
+        return;
+      }
+
       const deseaImprimirTicket = await pedirImpresionTicket();
       if (deseaImprimirTicket === null) {
         resultadoEl.textContent = 'Generación cancelada por el usuario.';
@@ -595,6 +646,7 @@
         facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia += Number(data.total);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
+        actualizarTablaAnimales(categoriaSeleccionada, Number(data.total));
         try {
           await descargarFacturaConDialogo(data);
           resultadoEl.textContent += ' Archivo guardado correctamente.';
