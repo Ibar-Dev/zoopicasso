@@ -641,3 +641,6 @@ Traceback (most recent call last):
     1 / 0
     ~~^~~
 ZeroDivisionError: division by zero
+[2026-04-14 02:05:29] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-14 02:05:38] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas
+[2026-04-14 02:05:38] [INFO    ] [src.factura_writer:generar_factura_xlsx:352] Factura 2026-999 generada exitosamente en: /home/ibardev/Development/zoo_picasso/generar_para_email/facturas/factura_2026_999.xlsx

@@ -268,14 +268,15 @@ def main(page: ft.Page):
                 color=ft.Colors.BLUE_800,
             )
 
-        def on_select_animal(e: ft.AutoCompleteSelectEvent) -> None:
-            animal_actual["key"] = e.selection.key
-            animal_actual["value"] = e.selection.value
+        def on_select_animal(e) -> None:
+            animal_actual["value"] = categoria_animal.value
 
-        categoria_animal = ft.AutoComplete(
-            suggestions=[
-                ft.AutoCompleteSuggestion(key=k, value=v)
-                for k, v in ANIMALES.items()
+        categoria_animal = ft.Dropdown(
+            label="Categoría del animal",
+            width=220,
+            options=[
+                ft.dropdown.Option(key=v, text=v)
+                for v in ANIMALES.values()
             ],
             on_select=on_select_animal,
         )
@@ -359,7 +360,7 @@ def main(page: ft.Page):
             contenedor_filas.controls.clear()
             txt_cliente_nombre.value = ""
             txt_cliente_nif.value = ""
-            animal_actual["key"] = None
+            categoria_animal.value = None
             animal_actual["value"] = None
             numero_factura = siguiente_numero_factura()
             lbl_numero.value = f"Factura  {date.today().year}-{numero_factura:03d}"
@@ -575,15 +576,7 @@ def main(page: ft.Page):
         bloque_animal = ft.Column(
             controls=[
                 ft.Text("CATEGORÍA DEL ANIMAL", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600),
-                ft.Row(
-                    controls=[
-                        ft.Text("Animal:", weight=ft.FontWeight.BOLD, width=70),
-                        ft.Container(content=categoria_animal, width=220),
-                    ],
-                    alignment=ft.MainAxisAlignment.START,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    spacing=8,
-                ),
+                categoria_animal,
             ],
             spacing=6,
         )
