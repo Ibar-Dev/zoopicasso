@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 from datetime import date
@@ -16,8 +17,10 @@ import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura
 from src.printer import generar_ticket_escpos
-from src.printer import imprimir_ticket_usb_windows
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
+
+# Cola de impresión en memoria (puente nube → PC local)
+cola_impresion: list[bytes] = []
 
 logger = logging.getLogger(__name__)
 
@@ -164,18 +167,18 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     if payload.imprimir_ticket:
         try:
             ticket = generar_ticket_escpos(factura, ancho=42)
-            impresora = imprimir_ticket_usb_windows(ticket)
+            cola_impresion.append(ticket)
             ticket_impreso = True
-            ticket_estado = f"Ticket enviado a impresora: {impresora}"
+            ticket_estado = "Ticket encolado para impresión."
             logger.info(
-                "Ticket impreso para factura web %s en impresora %s",
+                "Ticket encolado para factura web %s (cola: %d pendientes)",
                 factura.numero_formateado,
-                impresora,
+                len(cola_impresion),
             )
         except Exception as exc:
-            ticket_estado = f"No se pudo imprimir ticket: {exc}"
+            ticket_estado = f"No se pudo generar ticket: {exc}"
             logger.warning(
-                "Fallo de impresion ticket para factura web %s: %s",
+                "Fallo al generar ticket para factura web %s: %s",
                 factura.numero_formateado,
                 exc,
                 exc_info=True,
@@ -191,6 +194,22 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
         "ticket_estado": ticket_estado,
         "emisor": EMISOR_FACTURA,
     }
+
+
+@app.get("/api/impresion/siguiente")
+def siguiente_ticket() -> JSONResponse:
+    if not cola_impresion:
+        return JSONResponse({"hay_ticket": False}, status_code=204)
+    ticket = cola_impresion.pop(0)
+    logger.info(
+        "Ticket despachado (%d bytes, quedan %d en cola)",
+        len(ticket),
+        len(cola_impresion),
+    )
+    return JSONResponse({
+        "hay_ticket": True,
+        "ticket_b64": base64.b64encode(ticket).decode("ascii"),
+    })
 
 
 @app.get("/api/descargar/{nombre_archivo}")
