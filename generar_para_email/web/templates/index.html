@@ -33,7 +33,10 @@
           <h2>Factura Web</h2>
           <p id="estado">Completa los datos y genera el Excel.</p>
         </div>
-        <button id="btn-logout" class="ghost">Salir</button>
+        <div class="header-actions">
+          <button id="btn-carpeta" class="ghost" type="button" title="Cambiar carpeta de destino">📁 Carpeta</button>
+          <button id="btn-logout" class="ghost">Salir</button>
+        </div>
       </div>
 
       <div class="grid two">
@@ -503,40 +506,97 @@
       return res.json().catch(() => ({}));
     }
 
-    async function descargarFacturaConDialogo(data) {
+    // ── IndexedDB helpers ─────────────────────────────────────────────────────
+    function abrirIDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('facturas-db', 1);
+        req.onupgradeneeded = (e) => { e.target.result.createObjectStore('config'); };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function idbGet(store, key) {
+      const db = await abrirIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readonly');
+        const req = tx.objectStore(store).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function idbSet(store, key, value) {
+      const db = await abrirIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite');
+        const req = tx.objectStore(store).put(value, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    let _toastTimeout = null;
+
+    function mostrarToast(msg) {
+      const toast = document.getElementById('toast-guardado');
+      toast.textContent = msg;
+      toast.classList.add('visible');
+      if (_toastTimeout) clearTimeout(_toastTimeout);
+      _toastTimeout = setTimeout(() => {
+        toast.classList.remove('visible');
+        _toastTimeout = null;
+      }, 2000);
+    }
+
+    // ── Guardado en carpeta (File System Access API + IndexedDB) ──────────────
+    async function guardarEnCarpeta(data) {
       const response = await fetch(data.download_url, { credentials: 'same-origin' });
       if (!response.ok) {
         throw new Error('No se pudo descargar el archivo de factura.');
       }
       const blob = await response.blob();
 
-      if (window.showSaveFilePicker) {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: data.archivo,
-          types: [
-            {
-              description: 'Factura Excel',
-              accept: {
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-              },
-            },
-          ],
-        });
-        const writable = await handle.createWritable();
-        await writable.write(blob);
-        await writable.close();
+      // Fallback para navegadores sin File System Access API (ej. Firefox).
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.archivo;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        mostrarToast('Se ha guardado');
         return;
       }
 
-      // Fallback para navegadores sin selector nativo de guardado.
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = data.archivo;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      // Recuperar handle guardado en IndexedDB y verificar permisos.
+      let dirHandle = null;
+      try {
+        dirHandle = await idbGet('config', 'carpeta_facturas');
+      } catch (_) { /* continuar sin handle guardado */ }
+
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+
+      // Si no hay handle válido, pedir carpeta al usuario y persistirla.
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        try { await idbSet('config', 'carpeta_facturas', dirHandle); } catch (_) { /* no crítico */ }
+      }
+
+      const fileHandle = await dirHandle.getFileHandle(data.archivo, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast('Se ha guardado');
     }
 
     document.getElementById('btn-login').addEventListener('click', async () => {
@@ -568,6 +628,24 @@
       acumuladoDiaEl.textContent = '0.00 €';
       resetFormulario();
       toggleView(false);
+    });
+
+    document.getElementById('btn-carpeta').addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los archivos se descargarán automáticamente.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_facturas', dirHandle);
+        resultadoEl.textContent = `Carpeta de destino configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta de destino.';
+        }
+      }
     });
 
     document.getElementById('btn-add').addEventListener('click', () => addLinea());
@@ -639,7 +717,7 @@
           }),
         });
 
-        resultadoEl.textContent = `Factura ${data.numero} generada. Selecciona dónde guardar el archivo.`;
+        resultadoEl.textContent = `Factura ${data.numero} generada.`;
         estadoEl.textContent = `Última factura: ${data.numero}`;
         facturasDia += 1;
         facturasDiaEl.textContent = String(facturasDia);
@@ -650,8 +728,7 @@
           actualizarTablaAnimales(l.categoria, lineTotal);
         }
         try {
-          await descargarFacturaConDialogo(data);
-          resultadoEl.textContent += ' Archivo guardado correctamente.';
+          await guardarEnCarpeta(data);
         } catch (err) {
           if (err && err.name === 'AbortError') {
             resultadoEl.textContent += ' Guardado cancelado por el usuario.';
@@ -713,5 +790,7 @@
 
     bootstrap();
   </script>
+
+  <div id="toast-guardado" class="toast" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>
