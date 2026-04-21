@@ -939,3 +939,4 @@ RuntimeError: La impresion ESC/POS USB esta habilitada solo en Windows.
 [2026-04-17 07:20:10] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 1
 [2026-04-17 07:20:10] [INFO    ] [__main__:resetear:363] Formulario reseteado. Siguiente factura: 010
 [2026-04-17 07:20:30] [INFO    ] [flet:<lambda>:65] Session was garbage collected: 0XKFDyrLZUqVq1kV
+[2026-04-21 15:57:17] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
