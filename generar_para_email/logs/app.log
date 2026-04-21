@@ -715,3 +715,227 @@ ZeroDivisionError: division by zero
 [2026-04-14 12:58:40] [INFO    ] [web.app:generar:158] Factura web 2026-005 generada. Cliente: Prueba Puente Total: 31.00
 [2026-04-14 12:58:40] [INFO    ] [web.app:generar:173] Ticket encolado para factura web 2026-005 (cola: 1 pendientes)
 [2026-04-14 12:58:40] [INFO    ] [web.app:siguiente_ticket:204] Ticket despachado (864 bytes, quedan 0 en cola)
+[2026-04-17 06:51:59] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 06:52:00] [INFO    ] [src.factura_counter:_inicializar_contador:42] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ivar/pytest-4/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-17 06:52:00] [INFO    ] [src.factura_counter:_inicializar_contador:42] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ivar/pytest-4/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-17 06:52:00] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 1
+[2026-04-17 06:52:00] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 2
+[2026-04-17 06:52:00] [ERROR   ] [src.factura_counter:_leer:58] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ivar/pytest-4/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/factura_counter.py", line 53, in _leer
+    dato = json.load(f)
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-17 06:52:00] [ERROR   ] [src.factura_counter:_escribir:71] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/factura_counter.py", line 67, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_factura_counter_real.py", line 77, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_factura_counter_real.py", line 77, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-17 06:52:00] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ivar/pytest-4/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-17 06:52:00] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ivar/pytest-4/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-17 06:52:01] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ivar/pytest-4/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-17 06:52:01] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ivar/pytest-4/test_copia_windows_crea_fallba0/Documents
+[2026-04-17 06:52:01] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ivar/pytest-4/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-17 06:52:01] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-17 06:52:01] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-17 06:52:01] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-17 06:52:01] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-17 06:52:01] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-17 06:52:01] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-17 06:57:26] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 06:57:26] [INFO    ] [flet:__get_assets_dir_path:526] Assets path configured: /home/ivar/Development/zoopicasso/generar_para_email/assets
+[2026-04-17 06:57:26] [INFO    ] [flet:start:112] Starting up UDS server on /tmp/etMvkZMlgD
+[2026-04-17 06:57:26] [INFO    ] [flet:run_async:278] Flet app has started...
+[2026-04-17 06:57:27] [INFO    ] [flet:on_app_startup:227] App URL: /tmp/etMvkZMlgD
+[2026-04-17 06:57:27] [INFO    ] [flet_desktop:__locate_and_unpack_flet_view:352] Starting Flet View app...
+[2026-04-17 06:57:27] [INFO    ] [flet_desktop:ensure_client_cached:217] Flet client found in cache: /home/ivar/.flet/client/flet-desktop-light-0.84.0
+[2026-04-17 06:57:27] [INFO    ] [flet:on_session_created:337] App session started
+[2026-04-17 06:57:48] [WARNING ] [__main__:login:160] Intento de acceso fallido.
+[2026-04-17 06:57:50] [INFO    ] [flet:<lambda>:65] Session was garbage collected: Ql9T6RHHbxvrKAml
+[2026-04-17 07:08:03] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 07:08:03] [INFO    ] [flet:__get_assets_dir_path:526] Assets path configured: /home/ivar/Development/zoopicasso/generar_para_email/assets
+[2026-04-17 07:08:03] [INFO    ] [flet:start:112] Starting up UDS server on /tmp/GZSWeRjnGn
+[2026-04-17 07:08:03] [INFO    ] [flet:run_async:278] Flet app has started...
+[2026-04-17 07:08:03] [INFO    ] [flet:on_app_startup:227] App URL: /tmp/GZSWeRjnGn
+[2026-04-17 07:08:03] [INFO    ] [flet_desktop:__locate_and_unpack_flet_view:352] Starting Flet View app...
+[2026-04-17 07:08:03] [INFO    ] [flet_desktop:ensure_client_cached:217] Flet client found in cache: /home/ivar/.flet/client/flet-desktop-light-0.84.0
+[2026-04-17 07:08:03] [INFO    ] [flet:on_session_created:337] App session started
+[2026-04-17 07:08:07] [INFO    ] [flet:<lambda>:65] Session was garbage collected: oQXEqj4TORr00qmB
+[2026-04-17 07:09:32] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 07:09:32] [INFO    ] [flet:__get_assets_dir_path:526] Assets path configured: /home/ivar/Development/zoopicasso/generar_para_email/assets
+[2026-04-17 07:09:32] [INFO    ] [flet:start:112] Starting up UDS server on /tmp/HEjhNAhB7o
+[2026-04-17 07:09:32] [INFO    ] [flet:run_async:278] Flet app has started...
+[2026-04-17 07:09:33] [INFO    ] [flet:on_app_startup:227] App URL: /tmp/HEjhNAhB7o
+[2026-04-17 07:09:33] [INFO    ] [flet_desktop:__locate_and_unpack_flet_view:352] Starting Flet View app...
+[2026-04-17 07:09:33] [INFO    ] [flet_desktop:ensure_client_cached:217] Flet client found in cache: /home/ivar/.flet/client/flet-desktop-light-0.84.0
+[2026-04-17 07:09:34] [INFO    ] [flet:on_session_created:337] App session started
+[2026-04-17 07:09:52] [WARNING ] [__main__:login:160] Intento de acceso fallido.
+[2026-04-17 07:09:54] [INFO    ] [flet:<lambda>:65] Session was garbage collected: BFn5ioBO79xcOM13
+[2026-04-17 07:11:10] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 07:11:10] [INFO    ] [flet:__get_assets_dir_path:526] Assets path configured: /home/ivar/Development/zoopicasso/generar_para_email/assets
+[2026-04-17 07:11:10] [INFO    ] [flet:start:112] Starting up UDS server on /tmp/BWja1H3AQO
+[2026-04-17 07:11:10] [INFO    ] [flet:run_async:278] Flet app has started...
+[2026-04-17 07:11:10] [INFO    ] [flet:on_app_startup:227] App URL: /tmp/BWja1H3AQO
+[2026-04-17 07:11:10] [INFO    ] [flet_desktop:__locate_and_unpack_flet_view:352] Starting Flet View app...
+[2026-04-17 07:11:10] [INFO    ] [flet_desktop:ensure_client_cached:217] Flet client found in cache: /home/ivar/.flet/client/flet-desktop-light-0.84.0
+[2026-04-17 07:11:11] [INFO    ] [flet:on_session_created:337] App session started
+[2026-04-17 07:11:21] [INFO    ] [__main__:login:157] Inicio de sesión correcto.
+[2026-04-17 07:11:21] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 6
+[2026-04-17 07:11:21] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 1
+[2026-04-17 07:11:50] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 2
+[2026-04-17 07:11:51] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 3
+[2026-04-17 07:11:52] [INFO    ] [__main__:quitar_fila:350] Línea eliminada. Total: 2
+[2026-04-17 07:11:53] [INFO    ] [__main__:quitar_fila:350] Línea eliminada. Total: 1
+[2026-04-17 07:12:23] [INFO    ] [flet:<lambda>:65] Session was garbage collected: tsOKTkRUvatFiooE
+[2026-04-17 07:13:15] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 07:13:16] [INFO    ] [src.factura_counter:_inicializar_contador:42] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ivar/pytest-5/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-17 07:13:16] [INFO    ] [src.factura_counter:_inicializar_contador:42] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ivar/pytest-5/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-17 07:13:16] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 1
+[2026-04-17 07:13:16] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 2
+[2026-04-17 07:13:16] [ERROR   ] [src.factura_counter:_leer:58] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ivar/pytest-5/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/factura_counter.py", line 53, in _leer
+    dato = json.load(f)
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-17 07:13:16] [ERROR   ] [src.factura_counter:_escribir:71] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/factura_counter.py", line 67, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_factura_counter_real.py", line 77, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_factura_counter_real.py", line 77, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-17 07:13:16] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ivar/pytest-5/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-17 07:13:16] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ivar/pytest-5/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-17 07:13:16] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ivar/pytest-5/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-17 07:13:16] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ivar/pytest-5/test_copia_windows_crea_fallba0/Documents
+[2026-04-17 07:13:16] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ivar/pytest-5/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-17 07:13:16] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-17 07:13:16] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-17 07:13:16] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-17 07:13:16] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-17 07:13:16] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-17 07:13:16] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-17 07:14:25] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 07:14:25] [INFO    ] [flet:__get_assets_dir_path:526] Assets path configured: /home/ivar/Development/zoopicasso/generar_para_email/assets
+[2026-04-17 07:14:25] [INFO    ] [flet:start:112] Starting up UDS server on /tmp/q2RFr9teYR
+[2026-04-17 07:14:25] [INFO    ] [flet:run_async:278] Flet app has started...
+[2026-04-17 07:14:26] [INFO    ] [flet:on_app_startup:227] App URL: /tmp/q2RFr9teYR
+[2026-04-17 07:14:26] [INFO    ] [flet_desktop:__locate_and_unpack_flet_view:352] Starting Flet View app...
+[2026-04-17 07:14:26] [INFO    ] [flet_desktop:ensure_client_cached:217] Flet client found in cache: /home/ivar/.flet/client/flet-desktop-light-0.84.0
+[2026-04-17 07:14:26] [INFO    ] [flet:on_session_created:337] App session started
+[2026-04-17 07:14:42] [INFO    ] [__main__:login:157] Inicio de sesión correcto.
+[2026-04-17 07:14:42] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 7
+[2026-04-17 07:14:46] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 1
+[2026-04-17 07:15:27] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 2
+[2026-04-17 07:15:38] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 3
+[2026-04-17 07:15:54] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 4
+[2026-04-17 07:16:14] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 5
+[2026-04-17 07:16:31] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 6
+[2026-04-17 07:16:52] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 7
+[2026-04-17 07:17:05] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 8
+[2026-04-17 07:17:19] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-007 generada exitosamente en: /home/ivar/Development/zoopicasso/generar_para_email/facturas/factura_2026_007.xlsx
+[2026-04-17 07:17:19] [INFO    ] [__main__:generar:419] Factura 2026-007 · Cliente: (sin cliente) · Total: 224.00 €
+[2026-04-17 07:17:22] [WARNING ] [__main__:_imprimir:470] Fallo de impresion ticket para factura 2026-007: La impresion ESC/POS USB esta habilitada solo en Windows.
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/main.py", line 458, in _imprimir
+    impresora = imprimir_ticket_usb_windows(ticket)
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/printer.py", line 156, in imprimir_ticket_usb_windows
+    raise RuntimeError("La impresion ESC/POS USB esta habilitada solo en Windows.")
+RuntimeError: La impresion ESC/POS USB esta habilitada solo en Windows.
+[2026-04-17 07:17:22] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 8
+[2026-04-17 07:17:22] [INFO    ] [__main__:resetear:363] Formulario reseteado. Siguiente factura: 008
+[2026-04-17 07:17:49] [ERROR   ] [flet:dispatch_event:337] Unhandled error in 'on_click' handler
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/.venv/lib/python3.14/site-packages/flet/messaging/session.py", line 335, in dispatch_event
+    await control._trigger_event(event_name, event_data)
+  File "/home/ivar/Development/zoopicasso/.venv/lib/python3.14/site-packages/flet/controls/base_control.py", line 478, in _trigger_event
+    event_handler(e)
+    ~~~~~~~~~~~~~^^^
+  File "/home/ivar/Development/zoopicasso/generar_para_email/main.py", line 400, in generar
+    factura = Factura(
+        numero=numero_factura,
+    ...<3 lines>...
+        lineas=lineas,
+    )
+  File "<string>", line 8, in __init__
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/factura_model.py", line 54, in __post_init__
+    raise ValueError("La factura debe tener al menos una línea.")
+ValueError: La factura debe tener al menos una línea.
+[2026-04-17 07:17:58] [INFO    ] [flet:<lambda>:65] Session was garbage collected: Jg57a2wylgdKOCzM
+[2026-04-17 07:18:32] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-17 07:18:32] [INFO    ] [flet:__get_assets_dir_path:526] Assets path configured: /home/ivar/Development/zoopicasso/generar_para_email/assets
+[2026-04-17 07:18:32] [INFO    ] [flet:start:112] Starting up UDS server on /tmp/VncWqFaPE7
+[2026-04-17 07:18:32] [INFO    ] [flet:run_async:278] Flet app has started...
+[2026-04-17 07:18:32] [INFO    ] [flet:on_app_startup:227] App URL: /tmp/VncWqFaPE7
+[2026-04-17 07:18:32] [INFO    ] [flet_desktop:__locate_and_unpack_flet_view:352] Starting Flet View app...
+[2026-04-17 07:18:32] [INFO    ] [flet_desktop:ensure_client_cached:217] Flet client found in cache: /home/ivar/.flet/client/flet-desktop-light-0.84.0
+[2026-04-17 07:18:33] [INFO    ] [flet:on_session_created:337] App session started
+[2026-04-17 07:18:49] [INFO    ] [__main__:login:157] Inicio de sesión correcto.
+[2026-04-17 07:18:49] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 9
+[2026-04-17 07:18:49] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 1
+[2026-04-17 07:19:11] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 2
+[2026-04-17 07:19:17] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 3
+[2026-04-17 07:19:28] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 4
+[2026-04-17 07:19:38] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 5
+[2026-04-17 07:19:47] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 6
+[2026-04-17 07:19:56] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 7
+[2026-04-17 07:20:08] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /home/ivar/Development/zoopicasso/generar_para_email/facturas/factura_2026_009.xlsx
+[2026-04-17 07:20:08] [INFO    ] [__main__:generar:419] Factura 2026-009 · Cliente: (sin cliente) · Total: 1362.00 €
+[2026-04-17 07:20:10] [WARNING ] [__main__:_imprimir:470] Fallo de impresion ticket para factura 2026-009: La impresion ESC/POS USB esta habilitada solo en Windows.
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/main.py", line 458, in _imprimir
+    impresora = imprimir_ticket_usb_windows(ticket)
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/printer.py", line 156, in imprimir_ticket_usb_windows
+    raise RuntimeError("La impresion ESC/POS USB esta habilitada solo en Windows.")
+RuntimeError: La impresion ESC/POS USB esta habilitada solo en Windows.
+[2026-04-17 07:20:10] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 10
+[2026-04-17 07:20:10] [INFO    ] [__main__:agregar_fila:337] Línea añadida. Total: 1
+[2026-04-17 07:20:10] [INFO    ] [__main__:resetear:363] Formulario reseteado. Siguiente factura: 010
+[2026-04-17 07:20:30] [INFO    ] [flet:<lambda>:65] Session was garbage collected: 0XKFDyrLZUqVq1kV

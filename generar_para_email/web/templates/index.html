@@ -45,19 +45,6 @@
         </label>
       </div>
 
-      <label>Categoría del animal
-        <select id="categoria_animal">
-          <option value="">— Selecciona categoría —</option>
-          <option value="perro">Perro</option>
-          <option value="gato">Gato</option>
-          <option value="conejo">Conejo</option>
-          <option value="ave">Ave</option>
-          <option value="peces">Peces</option>
-          <option value="reptiles">Reptiles</option>
-          <option value="peluqueria">Peluquería</option>
-        </select>
-      </label>
-
       <div class="lineas-head">
         <h3>Líneas</h3>
         <button id="btn-add" class="ghost">+ Añadir línea</button>
@@ -130,7 +117,6 @@
     const btnTicketCancelar = document.getElementById('btn-ticket-cancelar');
     const btnTicketNo = document.getElementById('btn-ticket-no');
     const btnTicketSi = document.getElementById('btn-ticket-si');
-    const categoriaAnimalEl = document.getElementById('categoria_animal');
     let acumuladoDia = 0;
     let facturasDia = 0;
     const totalesPorAnimal = {
@@ -174,7 +160,7 @@
       totalEl.textContent = `${total.toFixed(2)} €`;
     }
 
-    function addLinea(concepto = '', cantidad = 1, precio = '') {
+    function addLinea(concepto = '', cantidad = 1, precio = '', categoria = '') {
       const row = document.createElement('div');
       row.className = 'fila';
       row.innerHTML = `
@@ -182,8 +168,19 @@
         <input class="cantidad" type="number" min="1" value="${cantidad}" />
         <input class="precio" type="text" inputmode="decimal" placeholder="€" value="${precio}" />
         <span class="parcial">0.00</span>
+        <select class="categoria">
+          <option value="">— Categoría —</option>
+          <option value="perro">Perro</option>
+          <option value="gato">Gato</option>
+          <option value="conejo">Conejo</option>
+          <option value="ave">Ave</option>
+          <option value="peces">Peces</option>
+          <option value="reptiles">Reptiles</option>
+          <option value="peluqueria">Peluquería</option>
+        </select>
         <button class="del" type="button">×</button>
       `;
+      if (categoria) row.querySelector('.categoria').value = categoria;
       row.querySelector('.cantidad').addEventListener('input', calcTotals);
       row.querySelector('.precio').addEventListener('input', calcTotals);
       row.querySelector('.del').addEventListener('click', () => {
@@ -204,7 +201,6 @@
     function resetFormulario() {
       document.getElementById('cliente_nombre').value = '';
       document.getElementById('cliente_nif').value = '';
-      categoriaAnimalEl.value = '';
       lineasEl.innerHTML = '';
       addLinea();
     }
@@ -603,9 +599,11 @@
       resultadoEl.textContent = '';
       errorEl.textContent = '';
 
-      const categoriaSeleccionada = categoriaAnimalEl.value;
-      if (!categoriaSeleccionada) {
-        errorEl.textContent = 'Selecciona una categoría de animal.';
+      const filasArr = [...lineasEl.querySelectorAll('.fila')];
+
+      const sinCategoria = filasArr.some((fila) => !fila.querySelector('.categoria').value);
+      if (sinCategoria) {
+        errorEl.textContent = 'Selecciona una categoría para cada línea.';
         return;
       }
 
@@ -615,13 +613,14 @@
         return;
       }
 
-      const lineas = [...lineasEl.querySelectorAll('.fila')].map((fila) => ({
+      const lineas = filasArr.map((fila) => ({
         concepto: fila.querySelector('.concepto').value.trim(),
         cantidad: Number(fila.querySelector('.cantidad').value),
         precio_unitario: Number((fila.querySelector('.precio').value || '').replace(',', '.')),
+        categoria: fila.querySelector('.categoria').value,
       }));
 
-      const precioInvalido = [...lineasEl.querySelectorAll('.fila')].some(
+      const precioInvalido = filasArr.some(
         (fila) => !importeEurValido((fila.querySelector('.precio').value || '').trim())
       );
       if (precioInvalido) {
@@ -646,7 +645,10 @@
         facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia += Number(data.total);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
-        actualizarTablaAnimales(categoriaSeleccionada, Number(data.total));
+        for (const l of lineas) {
+          const lineTotal = Number(l.cantidad) * Number(l.precio_unitario);
+          actualizarTablaAnimales(l.categoria, lineTotal);
+        }
         try {
           await descargarFacturaConDialogo(data);
           resultadoEl.textContent += ' Archivo guardado correctamente.';

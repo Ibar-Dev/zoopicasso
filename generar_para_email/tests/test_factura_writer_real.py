@@ -40,7 +40,7 @@ def test_generar_factura_xlsx_contenido_basico(tmp_path, monkeypatch):
     ws = wb.active
     assert ws["A1"].value == "Gisselle Marin Tabares"
     assert ws["A6"].value == "FACTURA  Nº  2026-009"
-    assert ws["C6"].value == "Fecha: 08/04/2026"
+    assert ws["D6"].value == "Fecha: 08/04/2026"
 
 
 def test_copiar_en_documentos_windows_sin_rutas(monkeypatch, tmp_path):

@@ -54,30 +54,38 @@ class FilaConcepto:
     def __init__(self, on_change: Callable[[], None]):
         self.concepto = ft.TextField(
             label="Concepto / Servicio",
-            width=300,
+            width=200,
             on_change=lambda _: on_change(),
         )
         self.cantidad = ft.TextField(
             label="Cant.",
             value="1",
-            width=70,
+            width=60,
             keyboard_type=ft.KeyboardType.NUMBER,
             on_change=lambda _: self._recalcular(on_change),
         )
         self.precio = ft.TextField(
-            label="P. Unit. (EUR, IVA incluido)",
+            label="P. Unit. (EUR, IVA incl.)",
             value="",
             hint_text="€",
-            width=130,
+            width=110,
             keyboard_type=ft.KeyboardType.NUMBER,
             on_change=lambda _: self._recalcular(on_change),
         )
         self.total = ft.TextField(
             label="Total",
             value="0.00",
-            width=120,
+            width=100,
             read_only=True,
             bgcolor=ft.Colors.GREY_200,
+        )
+        self.categoria = ft.Dropdown(
+            label="Categoría",
+            width=160,
+            options=[
+                ft.dropdown.Option(key=v, text=v)
+                for v in ANIMALES.values()
+            ],
         )
 
     def _precio_valido(self, texto: str) -> bool:
@@ -98,7 +106,7 @@ class FilaConcepto:
 
     def como_row(self) -> ft.Row:
         return ft.Row(
-            controls=[self.concepto, self.cantidad, self.precio, self.total],
+            controls=[self.concepto, self.cantidad, self.precio, self.total, self.categoria],
             alignment=ft.MainAxisAlignment.START,
         )
 
@@ -113,7 +121,8 @@ class FilaConcepto:
                 "Precio inválido: usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50)."
             )
         precio = float(precio_txt.replace(",", "."))
-        return LineaFactura(concepto=concepto, cantidad=cantidad, precio_unitario=precio)
+        return LineaFactura(concepto=concepto, cantidad=cantidad, precio_unitario=precio,
+                            categoria=self.categoria.value or "")
 
 
 def main(page: ft.Page):
@@ -206,7 +215,6 @@ def main(page: ft.Page):
         total_dia = 0.0
         facturas_dia = 0
         totales_por_animal: dict[str, float] = {v: 0.0 for v in ANIMALES.values()}
-        animal_actual: dict[str, str | None] = {"key": None, "value": None}
 
         # ── Controles dinámicos ───────────────────────────────────────────────
         contenedor_filas = ft.Column(spacing=6)
@@ -250,7 +258,7 @@ def main(page: ft.Page):
                 ])
                 for nombre in ANIMALES.values()
             ],
-            border=ft.border.all(1, ft.Colors.GREY_300),
+            border=ft.Border.all(1, ft.Colors.GREY_300),
             border_radius=8,
             vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_200),
         )
@@ -267,19 +275,6 @@ def main(page: ft.Page):
                 weight=ft.FontWeight.BOLD,
                 color=ft.Colors.BLUE_800,
             )
-
-        def on_select_animal(e) -> None:
-            animal_actual["value"] = categoria_animal.value
-
-        categoria_animal = ft.Dropdown(
-            label="Categoría del animal",
-            width=220,
-            options=[
-                ft.dropdown.Option(key=v, text=v)
-                for v in ANIMALES.values()
-            ],
-            on_select=on_select_animal,
-        )
 
         def _importe_eur_valido(texto: str) -> bool:
             patron = r"^(0|[1-9]\d*)([\.,]\d{1,2})?$"
@@ -341,7 +336,7 @@ def main(page: ft.Page):
             contenedor_filas.controls.append(fila.como_row())
             logger.info(f"Línea añadida. Total: {len(filas)}")
             page.update()
-            fila.concepto.focus()
+            page.run_task(fila.concepto.focus)
 
         def quitar_fila(_=None):
             if len(filas) <= 1:
@@ -360,8 +355,6 @@ def main(page: ft.Page):
             contenedor_filas.controls.clear()
             txt_cliente_nombre.value = ""
             txt_cliente_nif.value = ""
-            categoria_animal.value = None
-            animal_actual["value"] = None
             numero_factura = siguiente_numero_factura()
             lbl_numero.value = f"Factura  {date.today().year}-{numero_factura:03d}"
             lbl_estado.value = ""
@@ -388,9 +381,9 @@ def main(page: ft.Page):
         def generar(_=None):
             nonlocal total_dia, facturas_dia
 
-            # Validar categoría animal
-            if not animal_actual["value"]:
-                lbl_estado.value = "Selecciona una categoría de animal."
+            # Validar categoría animal en cada línea
+            if any(not f.categoria.value for f in filas):
+                lbl_estado.value = "Selecciona una categoría para cada línea."
                 lbl_estado.color = ft.Colors.RED_600
                 page.update()
                 return
@@ -426,8 +419,7 @@ def main(page: ft.Page):
             logger.info(
                 f"Factura {factura.numero_formateado} · "
                 f"Cliente: {cliente_log} · "
-                f"Total: {factura.total_con_iva:.2f} € · "
-                f"Categoría: {animal_actual['value']}"
+                f"Total: {factura.total_con_iva:.2f} €"
             )
 
             # Acumular totales del día
@@ -436,12 +428,13 @@ def main(page: ft.Page):
             lbl_facturas_dia.value = str(facturas_dia)
             lbl_total_dia.value = f"{total_dia:.2f} €"
 
-            # Acumular por categoría animal
-            nombre_animal = animal_actual["value"]
-            totales_por_animal[nombre_animal] = round(
-                totales_por_animal[nombre_animal] + factura.total_con_iva, 2
-            )
-            _actualizar_tabla_animales(nombre_animal)
+            # Acumular por categoría animal (por línea)
+            for fila_concepto, linea in zip(filas, factura.lineas):
+                nombre_animal = fila_concepto.categoria.value
+                totales_por_animal[nombre_animal] = round(
+                    totales_por_animal[nombre_animal] + linea.total, 2
+                )
+                _actualizar_tabla_animales(nombre_animal)
 
             lbl_estado.value = f"✓  Factura {factura.numero_formateado} guardada en: {ruta}"
             lbl_estado.color = ft.Colors.GREEN_700
@@ -573,14 +566,6 @@ def main(page: ft.Page):
             spacing=6,
         )
 
-        bloque_animal = ft.Column(
-            controls=[
-                ft.Text("CATEGORÍA DEL ANIMAL", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600),
-                categoria_animal,
-            ],
-            spacing=6,
-        )
-
         bloque_tabla_animales = ft.Column(
             controls=[
                 ft.Text(
@@ -683,8 +668,6 @@ def main(page: ft.Page):
             cabecera,
             ft.Divider(),
             bloque_cliente,
-            ft.Divider(),
-            bloque_animal,
             ft.Divider(),
             ft.Text("LÍNEAS DE LA FACTURA", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600),
             contenedor_filas,

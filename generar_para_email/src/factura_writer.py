@@ -57,10 +57,10 @@ def _align(h="left", v="center", wrap=False) -> Alignment:
 
 
 def _aplicar_fila_tabla(ws, fila: int, valores: list, alternar: bool) -> None:
-    """Aplica formato de fila de datos a las columnas A-D."""
+    """Aplica formato de fila de datos a las columnas A-E."""
     color = _GRIS_CLARO if alternar else _BLANCO
-    columnas = ["A", "B", "C", "D"]
-    alineaciones = ["left", "center", "right", "right"]
+    columnas = ["A", "B", "C", "D", "E"]
+    alineaciones = ["left", "left", "center", "right", "right"]
     for col, val, align in zip(columnas, valores, alineaciones):
         celda = ws[f"{col}{fila}"]
         celda.value = val
@@ -68,7 +68,7 @@ def _aplicar_fila_tabla(ws, fila: int, valores: list, alternar: bool) -> None:
         celda.alignment = _align(h=align)
         celda.border = _BORDE
         celda.fill = _fill(color)
-        if col in ("C", "D") and isinstance(val, float):
+        if col in ("D", "E") and isinstance(val, float):
             celda.number_format = '#,##0.00'
 
 
@@ -216,33 +216,34 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     ws.title = f"Factura {factura.numero_formateado}"
 
     # ── Anchos de columna ─────────────────────────────────────────────────────
-    ws.column_dimensions["A"].width = 42
-    ws.column_dimensions["B"].width = 12
-    ws.column_dimensions["C"].width = 18
+    ws.column_dimensions["A"].width = 34
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 12
     ws.column_dimensions["D"].width = 16
+    ws.column_dimensions["E"].width = 14
 
     # ── Filas 1-2: Nombre y NIF del emisor (fondo azul oscuro, texto blanco) ──
-    ws.merge_cells("A1:D1")
+    ws.merge_cells("A1:E1")
     ws["A1"].value = NOMBRE_EMISOR
     ws["A1"].font = _font(bold=True, size=16, color=_BLANCO)
     ws["A1"].fill = _fill(_AZUL_OSCURO)
     ws["A1"].alignment = _align(h="center")
     ws.row_dimensions[1].height = 30
 
-    ws.merge_cells("A2:D2")
+    ws.merge_cells("A2:E2")
     ws["A2"].value = f"NIF: {NIF_EMISOR}"
     ws["A2"].font = _font(size=10, color=_BLANCO)
     ws["A2"].fill = _fill(_AZUL_OSCURO)
     ws["A2"].alignment = _align(h="center")
 
     # ── Filas 3-4: Dirección y contacto (fondo azul claro) ───────────────────
-    ws.merge_cells("A3:D3")
+    ws.merge_cells("A3:E3")
     ws["A3"].value = DIRECCION_EMISOR
     ws["A3"].font = _font(size=10)
     ws["A3"].fill = _fill(_AZUL_CLARO)
     ws["A3"].alignment = _align(h="center")
 
-    ws.merge_cells("A4:D4")
+    ws.merge_cells("A4:E4")
     ws["A4"].value = f"Tel: {TELEFONO_EMISOR}   ·   {EMAIL_EMISOR}"
     ws["A4"].font = _font(size=10)
     ws["A4"].fill = _fill(_AZUL_CLARO)
@@ -252,22 +253,22 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     ws.row_dimensions[5].height = 8
 
     # ── Fila 6: Número y fecha de factura ─────────────────────────────────────
-    ws.merge_cells("A6:B6")
+    ws.merge_cells("A6:C6")
     ws["A6"].value = f"FACTURA  Nº  {factura.numero_formateado}"
     ws["A6"].font = _font(bold=True, size=14)
     ws["A6"].alignment = _align(h="left")
     ws.row_dimensions[6].height = 24
 
-    ws.merge_cells("C6:D6")
-    ws["C6"].value = f"Fecha: {factura.fecha_formateada}"
-    ws["C6"].font = _font(size=11)
-    ws["C6"].alignment = _align(h="right")
+    ws.merge_cells("D6:E6")
+    ws["D6"].value = f"Fecha: {factura.fecha_formateada}"
+    ws["D6"].font = _font(size=11)
+    ws["D6"].alignment = _align(h="right")
 
     # ── Fila 7: Separador ─────────────────────────────────────────────────────
     ws.row_dimensions[7].height = 8
 
     # ── Filas 8-10: Bloque cliente ────────────────────────────────────────────
-    ws.merge_cells("A8:D8")
+    ws.merge_cells("A8:E8")
     ws["A8"].value = "DATOS DEL CLIENTE"
     ws["A8"].font = _font(bold=True, size=10, color=_BLANCO)
     ws["A8"].fill = _fill(_AZUL_OSCURO)
@@ -277,7 +278,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     ws["A9"].font = _font(bold=True, size=10)
     ws["A9"].fill = _fill(_GRIS_CLARO)
     ws["A9"].alignment = _align()
-    ws.merge_cells("B9:D9")
+    ws.merge_cells("B9:E9")
     ws["B9"].value = factura.cliente_nombre or "-"
     ws["B9"].font = _font(size=11)
     ws["B9"].fill = _fill(_GRIS_CLARO)
@@ -287,7 +288,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     ws["A10"].font = _font(bold=True, size=10)
     ws["A10"].fill = _fill(_GRIS_CLARO)
     ws["A10"].alignment = _align()
-    ws.merge_cells("B10:D10")
+    ws.merge_cells("B10:E10")
     ws["B10"].value = factura.cliente_nif or "-"
     ws["B10"].font = _font(size=11)
     ws["B10"].fill = _fill(_GRIS_CLARO)
@@ -297,8 +298,8 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     ws.row_dimensions[11].height = 8
 
     # ── Fila 12: Cabecera de la tabla de líneas ───────────────────────────────
-    headers = ["Concepto", "Cantidad", "P. Unitario", "Total"]
-    alin_headers = ["left", "center", "right", "right"]
+    headers = ["Concepto", "Categoría", "Cantidad", "P. Unitario", "Total"]
+    alin_headers = ["left", "left", "center", "right", "right"]
     for col_idx, (header, ali) in enumerate(zip(headers, alin_headers), start=1):
         from openpyxl.utils import get_column_letter
         col = get_column_letter(col_idx)
@@ -316,7 +317,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
         _aplicar_fila_tabla(
             ws,
             fila_actual,
-            [linea.concepto, linea.cantidad, linea.precio_unitario, linea.total],
+            [linea.concepto, linea.categoria, linea.cantidad, linea.precio_unitario, linea.total],
             alternar=(i % 2 == 1),
         )
         ws.row_dimensions[fila_actual].height = 18
@@ -327,16 +328,16 @@ def generar_factura_xlsx(factura: Factura) -> Path:
 
     # ── Totales ───────────────────────────────────────────────────────────────
     def _fila_total(fila: int, label: str, valor: float, negrita: bool = False) -> None:
-        ws.merge_cells(f"A{fila}:C{fila}")
+        ws.merge_cells(f"A{fila}:D{fila}")
         ws[f"A{fila}"].value = label
         ws[f"A{fila}"].font = _font(bold=negrita, size=11)
         ws[f"A{fila}"].alignment = _align(h="right")
         ws[f"A{fila}"].border = _BORDE_TOP if not negrita else _BORDE
-        ws[f"D{fila}"].value = valor
-        ws[f"D{fila}"].font = _font(bold=negrita, size=11)
-        ws[f"D{fila}"].alignment = _align(h="right")
-        ws[f"D{fila}"].number_format = '#,##0.00'
-        ws[f"D{fila}"].border = _BORDE if negrita else _BORDE_TOP
+        ws[f"E{fila}"].value = valor
+        ws[f"E{fila}"].font = _font(bold=negrita, size=11)
+        ws[f"E{fila}"].alignment = _align(h="right")
+        ws[f"E{fila}"].number_format = '#,##0.00'
+        ws[f"E{fila}"].border = _BORDE if negrita else _BORDE_TOP
         ws.row_dimensions[fila].height = 18
 
     _fila_total(fila_actual, "Subtotal:", factura.base_imponible)
@@ -344,7 +345,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     _fila_total(fila_actual + 2, "TOTAL:", factura.total_con_iva, negrita=True)
 
     # Resaltar fila TOTAL
-    for col in ("A", "B", "C", "D"):
+    for col in ("A", "B", "C", "D", "E"):
         ws[f"{col}{fila_actual + 2}"].fill = _fill(_AZUL_CLARO)
 
     try:

@@ -63,6 +63,7 @@ class LineaPayload(BaseModel):
     concepto: str = Field(min_length=1)
     cantidad: int = Field(gt=0)
     precio_unitario: float = Field(ge=0)
+    categoria: str = ""
 
 
 class FacturaPayload(BaseModel):
@@ -137,6 +138,7 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
                 concepto=l.concepto.strip(),
                 cantidad=l.cantidad,
                 precio_unitario=l.precio_unitario,
+                categoria=l.categoria,
             )
             for l in payload.lineas
         ]

@@ -26,6 +26,7 @@ class LineaFactura:
     concepto: str
     cantidad: int
     precio_unitario: float  # Sin IVA
+    categoria: str = ""
 
     total: float = field(init=False)
 
