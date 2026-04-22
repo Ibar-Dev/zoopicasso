@@ -57,8 +57,8 @@
       <div class="totales">
         <span>IVA:</span><strong>Incluido</strong>
         <span>Total:</span><strong id="total">0.00 €</strong>
-        <span>Facturas del día:</span><strong id="facturas-dia">0</strong>
-        <span>Acumulado del día:</span><strong id="acumulado-dia">0.00 €</strong>
+        <span>Ventas activas del mes:</span><strong id="facturas-dia">0</strong>
+        <span>Ganancias del mes:</span><strong id="acumulado-dia">0.00 €</strong>
       </div>
 
       <div class="lineas-head">
@@ -70,6 +70,7 @@
       </div>
 
       <button id="btn-generar" class="cta">Generar factura</button>
+      <button id="btn-cerrar-mes" class="ghost" type="button" style="margin-top:8px;">Cerrar mes</button>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
 
@@ -106,6 +107,17 @@
     </div>
   </div>
 
+  <div id="cierre-mes-modal" class="modal-backdrop" aria-hidden="true" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cierre-mes-modal-title">
+      <h3 id="cierre-mes-modal-title">Confirmar cierre mensual</h3>
+      <p>¡Atención! Estás por cerrar el ciclo mensual. Esto generará un reporte Excel y reiniciará los contadores a cero. Esta acción no se puede deshacer de forma manual. ¿Deseás continuar?</p>
+      <div class="modal-actions">
+        <button id="btn-cierre-cancelar" class="ghost" type="button">Cancelar</button>
+        <button id="btn-cierre-confirmar" type="button">Sí, Cerrar Mes</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const loginCard = document.getElementById('login-card');
     const appCard = document.getElementById('app-card');
@@ -121,12 +133,17 @@
     const btnTicketCancelar = document.getElementById('btn-ticket-cancelar');
     const btnTicketNo = document.getElementById('btn-ticket-no');
     const btnTicketSi = document.getElementById('btn-ticket-si');
+    const cierreMesModalEl = document.getElementById('cierre-mes-modal');
+    const btnCierreMes = document.getElementById('btn-cerrar-mes');
+    const btnCierreCancelar = document.getElementById('btn-cierre-cancelar');
+    const btnCierreConfirmar = document.getElementById('btn-cierre-confirmar');
     let acumuladoDia = 0;
     let facturasDia = 0;
     const totalesPorAnimal = {
       perro: 0, gato: 0, conejo: 0, ave: 0, peces: 0, reptiles: 0, peluqueria: 0,
     };
     let resolverTicketModal = null;
+    let resolverCierreModal = null;
 
     function sha256(text) {
       return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(buf =>
@@ -217,6 +234,31 @@
       }
     }
 
+    function resetTablaAnimales(resumen) {
+      const porCategoria = (resumen && resumen.por_categoria) ? resumen.por_categoria : {};
+      const filas = document.querySelectorAll('#tabla-animales tbody tr');
+      filas.forEach((fila) => {
+        const cat = fila.getAttribute('data-cat');
+        const total = Number(porCategoria[cat] || 0);
+        fila.cells[1].textContent = total.toFixed(2);
+        totalesPorAnimal[cat] = total;
+      });
+    }
+
+    async function refrescarResumenMensual() {
+      try {
+        const data = await request('/api/ganancias/resumen');
+        const resumen = data.resumen || { total: 0, cantidad_ventas: 0, por_categoria: {} };
+        facturasDia = Number(resumen.cantidad_ventas || 0);
+        facturasDiaEl.textContent = String(facturasDia);
+        acumuladoDia = Number(resumen.total || 0);
+        acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
+        resetTablaAnimales(resumen);
+      } catch (_) {
+        // Si no hay sesión o falla puntual, no romper la UI
+      }
+    }
+
     function confirmarSalida(mensaje) {
       return window.confirm(mensaje);
     }
@@ -232,6 +274,17 @@
       }
     }
 
+    function cerrarModalCierre(valor) {
+      cierreMesModalEl.classList.remove('active');
+      cierreMesModalEl.setAttribute('aria-hidden', 'true');
+      cierreMesModalEl.hidden = true;
+      if (resolverCierreModal) {
+        const resolve = resolverCierreModal;
+        resolverCierreModal = null;
+        resolve(valor);
+      }
+    }
+
     function pedirImpresionTicket() {
       return new Promise((resolve) => {
         if (!appCard.classList.contains('active')) {
@@ -243,6 +296,20 @@
         ticketModalEl.setAttribute('aria-hidden', 'false');
         ticketModalEl.hidden = false;
         btnTicketSi.focus();
+      });
+    }
+
+    function pedirConfirmacionCierreMes() {
+      return new Promise((resolve) => {
+        if (!appCard.classList.contains('active')) {
+          resolve(false);
+          return;
+        }
+        resolverCierreModal = resolve;
+        cierreMesModalEl.classList.add('active');
+        cierreMesModalEl.setAttribute('aria-hidden', 'false');
+        cierreMesModalEl.hidden = false;
+        btnCierreConfirmar.focus();
       });
     }
 
@@ -614,6 +681,7 @@
         });
         toggleView(true);
         await cargarPreciosCategorias();
+        await refrescarResumenMensual();
       } catch (e) {
         error.textContent = e.message;
       }
@@ -628,6 +696,7 @@
       facturasDiaEl.textContent = '0';
       acumuladoDia = 0;
       acumuladoDiaEl.textContent = '0.00 €';
+      resetTablaAnimales({ por_categoria: {} });
       resetFormulario();
       toggleView(false);
     });
@@ -662,6 +731,8 @@
     btnTicketCancelar.addEventListener('click', () => cerrarModalTicket(null));
     btnTicketNo.addEventListener('click', () => cerrarModalTicket(false));
     btnTicketSi.addEventListener('click', () => cerrarModalTicket(true));
+    btnCierreCancelar.addEventListener('click', () => cerrarModalCierre(false));
+    btnCierreConfirmar.addEventListener('click', () => cerrarModalCierre(true));
 
     ticketModalEl.addEventListener('click', (e) => {
       if (e.target === ticketModalEl) {
@@ -669,9 +740,39 @@
       }
     });
 
+    cierreMesModalEl.addEventListener('click', (e) => {
+      if (e.target === cierreMesModalEl) {
+        cerrarModalCierre(false);
+      }
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && ticketModalEl.classList.contains('active')) {
         cerrarModalTicket(null);
+      }
+      if (e.key === 'Escape' && cierreMesModalEl.classList.contains('active')) {
+        cerrarModalCierre(false);
+      }
+    });
+
+    btnCierreMes.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      resultadoEl.textContent = '';
+      const confirmado = await pedirConfirmacionCierreMes();
+      if (!confirmado) {
+        resultadoEl.textContent = 'Cierre mensual cancelado.';
+        return;
+      }
+
+      try {
+        const data = await request('/api/ganancias/cierre-mes', {
+          method: 'POST',
+          body: JSON.stringify({ confirmacion: true }),
+        });
+        resultadoEl.textContent = data.mensaje || 'Cierre mensual completado.';
+        await refrescarResumenMensual();
+      } catch (e) {
+        errorEl.textContent = e.message || 'No se pudo completar el cierre mensual.';
       }
     });
 
@@ -766,6 +867,7 @@
           }
         }
 
+        await refrescarResumenMensual();
         resetFormulario();
       } catch (e) {
         errorEl.textContent = e.message;
@@ -832,6 +934,7 @@
         toggleView(Boolean(session.logged_in));
         if (session.logged_in) {
           await cargarPreciosCategorias();
+          await refrescarResumenMensual();
         }
       } catch {
         toggleView(false);

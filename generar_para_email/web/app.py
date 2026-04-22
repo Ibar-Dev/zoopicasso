@@ -6,7 +6,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -17,7 +17,9 @@ from starlette.middleware.sessions import SessionMiddleware
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura
+from src.monthly_closure import process_monthly_closure
 from src.printer import generar_ticket_escpos
+from src.ventas_store import inicializar_db_ventas, registrar_ventas_factura, resumen_ventas_activas
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
 
 logger = logging.getLogger(__name__)
@@ -85,6 +87,10 @@ class FacturaPayload(BaseModel):
     lineas: list[LineaPayload] = Field(min_length=1)
     imprimir_ticket: bool = False
 
+
+class MonthlyClosurePayload(BaseModel):
+    confirmacion: bool = False
+
 app = FastAPI(title="Facturas Gisselle API", version="1.0.0")
 
 cola_impresion: list[bytes] = []
@@ -99,6 +105,23 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+inicializar_db_ventas()
+
+
+def _anio_mes_actual() -> str:
+    return date.today().strftime("%Y-%m")
+
+
+def _registrar_ventas_factura_background(factura: Factura, usuario: str) -> None:
+    try:
+        registrar_ventas_factura(factura, usuario)
+    except Exception as exc:
+        logger.error(
+            "Error registrando ventas en buffer mensual para factura %s: %s",
+            factura.numero_formateado,
+            exc,
+            exc_info=True,
+        )
 
 def _requiere_login(request: Request) -> None:
     if not request.session.get("logged_in"):
@@ -156,8 +179,28 @@ def set_precios_categorias(payload: PreciosCategoriasPayload, request: Request) 
             )
     return {"ok": True, "precios": nuevos_precios}
 
+
+@app.get("/api/ganancias/resumen")
+def get_ganancias_resumen(request: Request) -> dict:
+    _requiere_login(request)
+    anio_mes = _anio_mes_actual()
+    resumen = resumen_ventas_activas(anio_mes)
+    return {
+        "ok": True,
+        "resumen": resumen,
+    }
+
+
+@app.post("/api/ganancias/cierre-mes")
+def cierre_mensual(payload: MonthlyClosurePayload, request: Request) -> dict:
+    _requiere_login(request)
+    if not payload.confirmacion:
+        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar mes")
+    usuario = str(request.session.get("usuario", "(desconocido)"))
+    return process_monthly_closure(usuario=usuario)
+
 @app.post("/api/generar")
-def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
+def generar(payload: FacturaPayload, request: Request, background_tasks: BackgroundTasks) -> dict[str, object]:
     _requiere_login(request)
     try:
         lineas = [
@@ -189,6 +232,8 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
         factura.cliente_nombre or "(sin cliente)",
         factura.total_con_iva,
     )
+    usuario = str(request.session.get("usuario", "(desconocido)"))
+    background_tasks.add_task(_registrar_ventas_factura_background, factura, usuario)
     ticket_impreso = False
     ticket_estado = "Ticket no solicitado."
     if payload.imprimir_ticket:
