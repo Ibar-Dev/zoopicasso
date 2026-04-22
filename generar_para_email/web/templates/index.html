@@ -91,59 +91,6 @@
         </tbody>
       </table>
       <button id="btn-guardar-precios" class="cta" style="margin-top:8px;">Guardar precios categorías</button>
-        // ── Precios por categoría: edición y guardado global ──
-        const btnGuardarPrecios = document.getElementById('btn-guardar-precios');
-        const preciosInputs = document.querySelectorAll('.precio-categoria');
-        let preciosCategorias = {};
-
-        async function cargarPreciosCategorias() {
-          try {
-            const res = await request('/api/precios_categorias');
-            preciosCategorias = res.precios || {};
-            preciosInputs.forEach(input => {
-              const cat = input.getAttribute('data-cat');
-              if (cat && preciosCategorias[cat] !== undefined) {
-                input.value = preciosCategorias[cat];
-              }
-            });
-          } catch (e) {
-            errorEl.textContent = 'No se pudieron cargar los precios de categorías.';
-          }
-        }
-
-        async function guardarPreciosCategorias() {
-          // Confirmación antes de guardar
-          if (!window.confirm('¿Seguro que deseas modificar los precios de las categorías? Esto afectará a todos los usuarios.')) {
-            return;
-          }
-          const nuevosPrecios = {};
-          preciosInputs.forEach(input => {
-            const cat = input.getAttribute('data-cat');
-            const val = parseFloat(input.value);
-            if (cat && !isNaN(val)) {
-              nuevosPrecios[cat] = val;
-            }
-          });
-          try {
-            await request('/api/precios_categorias', {
-              method: 'POST',
-              body: JSON.stringify({ precios: nuevosPrecios })
-            });
-            mostrarToast('Precios actualizados');
-            await cargarPreciosCategorias();
-          } catch (e) {
-            errorEl.textContent = 'No se pudieron guardar los precios.';
-          }
-        }
-
-        btnGuardarPrecios.addEventListener('click', guardarPreciosCategorias);
-        if (appCard.classList.contains('active')) {
-          cargarPreciosCategorias();
-        }
-        // También recargar precios al iniciar sesión
-        window.addEventListener('DOMContentLoaded', () => {
-          if (appCard.classList.contains('active')) cargarPreciosCategorias();
-        });
     </section>
   </main>
 
@@ -666,6 +613,7 @@
           body: JSON.stringify({ usuario, password_hash }),
         });
         toggleView(true);
+        await cargarPreciosCategorias();
       } catch (e) {
         error.textContent = e.message;
       }
@@ -832,10 +780,59 @@
       event.returnValue = 'Si cierras la pestaña se reiniciará la sumatoria diaria de esta sesión.';
     });
 
+    // ── Precios por categoría: edición y guardado global ──────────────────────
+    const btnGuardarPrecios = document.getElementById('btn-guardar-precios');
+    const preciosInputs = document.querySelectorAll('.precio-categoria');
+    let preciosCategorias = {};
+
+    async function cargarPreciosCategorias() {
+      try {
+        const res = await request('/api/precios_categorias');
+        preciosCategorias = res.precios || {};
+        preciosInputs.forEach(input => {
+          const cat = input.getAttribute('data-cat');
+          if (cat && preciosCategorias[cat] !== undefined) {
+            input.value = preciosCategorias[cat];
+          }
+        });
+      } catch (_) {
+        // Si falla (e.g. no autenticado), no se muestran errores aquí
+      }
+    }
+
+    async function guardarPreciosCategorias() {
+      if (!window.confirm('¿Seguro que deseas modificar los precios de las categorías? Esto afectará a todos los usuarios.')) {
+        return;
+      }
+      const nuevosPrecios = {};
+      preciosInputs.forEach(input => {
+        const cat = input.getAttribute('data-cat');
+        const val = parseFloat(input.value);
+        if (cat && !isNaN(val) && val >= 0) {
+          nuevosPrecios[cat] = val;
+        }
+      });
+      try {
+        await request('/api/precios_categorias', {
+          method: 'POST',
+          body: JSON.stringify({ precios: nuevosPrecios }),
+        });
+        mostrarToast('Precios actualizados');
+        await cargarPreciosCategorias();
+      } catch (e) {
+        errorEl.textContent = 'No se pudieron guardar los precios.';
+      }
+    }
+
+    btnGuardarPrecios.addEventListener('click', guardarPreciosCategorias);
+
     async function bootstrap() {
       try {
         const session = await request('/api/session');
         toggleView(Boolean(session.logged_in));
+        if (session.logged_in) {
+          await cargarPreciosCategorias();
+        }
       } catch {
         toggleView(false);
       }

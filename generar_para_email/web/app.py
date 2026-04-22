@@ -183,7 +183,12 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
         logger.error("Error de sistema al generar factura web: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail="No se pudo generar la factura") from exc
 
-    logger.info("Factura web %s generada.", factura.numero_formateado)
+    logger.info(
+        "Factura web %s generada. Cliente: %s Total: %.2f",
+        factura.numero_formateado,
+        factura.cliente_nombre or "(sin cliente)",
+        factura.total_con_iva,
+    )
     ticket_impreso = False
     ticket_estado = "Ticket no solicitado."
     if payload.imprimir_ticket:
@@ -192,8 +197,19 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
             cola_impresion.append(ticket)
             ticket_impreso = True
             ticket_estado = "Ticket encolado para impresión."
+            logger.info(
+                "Ticket encolado para factura web %s (cola: %d pendientes)",
+                factura.numero_formateado,
+                len(cola_impresion),
+            )
         except Exception as exc:
             ticket_estado = f"No se pudo generar ticket: {exc}"
+            logger.warning(
+                "Fallo al generar ticket para factura web %s: %s",
+                factura.numero_formateado,
+                exc,
+                exc_info=True,
+            )
     return {
         "ok": True,
         "numero": factura.numero_formateado,
@@ -210,6 +226,11 @@ def siguiente_ticket() -> JSONResponse:
     if not cola_impresion:
         return JSONResponse({"hay_ticket": False}, status_code=204)
     ticket = cola_impresion.pop(0)
+    logger.info(
+        "Ticket despachado (%d bytes, quedan %d en cola)",
+        len(ticket),
+        len(cola_impresion),
+    )
     return JSONResponse({
         "hay_ticket": True,
         "ticket_b64": base64.b64encode(ticket).decode("ascii"),
@@ -220,7 +241,14 @@ def descargar(nombre_archivo: str, request: Request) -> FileResponse:
     _requiere_login(request)
     ruta = (RUTA_FACTURAS / nombre_archivo).resolve()
     if not str(ruta).startswith(str(RUTA_FACTURAS.resolve())):
+        logger.warning("Intento de descarga con nombre inválido: %s", nombre_archivo)
         raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
     if not ruta.exists():
+        logger.warning("Archivo solicitado no encontrado: %s", ruta)
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
-    return FileResponse(path=ruta, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=ruta.name)
+    logger.info("Descarga de factura: %s", ruta.name)
+    return FileResponse(
+        path=ruta,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=ruta.name,
+    )
