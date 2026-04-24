@@ -1,9 +1,10 @@
-# Generador de Facturas - Zoo Picasso
+# Generador de Facturas y Tickets - Zoo Picasso
 
-Aplicacion para generar facturas en formato .xlsx en dos modos:
+Aplicacion unificada en esta carpeta con tres modos:
 
-- Escritorio con Flet (main.py)
-- Web con FastAPI (web/app.py)
+- Facturas escritorio con Flet (main.py)
+- Facturas web con FastAPI (web/app.py)
+- Tickets TPV con Flet (tickets_main.py)
 
 Este README cumple dos funciones:
 
@@ -21,6 +22,7 @@ Este README cumple dos funciones:
 - Resumen mensual por categoria en backend.
 - Cierre mensual con exportacion Excel y archivado de ventas activas.
 - Confirmaciones de acciones sensibles (ticket, salida, cierre mensual).
+- Modulo de tickets integrado en `tickets_src/` y `tickets_main.py`.
 
 ## Estructura principal
 
@@ -34,6 +36,12 @@ Este README cumple dos funciones:
 - src/ventas_store.py: persistencia SQLite de ventas mensuales.
 - src/monthly_closure.py: cierre mensual y exportacion de ganancias.
 - src/settings.py: configuracion y logging centralizado.
+- tickets_main.py: app de tickets (Flet en navegador).
+- tickets_src/ticket_model.py: modelo de datos de tickets.
+- tickets_src/counter.py: contador correlativo de tickets.
+- tickets_src/excel_writer.py: persistencia de tickets en Excel.
+- tickets_src/printer.py: impresion termica USB (ESC/POS).
+- test_manual_tickets.py: prueba manual de integracion para tickets.
 
 ## Requisitos
 
@@ -75,6 +83,15 @@ uv run main.py
 
 uv sync
 uv run uvicorn web.app:app --host 0.0.0.0 --port 8081 --reload
+
+### Modo tickets (TPV)
+
+uv sync
+uv run tickets_main.py
+
+### Test manual de tickets
+
+uv run test_manual_tickets.py
 
 ## Tests
 

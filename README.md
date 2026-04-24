@@ -13,6 +13,13 @@ Dos aplicaciones independientes para Zoo Picasso:
 
 ## App de Tickets
 
+El codigo de tickets fue refactorizado y ahora vive dentro de `generar_para_email/`:
+
+- Entry point: `generar_para_email/tickets_main.py`
+- Modulos: `generar_para_email/tickets_src/`
+- Test manual: `generar_para_email/test_manual_tickets.py`
+- Datos: `generar_para_email/data/contador.json` y `generar_para_email/data/tickets.xlsx`
+
 ### Instalación
 
 ```bash
@@ -22,7 +29,8 @@ uv sync
 ### Ejecución
 
 ```bash
-uv run main.py
+cd generar_para_email
+uv run tickets_main.py
 ```
 
 Abre automáticamente el navegador en `http://localhost:8080`.
@@ -40,8 +48,9 @@ Modelo: **POS-80** conectada por USB (`VID 1FC9` / `PID 2016`, rollo 80mm, 48 ca
 ### Tests manuales
 
 ```bash
-uv run test_manual.py                          # Sin impresora
-ZOO_PICASSO_TEST_PRINT=1 uv run test_manual.py # Con impresora
+cd generar_para_email
+uv run test_manual_tickets.py                                   # Sin impresora
+ZOO_PICASSO_TEST_PRINT=1 uv run test_manual_tickets.py          # Con impresora
 ```
 
 ---
@@ -220,27 +229,18 @@ Añadir línea:
 
 ```text
 zoo_picasso/
-├── main.py                       # Tickets — Interfaz Flet (navegador, puerto 8080)
-├── test_manual.py                # Tests de integración manuales
-├── Facturas.bat                  # Atajo Windows para lanzar la app de facturas
-├── src/
-│   ├── ticket_model.py           # Modelo de datos (LineaTicket, Ticket)
-│   ├── counter.py                # Numeración secuencial de tickets
-│   ├── excel_writer.py           # Persistencia en .xlsx
-│   └── printer.py                # Impresora térmica ESC/POS por USB
-├── data/
-│   ├── contador.json             # Contador de tickets persistido
-│   └── tickets.xlsx              # Registro de todos los tickets
-└── generar_para_email/           # App de facturas (independiente)
-    ├── main.py                   # Interfaz Flet (escritorio)
-    ├── pyproject.toml            # Dependencias propias (flet + openpyxl)
-    ├── Facturas.bat              # Lanzador Windows
-    ├── src/
-    │   ├── factura_model.py      # Modelo de datos (LineaFactura, Factura)
-    │   ├── factura_counter.py    # Numeración secuencial de facturas
-    │   └── factura_writer.py     # Genera .xlsx con formato de factura
-    ├── data/
-    │   └── contador_facturas.json  # Contador de facturas persistido
-    └── facturas/                 # Facturas generadas (se crea automáticamente)
-        └── factura_YYYY_NNN.xlsx
+├── main.py                         # Wrapper de compatibilidad para tickets
+├── test_manual.py                  # Wrapper de compatibilidad para test tickets
+├── Facturas.bat                    # Atajo Windows para lanzar facturas
+├── render.yaml                     # Deploy web de facturas
+└── generar_para_email/             # App unificada (facturas + tickets)
+    ├── main.py                     # Facturas escritorio (Flet)
+    ├── tickets_main.py             # Tickets TPV (Flet)
+    ├── test_manual_tickets.py      # Test manual de tickets
+    ├── pyproject.toml              # Dependencias unificadas
+    ├── src/                        # Dominio de facturas
+    ├── tickets_src/                # Dominio de tickets
+    ├── web/                        # Facturas web (FastAPI)
+    ├── data/                       # Contadores y Excel runtime
+    └── facturas/                   # Facturas generadas
 ```

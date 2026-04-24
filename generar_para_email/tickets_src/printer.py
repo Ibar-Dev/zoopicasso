@@ -7,7 +7,7 @@ import logging
 import libusb_package
 import usb.backend.libusb1
 from escpos.printer import Usb
-from src.ticket_model import Ticket, DIRECCION, TELEFONO, EMAIL
+from tickets_src.ticket_model import Ticket, DIRECCION, TELEFONO, EMAIL
 
 logger = logging.getLogger(__name__)
 

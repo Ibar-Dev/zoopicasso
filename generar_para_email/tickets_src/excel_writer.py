@@ -8,7 +8,7 @@ from pathlib import Path
 import openpyxl
 from openpyxl.styles import Font
 
-from src.ticket_model import Ticket
+from tickets_src.ticket_model import Ticket
 
 logger = logging.getLogger(__name__)
 
