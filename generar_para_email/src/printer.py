@@ -91,6 +91,16 @@ def generar_ticket_escpos(factura: Factura, ancho: int = 42) -> bytes:
     cmd(b"\x1bE\x01")
     txt(_alinear_izq_der("TOTAL", total, ancho))
     cmd(b"\x1bE\x00")
+    # Mostrar efectivo entregado y cambio si corresponde
+    pago = getattr(factura, '_pago_dict', None)
+    if pago:
+        efectivo_entregado = pago.get('efectivo_entregado', 0)
+        cambio = pago.get('cambio', 0)
+        metodo = pago.get('metodo_pago', '')
+        if metodo in ('efectivo', 'mixto') and efectivo_entregado > 0:
+            txt(_alinear_izq_der("Efectivo entregado", _normalizar_importe(efectivo_entregado), ancho))
+            if cambio > 0:
+                txt(_alinear_izq_der("Cambio a devolver", _normalizar_importe(cambio), ancho))
     txt("IVA incluido")
     separador()
     cmd(b"\x1ba\x01")

@@ -128,15 +128,19 @@
           <label><input type="radio" name="metodo_pago" value="tarjeta"> Tarjeta</label>
           <label><input type="radio" name="metodo_pago" value="mixto"> Mixto</label>
         </div>
-        <div id="pago-montos">
-          <div id="pago-efectivo-group" style="display:none; margin-bottom:0.5em;">
-            <label>Monto en efectivo (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
+          <div id="pago-montos">
+            <div id="pago-efectivo-group" style="display:none; margin-bottom:0.5em;">
+              <label>Monto en efectivo (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
+            </div>
+            <div id="pago-entregado-group" style="display:none; margin-bottom:0.5em;">
+              <label>Efectivo entregado (€): <input id="pago-entregado" type="number" min="0" step="0.01"></label>
+              <span id="pago-cambio-info" style="margin-left:1em; color:#007700;"></span>
+            </div>
+            <div id="pago-tarjeta-group" style="display:none; margin-bottom:0.5em;">
+              <label>Monto en tarjeta (€): <input id="pago-tarjeta" type="number" min="0" step="0.01"></label>
+            </div>
+            <div id="pago-mixto-info" style="display:none; color:#555; font-size:0.95em; margin-bottom:0.5em;"></div>
           </div>
-          <div id="pago-tarjeta-group" style="display:none; margin-bottom:0.5em;">
-            <label>Monto en tarjeta (€): <input id="pago-tarjeta" type="number" min="0" step="0.01"></label>
-          </div>
-          <div id="pago-mixto-info" style="display:none; color:#555; font-size:0.95em; margin-bottom:0.5em;"></div>
-        </div>
         <div class="modal-actions">
           <button id="btn-pago-cancelar" class="ghost" type="button">Cancelar</button>
           <button id="btn-pago-confirmar" type="submit">Aceptar</button>
@@ -354,6 +358,7 @@
       return `${Number(valor || 0).toFixed(2)} EUR`;
     }
 
+
     async function imprimirTicketNavegador(datos) {
       const emisor = datos.emisor || {};
       const negocio = emisor.negocio || 'Zoo Picasso';
@@ -393,6 +398,15 @@
           ${datos.cliente_nif ? `<div>NIF/CIF: ${escaparHtml(datos.cliente_nif)}</div>` : ''}
         `
         : '';
+
+      // Efectivo entregado y cambio
+      let pagoHtml = '';
+      if (datos.efectivo_entregado > 0 && (datos.metodo_pago === 'efectivo' || datos.metodo_pago === 'mixto')) {
+        pagoHtml += `<div class="totales"><span>Efectivo entregado</span><span>${escaparHtml(formatoImporte(datos.efectivo_entregado))}</span></div>`;
+        if (datos.cambio > 0) {
+          pagoHtml += `<div class="totales"><span>Cambio a devolver</span><span>${escaparHtml(formatoImporte(datos.cambio))}</span></div>`;
+        }
+      }
 
       const html = `<!doctype html>
 <html lang="es">
@@ -475,6 +489,7 @@
     ${lineasHtml || '<div>Sin líneas de detalle</div>'}
     <div class="sep"></div>
     <div class="totales"><span>TOTAL</span><span>${escaparHtml(formatoImporte(datos.total))}</span></div>
+    ${pagoHtml}
     <div>IVA incluido</div>
     <div class="sep"></div>
     <div class="foot">Gracias por tu compra<br/>${escaparHtml(negocio)}</div>
@@ -791,6 +806,9 @@
     const pagoErrorEl = document.getElementById('pago-error');
     const pagoEfectivoEl = document.getElementById('pago-efectivo');
     const pagoTarjetaEl = document.getElementById('pago-tarjeta');
+    const pagoEntregadoEl = document.getElementById('pago-entregado');
+    const pagoEntregadoGroup = document.getElementById('pago-entregado-group');
+    const pagoCambioInfo = document.getElementById('pago-cambio-info');
     const pagoEfectivoGroup = document.getElementById('pago-efectivo-group');
     const pagoTarjetaGroup = document.getElementById('pago-tarjeta-group');
     const pagoMixtoInfo = document.getElementById('pago-mixto-info');
@@ -831,24 +849,50 @@
       }
     }
 
+    function actualizarCambio() {
+      const metodo = pagoForm.metodo_pago.value;
+      const totalFactura = Number(totalEl.textContent.replace('€','').trim());
+      let efectivo = Number(pagoEfectivoEl.value || 0);
+      let entregado = Number(pagoEntregadoEl.value || 0);
+      let cambio = 0;
+      if (metodo === 'efectivo' || metodo === 'mixto') {
+        if (entregado > 0 && efectivo > 0 && entregado >= efectivo) {
+          cambio = +(entregado - efectivo).toFixed(2);
+          pagoCambioInfo.textContent = `Cambio: ${cambio.toFixed(2)} €`;
+        } else {
+          pagoCambioInfo.textContent = '';
+        }
+      } else {
+        pagoCambioInfo.textContent = '';
+      }
+    }
+
     pagoForm.addEventListener('change', (e) => {
       const metodo = pagoForm.metodo_pago.value;
       pagoErrorEl.textContent = '';
+      pagoEntregadoGroup.style.display = 'none';
       if (metodo === 'efectivo') {
         pagoEfectivoGroup.style.display = '';
+        pagoEntregadoGroup.style.display = '';
         pagoTarjetaGroup.style.display = 'none';
         pagoMixtoInfo.style.display = 'none';
       } else if (metodo === 'tarjeta') {
         pagoEfectivoGroup.style.display = 'none';
+        pagoEntregadoGroup.style.display = 'none';
         pagoTarjetaGroup.style.display = '';
         pagoMixtoInfo.style.display = 'none';
       } else if (metodo === 'mixto') {
         pagoEfectivoGroup.style.display = '';
+        pagoEntregadoGroup.style.display = '';
         pagoTarjetaGroup.style.display = 'none';
         pagoMixtoInfo.style.display = '';
         pagoMixtoInfo.textContent = 'Ingresa el monto en efectivo. El resto se calculará automáticamente como tarjeta.';
       }
+      actualizarCambio();
     });
+
+    pagoEfectivoEl.addEventListener('input', actualizarCambio);
+    pagoEntregadoEl.addEventListener('input', actualizarCambio);
 
     btnPagoCancelar.addEventListener('click', () => cerrarModalPago(null));
     pagoModalEl.addEventListener('click', (e) => {
@@ -863,12 +907,18 @@
       const metodo = pagoForm.metodo_pago.value;
       let montoEfectivo = Number(pagoEfectivoEl.value || 0);
       let montoTarjeta = Number(pagoTarjetaEl.value || 0);
+      let efectivoEntregado = Number(pagoEntregadoEl.value || 0);
       const totalFactura = Number(totalEl.textContent.replace('€','').trim());
       const tolerancia = 0.01;
       if (metodo === 'efectivo') {
         if (montoEfectivo <= 0 || Math.abs(montoEfectivo - totalFactura) > tolerancia) {
           pagoErrorEl.textContent = 'El monto en efectivo debe ser igual al total.';
           pagoEfectivoEl.focus();
+          return;
+        }
+        if (efectivoEntregado < montoEfectivo) {
+          pagoErrorEl.textContent = 'El efectivo entregado debe ser igual o mayor al total.';
+          pagoEntregadoEl.focus();
           return;
         }
         montoTarjeta = 0;
@@ -879,10 +929,16 @@
           return;
         }
         montoEfectivo = 0;
+        efectivoEntregado = 0;
       } else if (metodo === 'mixto') {
         if (montoEfectivo < 0 || montoEfectivo > totalFactura) {
           pagoErrorEl.textContent = 'El monto en efectivo debe ser entre 0 y el total.';
           pagoEfectivoEl.focus();
+          return;
+        }
+        if (efectivoEntregado < montoEfectivo) {
+          pagoErrorEl.textContent = 'El efectivo entregado debe ser igual o mayor al efectivo a pagar.';
+          pagoEntregadoEl.focus();
           return;
         }
         montoTarjeta = +(totalFactura - montoEfectivo).toFixed(2);
@@ -895,7 +951,7 @@
         pagoErrorEl.textContent = 'Selecciona un método de pago.';
         return;
       }
-      cerrarModalPago({ metodo_pago: metodo, monto_efectivo: +montoEfectivo, monto_tarjeta: +montoTarjeta });
+      cerrarModalPago({ metodo_pago: metodo, monto_efectivo: +montoEfectivo, monto_tarjeta: +montoTarjeta, efectivo_entregado: +efectivoEntregado });
     });
       errorEl.textContent = '';
       resultadoEl.textContent = '';
@@ -1015,6 +1071,9 @@
               lineas: lineasTicket,
               total: Number(data.total),
               emisor: data.emisor || null,
+              efectivo_entregado: pago.efectivo_entregado || 0,
+              cambio: (typeof pago.efectivo_entregado === 'number' && typeof pago.monto_efectivo === 'number' && pago.efectivo_entregado > 0 && pago.efectivo_entregado >= pago.monto_efectivo) ? +(pago.efectivo_entregado - pago.monto_efectivo).toFixed(2) : 0,
+              metodo_pago: pago.metodo_pago,
             });
             resultadoEl.textContent += ' Se abrió la vista de impresión del ticket.';
           } catch (err) {

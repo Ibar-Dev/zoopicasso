@@ -91,6 +91,7 @@ class FacturaPayload(BaseModel):
     metodo_pago: Optional[Literal["efectivo", "tarjeta", "mixto"]] = None
     monto_efectivo: Optional[float] = None
     monto_tarjeta: Optional[float] = None
+    efectivo_entregado: Optional[float] = None
 
 
 class MonthlyClosurePayload(BaseModel):
@@ -212,6 +213,9 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
     monto_efectivo = payload.monto_efectivo
     monto_tarjeta = payload.monto_tarjeta
     tolerancia = 0.01
+    efectivo_entregado = payload.efectivo_entregado if payload.efectivo_entregado is not None else 0.0
+    cambio = 0.0
+
 
     if metodo not in ("efectivo", "tarjeta", "mixto"):
         raise HTTPException(status_code=400, detail="Método de pago inválido o no especificado.")
@@ -240,11 +244,16 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
                 raise HTTPException(status_code=400, detail="El monto en efectivo debe ser igual al total.")
             if monto_tarjeta not in (None, 0):
                 raise HTTPException(status_code=400, detail="El monto en tarjeta debe ser 0 para pago en efectivo.")
+            if efectivo_entregado < monto_efectivo:
+                raise HTTPException(status_code=400, detail="El efectivo entregado debe ser igual o mayor al total.")
+            cambio = round(efectivo_entregado - monto_efectivo, 2)
         elif metodo == "tarjeta":
             if monto_tarjeta is None or monto_tarjeta <= 0 or abs(monto_tarjeta - total) > tolerancia:
                 raise HTTPException(status_code=400, detail="El monto en tarjeta debe ser igual al total.")
             if monto_efectivo not in (None, 0):
                 raise HTTPException(status_code=400, detail="El monto en efectivo debe ser 0 para pago con tarjeta.")
+            efectivo_entregado = 0.0
+            cambio = 0.0
         elif metodo == "mixto":
             if monto_efectivo is None or monto_efectivo < 0 or monto_efectivo > total:
                 raise HTTPException(status_code=400, detail="El monto en efectivo debe ser entre 0 y el total.")
@@ -252,6 +261,9 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
                 raise HTTPException(status_code=400, detail="Falta el monto en tarjeta para pago mixto.")
             if monto_tarjeta < 0 or abs(monto_efectivo + monto_tarjeta - total) > tolerancia:
                 raise HTTPException(status_code=400, detail="La suma de efectivo y tarjeta debe ser igual al total.")
+            if efectivo_entregado < monto_efectivo:
+                raise HTTPException(status_code=400, detail="El efectivo entregado debe ser igual o mayor al efectivo a pagar.")
+            cambio = round(efectivo_entregado - monto_efectivo, 2)
         ruta = generar_factura_xlsx(factura)
     except HTTPException:
         raise
@@ -277,6 +289,8 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
         'monto_efectivo': monto_efectivo or 0,
         'monto_tarjeta': monto_tarjeta or 0,
         'metodo_pago': metodo,
+        'efectivo_entregado': efectivo_entregado,
+        'cambio': cambio,
     }
     setattr(factura, '_pago_dict', pago_dict)
     background_tasks.add_task(_registrar_ventas_factura_background, factura, usuario)
