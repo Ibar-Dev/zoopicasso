@@ -1,7 +1,0 @@
-# Entorno virtual y archivos temporales
-.venv/
-.pytest_cache/
-__pycache__/
-.coverage
-uv.lock
-.env
