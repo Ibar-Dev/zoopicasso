@@ -75,6 +75,9 @@ def test_generar_y_descargar_con_login(monkeypatch, tmp_path: Path):
                     "precio_unitario": 10.5,
                 }
             ],
+            "metodo_pago": "efectivo",
+            "monto_efectivo": 21.0,
+            "efectivo_entregado": 21.0,
         },
     )
 
@@ -137,6 +140,9 @@ def test_resumen_y_cierre_mensual_con_login(monkeypatch, tmp_path: Path):
                 }
             ],
             "imprimir_ticket": False,
+            "metodo_pago": "efectivo",
+            "monto_efectivo": 30.0,
+            "efectivo_entregado": 30.0,
         },
     )
     assert generar.status_code == 200

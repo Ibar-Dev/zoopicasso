@@ -953,6 +953,8 @@
       }
       cerrarModalPago({ metodo_pago: metodo, monto_efectivo: +montoEfectivo, monto_tarjeta: +montoTarjeta, efectivo_entregado: +efectivoEntregado });
     });
+
+    btnCierreMes.addEventListener('click', async () => {
       errorEl.textContent = '';
       resultadoEl.textContent = '';
       const confirmado = await pedirConfirmacionCierreMes();
