@@ -118,6 +118,34 @@
     </div>
   </div>
 
+  <!-- Modal método de pago -->
+  <div id="pago-modal" class="modal-backdrop" aria-hidden="true" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pago-modal-title">
+      <h3 id="pago-modal-title">Selecciona método de pago</h3>
+      <form id="pago-form">
+        <div style="margin-bottom: 1em;">
+          <label><input type="radio" name="metodo_pago" value="efectivo" required> Efectivo</label>
+          <label><input type="radio" name="metodo_pago" value="tarjeta"> Tarjeta</label>
+          <label><input type="radio" name="metodo_pago" value="mixto"> Mixto</label>
+        </div>
+        <div id="pago-montos">
+          <div id="pago-efectivo-group" style="display:none; margin-bottom:0.5em;">
+            <label>Monto en efectivo (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
+          </div>
+          <div id="pago-tarjeta-group" style="display:none; margin-bottom:0.5em;">
+            <label>Monto en tarjeta (€): <input id="pago-tarjeta" type="number" min="0" step="0.01"></label>
+          </div>
+          <div id="pago-mixto-info" style="display:none; color:#555; font-size:0.95em; margin-bottom:0.5em;"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-pago-cancelar" class="ghost" type="button">Cancelar</button>
+          <button id="btn-pago-confirmar" type="submit">Aceptar</button>
+        </div>
+        <div id="pago-error" class="error" style="margin-top:0.5em;"></div>
+      </form>
+    </div>
+  </div>
+
   <script>
     const loginCard = document.getElementById('login-card');
     const appCard = document.getElementById('app-card');
@@ -755,7 +783,120 @@
       }
     });
 
-    btnCierreMes.addEventListener('click', async () => {
+    // --- Modal método de pago ---
+    const pagoModalEl = document.getElementById('pago-modal');
+    const pagoForm = document.getElementById('pago-form');
+    const btnPagoCancelar = document.getElementById('btn-pago-cancelar');
+    const btnPagoConfirmar = document.getElementById('btn-pago-confirmar');
+    const pagoErrorEl = document.getElementById('pago-error');
+    const pagoEfectivoEl = document.getElementById('pago-efectivo');
+    const pagoTarjetaEl = document.getElementById('pago-tarjeta');
+    const pagoEfectivoGroup = document.getElementById('pago-efectivo-group');
+    const pagoTarjetaGroup = document.getElementById('pago-tarjeta-group');
+    const pagoMixtoInfo = document.getElementById('pago-mixto-info');
+
+    let resolverPagoModal = null;
+
+    function abrirModalPago(totalFactura) {
+      return new Promise((resolve) => {
+        if (!appCard.classList.contains('active')) {
+          resolve(null);
+          return;
+        }
+        pagoForm.reset();
+        pagoErrorEl.textContent = '';
+        pagoEfectivoGroup.style.display = 'none';
+        pagoTarjetaGroup.style.display = 'none';
+        pagoMixtoInfo.style.display = 'none';
+        pagoModalEl.classList.add('active');
+        pagoModalEl.setAttribute('aria-hidden', 'false');
+        pagoModalEl.hidden = false;
+        resolverPagoModal = resolve;
+        // Foco en primer radio
+        setTimeout(() => {
+          const radios = pagoForm.querySelectorAll('input[name="metodo_pago"]');
+          if (radios.length) radios[0].focus();
+        }, 100);
+      });
+    }
+
+    function cerrarModalPago(valor) {
+      pagoModalEl.classList.remove('active');
+      pagoModalEl.setAttribute('aria-hidden', 'true');
+      pagoModalEl.hidden = true;
+      if (resolverPagoModal) {
+        const resolve = resolverPagoModal;
+        resolverPagoModal = null;
+        resolve(valor);
+      }
+    }
+
+    pagoForm.addEventListener('change', (e) => {
+      const metodo = pagoForm.metodo_pago.value;
+      pagoErrorEl.textContent = '';
+      if (metodo === 'efectivo') {
+        pagoEfectivoGroup.style.display = '';
+        pagoTarjetaGroup.style.display = 'none';
+        pagoMixtoInfo.style.display = 'none';
+      } else if (metodo === 'tarjeta') {
+        pagoEfectivoGroup.style.display = 'none';
+        pagoTarjetaGroup.style.display = '';
+        pagoMixtoInfo.style.display = 'none';
+      } else if (metodo === 'mixto') {
+        pagoEfectivoGroup.style.display = '';
+        pagoTarjetaGroup.style.display = 'none';
+        pagoMixtoInfo.style.display = '';
+        pagoMixtoInfo.textContent = 'Ingresa el monto en efectivo. El resto se calculará automáticamente como tarjeta.';
+      }
+    });
+
+    btnPagoCancelar.addEventListener('click', () => cerrarModalPago(null));
+    pagoModalEl.addEventListener('click', (e) => {
+      if (e.target === pagoModalEl) cerrarModalPago(null);
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && pagoModalEl.classList.contains('active')) cerrarModalPago(null);
+    });
+
+    pagoForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const metodo = pagoForm.metodo_pago.value;
+      let montoEfectivo = Number(pagoEfectivoEl.value || 0);
+      let montoTarjeta = Number(pagoTarjetaEl.value || 0);
+      const totalFactura = Number(totalEl.textContent.replace('€','').trim());
+      const tolerancia = 0.01;
+      if (metodo === 'efectivo') {
+        if (montoEfectivo <= 0 || Math.abs(montoEfectivo - totalFactura) > tolerancia) {
+          pagoErrorEl.textContent = 'El monto en efectivo debe ser igual al total.';
+          pagoEfectivoEl.focus();
+          return;
+        }
+        montoTarjeta = 0;
+      } else if (metodo === 'tarjeta') {
+        if (montoTarjeta <= 0 || Math.abs(montoTarjeta - totalFactura) > tolerancia) {
+          pagoErrorEl.textContent = 'El monto en tarjeta debe ser igual al total.';
+          pagoTarjetaEl.focus();
+          return;
+        }
+        montoEfectivo = 0;
+      } else if (metodo === 'mixto') {
+        if (montoEfectivo < 0 || montoEfectivo > totalFactura) {
+          pagoErrorEl.textContent = 'El monto en efectivo debe ser entre 0 y el total.';
+          pagoEfectivoEl.focus();
+          return;
+        }
+        montoTarjeta = +(totalFactura - montoEfectivo).toFixed(2);
+        if (montoTarjeta < 0 || Math.abs(montoEfectivo + montoTarjeta - totalFactura) > tolerancia) {
+          pagoErrorEl.textContent = 'La suma de efectivo y tarjeta debe ser igual al total.';
+          pagoEfectivoEl.focus();
+          return;
+        }
+      } else {
+        pagoErrorEl.textContent = 'Selecciona un método de pago.';
+        return;
+      }
+      cerrarModalPago({ metodo_pago: metodo, monto_efectivo: +montoEfectivo, monto_tarjeta: +montoTarjeta });
+    });
       errorEl.textContent = '';
       resultadoEl.textContent = '';
       const confirmado = await pedirConfirmacionCierreMes();
@@ -788,6 +929,16 @@
         return;
       }
 
+
+      // Paso 1: método de pago
+      const totalFactura = Number(totalEl.textContent.replace('€','').trim());
+      const pago = await abrirModalPago(totalFactura);
+      if (!pago) {
+        resultadoEl.textContent = 'Generación cancelada por el usuario.';
+        return;
+      }
+
+      // Paso 2: ticket
       const deseaImprimirTicket = await pedirImpresionTicket();
       if (deseaImprimirTicket === null) {
         resultadoEl.textContent = 'Generación cancelada por el usuario.';
@@ -809,6 +960,7 @@
         return;
       }
 
+
       try {
         const data = await request('/api/generar', {
           method: 'POST',
@@ -817,6 +969,9 @@
             cliente_nif: document.getElementById('cliente_nif').value,
             lineas,
             imprimir_ticket: deseaImprimirTicket,
+            metodo_pago: pago.metodo_pago,
+            monto_efectivo: pago.monto_efectivo,
+            monto_tarjeta: pago.monto_tarjeta,
           }),
         });
 

@@ -53,6 +53,25 @@ def inicializar_db_ventas() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS pagos_factura (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero_factura TEXT NOT NULL,
+                fecha_venta TEXT NOT NULL,
+                anio_mes TEXT NOT NULL,
+                monto_total REAL NOT NULL,
+                monto_efectivo REAL NOT NULL,
+                monto_tarjeta REAL NOT NULL,
+                metodo_pago TEXT NOT NULL,
+                estado TEXT NOT NULL DEFAULT 'active',
+                usuario TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                archived_at TEXT,
+                cierre_id TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS cierres_mensuales (
                 cierre_id TEXT PRIMARY KEY,
                 anio_mes TEXT NOT NULL,
@@ -68,6 +87,12 @@ def inicializar_db_ventas() -> None:
             """
             CREATE INDEX IF NOT EXISTS idx_ventas_estado_mes
             ON ventas (estado, anio_mes)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_pagos_estado_mes
+            ON pagos_factura (estado, anio_mes)
             """
         )
 
@@ -89,6 +114,9 @@ def registrar_ventas_factura(factura: Factura, usuario: str) -> None:
         )
         for linea in factura.lineas
     ]
+    # Registrar ventas por línea y pago por factura
+    # Se asume que los datos de pago están en factura._pago_dict (hack temporal)
+    pago_dict = getattr(factura, '_pago_dict', None)
     with _connect() as conn:
         conn.executemany(
             """
@@ -99,10 +127,30 @@ def registrar_ventas_factura(factura: Factura, usuario: str) -> None:
             """,
             filas,
         )
+        if pago_dict:
+            conn.execute(
+                """
+                INSERT INTO pagos_factura (
+                    numero_factura, fecha_venta, anio_mes, monto_total, monto_efectivo, monto_tarjeta, metodo_pago, usuario, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    factura.numero_formateado,
+                    factura.fecha.isoformat(),
+                    anio_mes,
+                    float(pago_dict.get('monto_total', factura.base_imponible)),
+                    float(pago_dict.get('monto_efectivo', 0)),
+                    float(pago_dict.get('monto_tarjeta', 0)),
+                    pago_dict.get('metodo_pago', ''),
+                    (usuario or '').strip(),
+                    created_at,
+                )
+            )
     logger.info(
-        "Ventas registradas en buffer mensual. factura=%s filas=%d",
+        "Ventas registradas en buffer mensual. factura=%s filas=%d pago=%s",
         factura.numero_formateado,
         len(filas),
+        pago_dict,
     )
 
 
@@ -127,6 +175,14 @@ def resumen_ventas_activas(anio_mes: str) -> dict:
             """,
             (anio_mes,),
         ).fetchall()
+        pago_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto_efectivo), 0) AS total_efectivo, COALESCE(SUM(monto_tarjeta), 0) AS total_tarjeta
+            FROM pagos_factura
+            WHERE estado = 'active' AND anio_mes = ?
+            """,
+            (anio_mes,),
+        ).fetchone()
 
     por_categoria = {row["categoria"]: round(float(row["total"]), 2) for row in cat_rows}
     return {
@@ -134,6 +190,8 @@ def resumen_ventas_activas(anio_mes: str) -> dict:
         "total": round(float(total_row["total"]), 2),
         "cantidad_ventas": int(total_row["cantidad"]),
         "por_categoria": por_categoria,
+        "total_efectivo": round(float(pago_row["total_efectivo"]), 2),
+        "total_tarjeta": round(float(pago_row["total_tarjeta"]), 2),
     }
 
 

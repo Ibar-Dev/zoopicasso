@@ -940,3 +940,78 @@ RuntimeError: La impresion ESC/POS USB esta habilitada solo en Windows.
 [2026-04-17 07:20:10] [INFO    ] [__main__:resetear:363] Formulario reseteado. Siguiente factura: 010
 [2026-04-17 07:20:30] [INFO    ] [flet:<lambda>:65] Session was garbage collected: 0XKFDyrLZUqVq1kV
 [2026-04-21 15:57:17] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-22 12:22:21] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [WARNING ] [web.app:login:147] Intento de acceso web fallido.
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-22 12:22:21] [INFO    ] [web.app:login:145] Inicio de sesión correcto (web).
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [INFO    ] [web.app:generar:229] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00
+[2026-04-22 12:22:21] [INFO    ] [src.ventas_store:registrar_ventas_factura:102] Ventas registradas en buffer mensual. factura=2026-123 filas=1
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [INFO    ] [web.app:descargar:294] Descarga de factura: factura_2026_123.xlsx
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/descargar/factura_2026_123.xlsx "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [WARNING ] [web.app:_requiere_login:128] Acceso no autenticado a endpoint protegido.
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/ganancias/resumen "HTTP/1.1 401 Unauthorized"
+[2026-04-22 12:22:21] [INFO    ] [web.app:login:145] Inicio de sesión correcto (web).
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [INFO    ] [web.app:generar:229] Factura web 2026-321 generada. Cliente: Cliente mensual Total: 30.00
+[2026-04-22 12:22:21] [INFO    ] [src.ventas_store:registrar_ventas_factura:102] Ventas registradas en buffer mensual. factura=2026-321 filas=1
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/ganancias/resumen "HTTP/1.1 200 OK"
+[2026-04-22 12:22:21] [INFO    ] [src.monthly_closure:process_monthly_closure:120] Cierre mensual completado usuario=Giselle periodo=2026-04 ventas=2 total=51.00 archivo=/tmp/pytest-of-ivar/pytest-3/test_resumen_y_cierre_mensual_0/cierres/cierre_mensual_2026_04.xlsx
+[2026-04-22 12:22:21] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/ganancias/cierre-mes "HTTP/1.1 200 OK"
+[2026-04-24 10:07:43] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-24 10:08:44] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-24 10:08:45] [INFO    ] [src.factura_counter:_inicializar_contador:42] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ivar/pytest-0/test_inicializar_contador_crea0/data/contador_facturas.json
+[2026-04-24 10:08:45] [INFO    ] [src.factura_counter:_inicializar_contador:42] Contador de facturas no encontrado. Inicializando desde 0 en: /tmp/pytest-of-ivar/pytest-0/test_siguiente_numero_factura_0/data/contador_facturas.json
+[2026-04-24 10:08:45] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 1
+[2026-04-24 10:08:45] [INFO    ] [src.factura_counter:siguiente_numero_factura:86] Número de factura generado: 2
+[2026-04-24 10:08:45] [ERROR   ] [src.factura_counter:_leer:58] CRÍTICO: Archivo contador corrupto en /tmp/pytest-of-ivar/pytest-0/test_leer_contador_corrupto_la0/data/contador_facturas.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/factura_counter.py", line 53, in _leer
+    dato = json.load(f)
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/.local/share/uv/python/cpython-3.14.4-linux-x86_64-gnu/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-04-24 10:08:45] [ERROR   ] [src.factura_counter:_escribir:71] CRÍTICO: No se pudo escribir el contador: sin permisos
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/src/factura_counter.py", line 67, in _escribir
+    with RUTA_CONTADOR.open("w", encoding="utf-8") as f:
+         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_factura_counter_real.py", line 77, in <lambda>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+                                                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_factura_counter_real.py", line 77, in <genexpr>
+    monkeypatch.setattr(type(ruta), "open", lambda *a, **k: (_ for _ in ()).throw(OSError("sin permisos")))
+OSError: sin permisos
+[2026-04-24 10:08:45] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ivar/pytest-0/test_generar_factura_xlsx_crea0/facturas/factura_2026_009.xlsx
+[2026-04-24 10:08:45] [INFO    ] [src.factura_writer:generar_factura_xlsx:353] Factura 2026-009 generada exitosamente en: /tmp/pytest-of-ivar/pytest-0/test_generar_factura_xlsx_cont0/facturas/factura_2026_009.xlsx
+[2026-04-24 10:08:45] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ivar/pytest-0/test_copiar_en_documentos_wind1/Documents/Facturas/demo.xlsx
+[2026-04-24 10:08:45] [WARNING ] [src.factura_writer:_rutas_documentos_windows:159] No se encontró carpeta de Documentos en Windows. Se usará fallback: /tmp/pytest-of-ivar/pytest-0/test_copia_windows_crea_fallba0/Documents
+[2026-04-24 10:08:45] [INFO    ] [src.factura_writer:_copiar_en_documentos_windows:183] Copia secundaria de factura guardada en: /tmp/pytest-of-ivar/pytest-0/test_copia_windows_crea_fallba0/Documents/Facturas/factura.xlsx
+[2026-04-24 10:08:45] [INFO    ] [test_msg:test_log_mensaje_simple:245] Mensaje de prueba
+[2026-04-24 10:08:45] [INFO    ] [test_niveles:test_log_diferentes_niveles:258] Info
+[2026-04-24 10:08:45] [WARNING ] [test_niveles:test_log_diferentes_niveles:259] Warning
+[2026-04-24 10:08:45] [ERROR   ] [test_niveles:test_log_diferentes_niveles:260] Error
+[2026-04-24 10:08:45] [CRITICAL] [test_niveles:test_log_diferentes_niveles:261] Critical
+[2026-04-24 10:08:45] [ERROR   ] [test_exc:test_log_con_excepciones:275] Error capturado
+Traceback (most recent call last):
+  File "/home/ivar/Development/zoopicasso/generar_para_email/tests/test_settings.py", line 272, in test_log_con_excepciones
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+[2026-04-24 10:09:03] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas

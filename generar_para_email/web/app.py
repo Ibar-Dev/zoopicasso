@@ -81,11 +81,16 @@ class LineaPayload(BaseModel):
     precio_unitario: float = Field(ge=0)
     categoria: str = ""
 
+
+# Extensión: método de pago y montos
 class FacturaPayload(BaseModel):
     cliente_nombre: Optional[str] = ""
     cliente_nif: Optional[str] = ""
     lineas: list[LineaPayload] = Field(min_length=1)
     imprimir_ticket: bool = False
+    metodo_pago: Optional[Literal["efectivo", "tarjeta", "mixto"]] = None
+    monto_efectivo: Optional[float] = None
+    monto_tarjeta: Optional[float] = None
 
 
 class MonthlyClosurePayload(BaseModel):
@@ -202,6 +207,15 @@ def cierre_mensual(payload: MonthlyClosurePayload, request: Request) -> dict:
 @app.post("/api/generar")
 def generar(payload: FacturaPayload, request: Request, background_tasks: BackgroundTasks) -> dict[str, object]:
     _requiere_login(request)
+    # Validación método de pago y montos
+    metodo = payload.metodo_pago
+    monto_efectivo = payload.monto_efectivo
+    monto_tarjeta = payload.monto_tarjeta
+    tolerancia = 0.01
+
+    if metodo not in ("efectivo", "tarjeta", "mixto"):
+        raise HTTPException(status_code=400, detail="Método de pago inválido o no especificado.")
+
     try:
         lineas = [
             LineaFactura(
@@ -219,7 +233,28 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
             cliente_nif=(payload.cliente_nif or "").strip(),
             lineas=lineas,
         )
+        total = factura.total_con_iva
+        # Validaciones de montos
+        if metodo == "efectivo":
+            if monto_efectivo is None or monto_efectivo <= 0 or abs(monto_efectivo - total) > tolerancia:
+                raise HTTPException(status_code=400, detail="El monto en efectivo debe ser igual al total.")
+            if monto_tarjeta not in (None, 0):
+                raise HTTPException(status_code=400, detail="El monto en tarjeta debe ser 0 para pago en efectivo.")
+        elif metodo == "tarjeta":
+            if monto_tarjeta is None or monto_tarjeta <= 0 or abs(monto_tarjeta - total) > tolerancia:
+                raise HTTPException(status_code=400, detail="El monto en tarjeta debe ser igual al total.")
+            if monto_efectivo not in (None, 0):
+                raise HTTPException(status_code=400, detail="El monto en efectivo debe ser 0 para pago con tarjeta.")
+        elif metodo == "mixto":
+            if monto_efectivo is None or monto_efectivo < 0 or monto_efectivo > total:
+                raise HTTPException(status_code=400, detail="El monto en efectivo debe ser entre 0 y el total.")
+            if monto_tarjeta is None:
+                raise HTTPException(status_code=400, detail="Falta el monto en tarjeta para pago mixto.")
+            if monto_tarjeta < 0 or abs(monto_efectivo + monto_tarjeta - total) > tolerancia:
+                raise HTTPException(status_code=400, detail="La suma de efectivo y tarjeta debe ser igual al total.")
         ruta = generar_factura_xlsx(factura)
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except OSError as exc:
@@ -227,12 +262,23 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
         raise HTTPException(status_code=500, detail="No se pudo generar la factura") from exc
 
     logger.info(
-        "Factura web %s generada. Cliente: %s Total: %.2f",
+        "Factura web %s generada. Cliente: %s Total: %.2f Pago: %s Efectivo: %.2f Tarjeta: %.2f",
         factura.numero_formateado,
         factura.cliente_nombre or "(sin cliente)",
         factura.total_con_iva,
+        metodo,
+        monto_efectivo or 0,
+        monto_tarjeta or 0,
     )
     usuario = str(request.session.get("usuario", "(desconocido)"))
+    # Hack: pasar datos de pago a la función de persistencia
+    pago_dict = {
+        'monto_total': total,
+        'monto_efectivo': monto_efectivo or 0,
+        'monto_tarjeta': monto_tarjeta or 0,
+        'metodo_pago': metodo,
+    }
+    setattr(factura, '_pago_dict', pago_dict)
     background_tasks.add_task(_registrar_ventas_factura_background, factura, usuario)
     ticket_impreso = False
     ticket_estado = "Ticket no solicitado."
