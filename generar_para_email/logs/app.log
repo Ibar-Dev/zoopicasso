@@ -1017,3 +1017,38 @@ ZeroDivisionError: division by zero
 [2026-04-24 10:09:03] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
 [2026-04-24 12:32:04] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
 [2026-04-24 13:15:12] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/generar_para_email/facturas
+[2026-04-24 11:35:39] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/user/zoopicasso/generar_para_email/facturas
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-24 11:35:39] [WARNING ] [web.app:login:153] Intento de acceso web fallido.
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-24 11:35:39] [INFO    ] [web.app:login:151] Inicio de sesión correcto (web).
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 400 Bad Request"
+[2026-04-24 11:35:39] [WARNING ] [web.app:_requiere_login:134] Acceso no autenticado a endpoint protegido.
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/ganancias/resumen "HTTP/1.1 401 Unauthorized"
+[2026-04-24 11:35:39] [INFO    ] [web.app:login:151] Inicio de sesión correcto (web).
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-24 11:35:39] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 400 Bad Request"
+[2026-04-24 11:37:55] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/user/zoopicasso/generar_para_email/facturas
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [WARNING ] [web.app:login:153] Intento de acceso web fallido.
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 401 Unauthorized"
+[2026-04-24 11:37:55] [INFO    ] [web.app:login:151] Inicio de sesión correcto (web).
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [INFO    ] [web.app:generar:276] Factura web 2026-123 generada. Cliente: Cliente 1 Total: 21.00 Pago: efectivo Efectivo: 21.00 Tarjeta: 0.00
+[2026-04-24 11:37:55] [INFO    ] [src.ventas_store:registrar_ventas_factura:149] Ventas registradas en buffer mensual. factura=2026-123 filas=1 pago={'monto_total': 21.0, 'monto_efectivo': 21.0, 'monto_tarjeta': 0, 'metodo_pago': 'efectivo', 'efectivo_entregado': 21.0, 'cambio': 0.0}
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [INFO    ] [web.app:descargar:354] Descarga de factura: factura_2026_123.xlsx
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/descargar/factura_2026_123.xlsx "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [WARNING ] [web.app:_requiere_login:134] Acceso no autenticado a endpoint protegido.
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/ganancias/resumen "HTTP/1.1 401 Unauthorized"
+[2026-04-24 11:37:55] [INFO    ] [web.app:login:151] Inicio de sesión correcto (web).
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/login "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [INFO    ] [web.app:generar:276] Factura web 2026-321 generada. Cliente: Cliente mensual Total: 30.00 Pago: efectivo Efectivo: 30.00 Tarjeta: 0.00
+[2026-04-24 11:37:55] [INFO    ] [src.ventas_store:registrar_ventas_factura:149] Ventas registradas en buffer mensual. factura=2026-321 filas=1 pago={'monto_total': 30.0, 'monto_efectivo': 30.0, 'monto_tarjeta': 0, 'metodo_pago': 'efectivo', 'efectivo_entregado': 30.0, 'cambio': 0.0}
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/generar "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: GET http://testserver/api/ganancias/resumen "HTTP/1.1 200 OK"
+[2026-04-24 11:37:55] [INFO    ] [src.monthly_closure:process_monthly_closure:120] Cierre mensual completado usuario=Giselle periodo=2026-04 ventas=2 total=51.00 archivo=/tmp/pytest-of-root/pytest-1/test_resumen_y_cierre_mensual_0/cierres/cierre_mensual_2026_04.xlsx
+[2026-04-24 11:37:55] [INFO    ] [httpx:_send_single_request:1025] HTTP Request: POST http://testserver/api/ganancias/cierre-mes "HTTP/1.1 200 OK"
