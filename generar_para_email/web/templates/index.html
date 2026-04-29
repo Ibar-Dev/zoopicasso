@@ -8,6 +8,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/app.css" />
+  <style>
+    #leyenda-atajos { position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; }
+    #btn-leyenda {
+      background: rgba(0,0,0,0.5); color: #fff; border: none; border-radius: 50%;
+      width: 2.2rem; height: 2.2rem; font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #btn-leyenda:hover { background: rgba(0,0,0,0.75); }
+    #panel-leyenda {
+      display: none; position: absolute; bottom: 2.8rem; right: 0;
+      background: rgba(18,18,18,0.94); color: #e5e5e5; border-radius: 8px;
+      padding: 0.75rem 1rem; font-size: 0.78rem; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.45); pointer-events: none;
+    }
+    #panel-leyenda strong { display: block; margin-bottom: 0.5rem; color: #fff; font-size: 0.83rem; }
+    #panel-leyenda table { border-collapse: collapse; }
+    #panel-leyenda td { padding: 0.1rem 0.35rem; vertical-align: top; }
+    #panel-leyenda td:first-child { font-family: monospace; color: #7dd3fc; padding-right: 0.75rem; }
+    #panel-leyenda .leyenda-seccion { color: #888; font-size: 0.7rem; padding-top: 0.35rem; }
+    #leyenda-atajos:hover #panel-leyenda, #panel-leyenda.fijo { display: block; pointer-events: auto; }
+  </style>
 </head>
 <body>
   <div class="bg-shape one"></div>
@@ -148,6 +169,29 @@
         <div id="pago-error" class="error" style="margin-top:0.5em;"></div>
       </form>
     </div>
+  </div>
+
+  <!-- Leyenda de atajos de teclado -->
+  <div id="leyenda-atajos">
+    <div id="panel-leyenda">
+      <strong>⌨ Atajos de teclado</strong>
+      <table>
+        <tr><td colspan="2" class="leyenda-seccion">Formulario principal</td></tr>
+        <tr><td>Alt+A</td><td>Añadir línea</td></tr>
+        <tr><td>Alt+G</td><td>Generar factura</td></tr>
+        <tr><td colspan="2" class="leyenda-seccion">Modal de pago</td></tr>
+        <tr><td>E</td><td>Efectivo</td></tr>
+        <tr><td>T</td><td>Tarjeta</td></tr>
+        <tr><td>M</td><td>Mixto</td></tr>
+        <tr><td>Enter</td><td>Confirmar</td></tr>
+        <tr><td colspan="2" class="leyenda-seccion">Modal de ticket</td></tr>
+        <tr><td>Enter</td><td>Sí, imprimir</td></tr>
+        <tr><td>N</td><td>No imprimir</td></tr>
+        <tr><td colspan="2" class="leyenda-seccion">Siempre</td></tr>
+        <tr><td>Esc</td><td>Cancelar</td></tr>
+      </table>
+    </div>
+    <button id="btn-leyenda" title="Atajos de teclado">⌨</button>
   </div>
 
   <script>
@@ -796,6 +840,16 @@
       if (e.key === 'Escape' && cierreMesModalEl.classList.contains('active')) {
         cerrarModalCierre(false);
       }
+      // N = No imprimir (solo cuando el modal de ticket está abierto y no hay input enfocado)
+      if ((e.key === 'n' || e.key === 'N') && !ticketModalEl.hidden) {
+        const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+        if (!enInput) { e.preventDefault(); cerrarModalTicket(false); }
+      }
+      // Alt+A = Añadir línea, Alt+G = Generar factura (solo sin modales abiertos)
+      if (e.altKey && pagoModalEl.hidden && ticketModalEl.hidden && cierreMesModalEl.hidden) {
+        if (e.key === 'a' || e.key === 'A') { e.preventDefault(); addLinea(); }
+        if (e.key === 'g' || e.key === 'G') { e.preventDefault(); document.getElementById('btn-generar').click(); }
+      }
     });
 
     // --- Modal método de pago ---
@@ -894,6 +948,32 @@
     pagoEfectivoEl.addEventListener('input', actualizarCambio);
     pagoEntregadoEl.addEventListener('input', actualizarCambio);
 
+    // Atajos de teclado en modal de pago: E = efectivo, T = tarjeta, M = mixto
+    window.addEventListener('keydown', (e) => {
+      if (pagoModalEl.hidden) return;
+      const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+      if (enInput) return;
+      const total = Number(totalEl.textContent.replace('€', '').trim());
+      if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        const r = pagoForm.querySelector('input[value="efectivo"]');
+        r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+        pagoEfectivoEl.value = total.toFixed(2);
+        pagoEntregadoEl.focus();
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        const r = pagoForm.querySelector('input[value="tarjeta"]');
+        r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+        pagoTarjetaEl.value = total.toFixed(2);
+        document.getElementById('btn-pago-confirmar').focus();
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        const r = pagoForm.querySelector('input[value="mixto"]');
+        r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+        pagoEfectivoEl.focus();
+      }
+    });
+
     btnPagoCancelar.addEventListener('click', () => cerrarModalPago(null));
     pagoModalEl.addEventListener('click', (e) => {
       if (e.target === pagoModalEl) cerrarModalPago(null);
@@ -987,6 +1067,13 @@
         return;
       }
 
+      const precioInvalido = filasArr.some(
+        (fila) => !importeEurValido((fila.querySelector('.precio').value || '').trim())
+      );
+      if (precioInvalido) {
+        errorEl.textContent = 'Hay precios invalidos. Usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50).';
+        return;
+      }
 
       // Paso 1: método de pago
       const totalFactura = Number(totalEl.textContent.replace('€','').trim());
@@ -1009,15 +1096,6 @@
         precio_unitario: Number((fila.querySelector('.precio').value || '').replace(',', '.')),
         categoria: fila.querySelector('.categoria').value,
       }));
-
-      const precioInvalido = filasArr.some(
-        (fila) => !importeEurValido((fila.querySelector('.precio').value || '').trim())
-      );
-      if (precioInvalido) {
-        errorEl.textContent = 'Hay precios invalidos. Usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50).';
-        return;
-      }
-
 
       try {
         const data = await request('/api/generar', {
@@ -1144,6 +1222,10 @@
     }
 
     btnGuardarPrecios.addEventListener('click', guardarPreciosCategorias);
+
+    document.getElementById('btn-leyenda').addEventListener('click', () => {
+      document.getElementById('panel-leyenda').classList.toggle('fijo');
+    });
 
     async function bootstrap() {
       try {
