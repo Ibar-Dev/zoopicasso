@@ -12,3 +12,6 @@ wheels/
 # Runtime de facturacion mensual
 generar_para_email/data/ventas.db
 generar_para_email/data/cierres/
+
+generar_para_email/logs/
+*.log
