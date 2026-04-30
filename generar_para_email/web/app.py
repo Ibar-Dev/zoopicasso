@@ -320,6 +320,7 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
         "numero": factura.numero_formateado,
         "archivo": ruta.name,
         "total": f"{factura.total_con_iva:.2f}",
+        "cambio": cambio,
         "download_url": f"/api/descargar/{ruta.name}",
         "ticket_impreso": ticket_impreso,
         "ticket_estado": ticket_estado,

@@ -75,6 +75,8 @@ def test_generar_y_descargar_con_login(monkeypatch, tmp_path: Path):
                     "precio_unitario": 10.5,
                 }
             ],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 21.0,
         },
     )
 
@@ -137,6 +139,8 @@ def test_resumen_y_cierre_mensual_con_login(monkeypatch, tmp_path: Path):
                 }
             ],
             "imprimir_ticket": False,
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 30.0,
         },
     )
     assert generar.status_code == 200
@@ -152,3 +156,115 @@ def test_resumen_y_cierre_mensual_con_login(monkeypatch, tmp_path: Path):
     cierre_body = cierre.json()
     assert cierre_body["ok"] is True
     assert "mensaje" in cierre_body
+
+
+def _cliente_logueado(monkeypatch, tmp_path):
+    """Helper: devuelve un TestClient ya autenticado con monkeypatches de generación."""
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+
+    def _fake_numero():
+        return 999
+
+    def _fake_generar(_factura):
+        ruta = tmp_path / "factura_2026_999.xlsx"
+        ruta.write_bytes(b"xlsx")
+        return ruta
+
+    monkeypatch.setattr("web.app.siguiente_numero_factura", _fake_numero)
+    monkeypatch.setattr("web.app.generar_factura_xlsx", _fake_generar)
+    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
+    return client
+
+
+def test_generar_sin_metodo_pago_retorna_400(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 10.0}],
+        },
+    )
+    assert res.status_code == 400
+    assert "pago" in res.json()["detail"].lower() or "método" in res.json()["detail"].lower()
+
+
+def test_generar_efectivo_ok(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 10.0}],
+            "metodo_pago": "efectivo",
+            "monto_efectivo": 10.0,
+            "efectivo_entregado": 20.0,
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["cambio"] == 10.0
+
+
+def test_generar_efectivo_entregado_insuficiente_retorna_400(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 10.0}],
+            "metodo_pago": "efectivo",
+            "monto_efectivo": 10.0,
+            "efectivo_entregado": 5.0,
+        },
+    )
+    assert res.status_code == 400
+
+
+def test_generar_tarjeta_ok(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 2, "precio_unitario": 15.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 30.0,
+        },
+    )
+    assert res.status_code == 200
+    assert res.json()["cambio"] == 0.0
+
+
+def test_generar_mixto_ok(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 50.0}],
+            "metodo_pago": "mixto",
+            "monto_efectivo": 20.0,
+            "monto_tarjeta": 30.0,
+            "efectivo_entregado": 25.0,
+        },
+    )
+    assert res.status_code == 200
+    assert res.json()["cambio"] == 5.0
+
+
+def test_generar_mixto_suma_incorrecta_retorna_400(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 50.0}],
+            "metodo_pago": "mixto",
+            "monto_efectivo": 10.0,
+            "monto_tarjeta": 10.0,  # suma 20, no 50
+            "efectivo_entregado": 10.0,
+        },
+    )
+    assert res.status_code == 400
