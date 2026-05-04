@@ -161,13 +161,14 @@ def test_resumen_y_cierre_mensual_con_login(monkeypatch, tmp_path: Path):
 def _cliente_logueado(monkeypatch, tmp_path):
     """Helper: devuelve un TestClient ya autenticado con monkeypatches de generación."""
     client = TestClient(app)
-    client.post(
+    login = client.post(
         "/api/login",
         json={
             "usuario": "Giselle",
             "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
         },
     )
+    assert login.status_code == 200
 
     def _fake_numero():
         return 999
@@ -263,7 +264,7 @@ def test_generar_mixto_suma_incorrecta_retorna_400(monkeypatch, tmp_path):
             "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 50.0}],
             "metodo_pago": "mixto",
             "monto_efectivo": 10.0,
-            "monto_tarjeta": 10.0,  # suma 20, no 50
+            "monto_tarjeta": 10.0,
             "efectivo_entregado": 10.0,
         },
     )

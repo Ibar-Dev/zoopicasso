@@ -840,8 +840,7 @@
       if (e.key === 'Escape' && cierreMesModalEl.classList.contains('active')) {
         cerrarModalCierre(false);
       }
-      // N = No imprimir (solo cuando el modal de ticket está abierto y no hay input enfocado)
-      if ((e.key === 'n' || e.key === 'N') && !ticketModalEl.hidden) {
+      if ((e.key === 'n' || e.key === 'N') && ticketModalEl.classList.contains('active')) {
         const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (!enInput) { e.preventDefault(); cerrarModalTicket(false); }
       }
@@ -866,6 +865,9 @@
     const pagoEfectivoGroup = document.getElementById('pago-efectivo-group');
     const pagoTarjetaGroup = document.getElementById('pago-tarjeta-group');
     const pagoMixtoInfo = document.getElementById('pago-mixto-info');
+    const pagoRadioEfectivo = pagoForm.querySelector('input[value="efectivo"]');
+    const pagoRadioTarjeta = pagoForm.querySelector('input[value="tarjeta"]');
+    const pagoRadioMixto = pagoForm.querySelector('input[value="mixto"]');
 
     let resolverPagoModal = null;
 
@@ -948,38 +950,40 @@
     pagoEfectivoEl.addEventListener('input', actualizarCambio);
     pagoEntregadoEl.addEventListener('input', actualizarCambio);
 
-    // Atajos de teclado en modal de pago: E = efectivo, T = tarjeta, M = mixto
     window.addEventListener('keydown', (e) => {
-      if (pagoModalEl.hidden) return;
-      const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+      if (!pagoModalEl.classList.contains('active')) return;
+      if (e.key === 'Escape') { cerrarModalPago(null); return; }
+      const activeEl = document.activeElement;
+      const enInput = activeEl && (
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        (activeEl.tagName === 'INPUT' && activeEl.type !== 'radio' && activeEl.type !== 'checkbox')
+      );
       if (enInput) return;
       const total = Number(totalEl.textContent.replace('€', '').trim());
       if (e.key === 'e' || e.key === 'E') {
         e.preventDefault();
-        const r = pagoForm.querySelector('input[value="efectivo"]');
-        r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+        pagoRadioEfectivo.checked = true; pagoRadioEfectivo.dispatchEvent(new Event('change', { bubbles: true }));
         pagoEfectivoEl.value = total.toFixed(2);
         pagoEntregadoEl.focus();
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
-        const r = pagoForm.querySelector('input[value="tarjeta"]');
-        r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+        pagoRadioTarjeta.checked = true; pagoRadioTarjeta.dispatchEvent(new Event('change', { bubbles: true }));
         pagoTarjetaEl.value = total.toFixed(2);
-        document.getElementById('btn-pago-confirmar').focus();
+        btnPagoConfirmar.focus();
       } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
-        const r = pagoForm.querySelector('input[value="mixto"]');
-        r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+        pagoRadioMixto.checked = true; pagoRadioMixto.dispatchEvent(new Event('change', { bubbles: true }));
         pagoEfectivoEl.focus();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        btnPagoConfirmar.click();
       }
     });
 
     btnPagoCancelar.addEventListener('click', () => cerrarModalPago(null));
     pagoModalEl.addEventListener('click', (e) => {
       if (e.target === pagoModalEl) cerrarModalPago(null);
-    });
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && pagoModalEl.classList.contains('active')) cerrarModalPago(null);
     });
 
     pagoForm.addEventListener('submit', (e) => {
