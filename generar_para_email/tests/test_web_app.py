@@ -2,6 +2,8 @@ import sys
 from pathlib import Path
 from datetime import date
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -368,3 +370,17 @@ def test_generar_mixto_suma_incorrecta_retorna_400(monkeypatch, tmp_path):
         },
     )
     assert res.status_code == 400
+
+
+@pytest.mark.parametrize("concepto", ["Alimentación", "Accesorio", "Estética", "Medicación"])
+def test_generar_concepto_valido(concepto, monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": concepto, "cantidad": 1, "precio_unitario": 10.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 10.0,
+        },
+    )
+    assert res.status_code == 200

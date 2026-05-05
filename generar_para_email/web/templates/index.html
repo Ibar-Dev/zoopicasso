@@ -291,9 +291,15 @@
       const row = document.createElement('div');
       row.className = 'fila';
       row.innerHTML = `
-        <input class="concepto" placeholder="Concepto" value="${concepto}" />
-        <input class="cantidad" type="number" min="1" value="${cantidad}" />
+        <select class="concepto">
+          <option value="">— Concepto —</option>
+          <option value="Alimentación">Alimentación</option>
+          <option value="Accesorio">Accesorio</option>
+          <option value="Estética">Estética</option>
+          <option value="Medicación">Medicación</option>
+        </select>
         <input class="precio" type="text" inputmode="decimal" placeholder="€" value="${precio}" />
+        <input class="cantidad" type="number" min="1" value="${cantidad}" />
         <span class="parcial">0.00</span>
         <select class="categoria">
           <option value="">— Categoría —</option>
@@ -307,14 +313,15 @@
         </select>
         <button class="del" type="button">×</button>
       `;
+      if (concepto) row.querySelector('.concepto').value = concepto;
       if (categoria) row.querySelector('.categoria').value = categoria;
-      row.querySelector('.cantidad').addEventListener('input', calcTotals);
       row.querySelector('.precio').addEventListener('input', calcTotals);
+      row.querySelector('.cantidad').addEventListener('input', calcTotals);
       row.querySelector('.del').addEventListener('click', () => {
         if (lineasEl.children.length <= 1) {
-          row.querySelector('.concepto').value = '';
-          row.querySelector('.cantidad').value = '1';
+          row.querySelector('.concepto').selectedIndex = 0;
           row.querySelector('.precio').value = '';
+          row.querySelector('.cantidad').value = '1';
           calcTotals();
           return;
         }
@@ -979,6 +986,8 @@
           return;
         }
         pagoForm.reset();
+        pagoEfectivoEl.value = totalFactura.toFixed(2);
+        pagoEfectivoEl.readOnly = false;
         pagoErrorEl.textContent = '';
         pagoEfectivoGroup.style.display = 'none';
         pagoTarjetaGroup.style.display = 'none';
@@ -1029,6 +1038,7 @@
       pagoErrorEl.textContent = '';
       pagoEntregadoGroup.style.display = 'none';
       if (metodo === 'efectivo') {
+        pagoEfectivoEl.readOnly = true;
         pagoEfectivoGroup.style.display = '';
         pagoEntregadoGroup.style.display = '';
         pagoTarjetaGroup.style.display = 'none';
@@ -1039,6 +1049,8 @@
         pagoTarjetaGroup.style.display = '';
         pagoMixtoInfo.style.display = 'none';
       } else if (metodo === 'mixto') {
+        pagoEfectivoEl.readOnly = false;
+        pagoEfectivoEl.value = '';
         pagoEfectivoGroup.style.display = '';
         pagoEntregadoGroup.style.display = '';
         pagoTarjetaGroup.style.display = 'none';
@@ -1065,7 +1077,6 @@
       if (e.key === 'e' || e.key === 'E') {
         e.preventDefault();
         pagoRadioEfectivo.checked = true; pagoRadioEfectivo.dispatchEvent(new Event('change', { bubbles: true }));
-        pagoEfectivoEl.value = total.toFixed(2);
         pagoEntregadoEl.focus();
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
