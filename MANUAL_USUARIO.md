@@ -87,7 +87,7 @@ Al pulsar «Generar factura» se abre el modal de pago. Dispones de tres opcione
 ### Efectivo
 
 1. Selecciona **Efectivo** (o pulsa `E`).
-2. El campo «Monto en efectivo» se rellena solo con el total.
+2. El campo «Monto del Total» se rellena solo con el total.
 3. Introduce el **efectivo entregado** por el cliente.
 4. El cambio a devolver se calcula y muestra automáticamente.
 5. Pulsa **Aceptar** o `Enter` para confirmar.

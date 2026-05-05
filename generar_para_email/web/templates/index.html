@@ -180,7 +180,7 @@
         </div>
           <div id="pago-montos">
             <div id="pago-efectivo-group" style="display:none; margin-bottom:0.5em;">
-              <label>Monto en efectivo (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
+              <label>Monto del Total (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
             </div>
             <div id="pago-entregado-group" style="display:none; margin-bottom:0.5em;">
               <label>Efectivo entregado (€): <input id="pago-entregado" type="number" min="0" step="0.01"></label>
@@ -1043,7 +1043,7 @@
         pagoEntregadoGroup.style.display = '';
         pagoTarjetaGroup.style.display = 'none';
         pagoMixtoInfo.style.display = '';
-        pagoMixtoInfo.textContent = 'Ingresa el monto en efectivo. El resto se calculará automáticamente como tarjeta.';
+        pagoMixtoInfo.textContent = 'Ingresa el Monto del Total. El resto se calculará automáticamente como tarjeta.';
       }
       actualizarCambio();
     });
@@ -1097,7 +1097,7 @@
       const tolerancia = 0.01;
       if (metodo === 'efectivo') {
         if (montoEfectivo <= 0 || Math.abs(montoEfectivo - totalFactura) > tolerancia) {
-          pagoErrorEl.textContent = 'El monto en efectivo debe ser igual al total.';
+          pagoErrorEl.textContent = 'El Monto del Total debe ser igual al total.';
           pagoEfectivoEl.focus();
           return;
         }
@@ -1117,7 +1117,7 @@
         efectivoEntregado = 0;
       } else if (metodo === 'mixto') {
         if (montoEfectivo < 0 || montoEfectivo > totalFactura) {
-          pagoErrorEl.textContent = 'El monto en efectivo debe ser entre 0 y el total.';
+          pagoErrorEl.textContent = 'El Monto del Total debe ser entre 0 y el total.';
           pagoEfectivoEl.focus();
           return;
         }
