@@ -158,6 +158,105 @@ def test_resumen_y_cierre_mensual_con_login(monkeypatch, tmp_path: Path):
     assert "mensaje" in cierre_body
 
 
+def test_cierre_mes_requiere_login():
+    client = TestClient(app)
+    res = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
+    assert res.status_code == 401
+
+
+def test_cierre_mes_sin_confirmacion_retorna_400():
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    res = client.post("/api/ganancias/cierre-mes", json={"confirmacion": False})
+    assert res.status_code == 400
+
+
+def _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=888):
+    """Helper: client autenticado, con una venta registrada, listo para cerrar mes."""
+    client = TestClient(app)
+    login = client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    assert login.status_code == 200
+
+    cierres_path = tmp_path / "cierres"
+    monkeypatch.setattr("src.monthly_closure.RUTA_CIERRES", cierres_path)
+    monkeypatch.setattr("web.app.RUTA_CIERRES", cierres_path)
+    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
+    monkeypatch.setattr("web.app.siguiente_numero_factura", lambda: numero)
+    monkeypatch.setattr(
+        "web.app.generar_factura_xlsx",
+        lambda _f: (tmp_path / f"factura_2026_{numero}.xlsx").with_suffix(".xlsx"),
+    )
+    (tmp_path / f"factura_2026_{numero}.xlsx").write_bytes(b"xlsx")
+
+    generar = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Cierre test", "cantidad": 1, "precio_unitario": 25.0, "categoria": "perro"}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 25.0,
+        },
+    )
+    assert generar.status_code == 200
+    return client
+
+
+def test_cierre_mes_incluye_download_url(monkeypatch, tmp_path):
+    client = _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=881)
+    cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
+    assert cierre.status_code == 200
+    body = cierre.json()
+    assert body["ok"] is True
+    assert "archivo_excel" in body
+    assert "download_url" in body
+    assert body["download_url"] == f"/api/ganancias/descargar-cierre/{body['archivo_excel']}"
+
+
+def test_descargar_cierre_requiere_login():
+    client = TestClient(app)
+    res = client.get("/api/ganancias/descargar-cierre/cierre_mensual_2026_05.xlsx")
+    assert res.status_code == 401
+
+
+def test_descargar_cierre_ok(monkeypatch, tmp_path):
+    client = _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=882)
+    cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
+    assert cierre.status_code == 200
+    download_url = cierre.json()["download_url"]
+
+    descarga = client.get(download_url)
+    assert descarga.status_code == 200
+    assert (
+        descarga.headers["content-type"]
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+
+def test_descargar_cierre_no_encontrado(monkeypatch, tmp_path):
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    monkeypatch.setattr("web.app.RUTA_CIERRES", tmp_path)
+    res = client.get("/api/ganancias/descargar-cierre/no_existe.xlsx")
+    assert res.status_code == 404
+
+
 def _cliente_logueado(monkeypatch, tmp_path):
     """Helper: devuelve un TestClient ya autenticado con monkeypatches de generación."""
     client = TestClient(app)

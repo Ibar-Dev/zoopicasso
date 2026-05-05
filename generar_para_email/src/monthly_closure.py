@@ -103,7 +103,7 @@ def process_monthly_closure(usuario: str) -> dict:
         }
 
     archivo = _generar_excel_cierre(anio_mes, resumen)
-    cierre_id = f"{anio_mes}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    cierre_id = f"{anio_mes}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
     archived_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     actualizadas = archivar_ventas_activas(anio_mes, cierre_id, archived_at)
