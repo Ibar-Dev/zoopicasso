@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 ANIMALES: dict[str, str] = {
     "1": "perro",
     "2": "gato",
-    "3": "conejo",
+    "3": "Roedor",
     "4": "ave",
     "5": "peces",
     "6": "reptiles",

@@ -193,7 +193,7 @@ En la sección **Ventas del día por categoría** (parte derecha del formulario)
 
 > Los precios de referencia son solo informativos y se muestran en esta tabla. Al añadir una nueva línea de factura deberás introducir el precio manualmente en el campo correspondiente.
 
-Las categorías disponibles son: Perro, Gato, Conejo, Ave, Peces, Reptiles y Peluquería.
+Las categorías disponibles son: Perro, Gato, Roedor, Ave, Peces, Reptiles y Peluquería.
 
 ---
 
