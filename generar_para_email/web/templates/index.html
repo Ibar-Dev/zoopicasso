@@ -114,6 +114,7 @@
       <div class="chuleta">
         <span class="chuleta-titulo">⌨ Atajos</span>
         <span class="chuleta-item"><kbd>Alt</kbd>+<kbd>A</kbd> Añadir línea</span>
+        <span class="chuleta-item"><kbd>Alt</kbd>+<kbd>D</kbd> Eliminar última línea</span>
         <span class="chuleta-item"><kbd>Alt</kbd>+<kbd>G</kbd> Generar factura</span>
       </div>
       <div style="display:flex;gap:0.5rem;margin-top:8px;align-items:center;">
@@ -208,6 +209,7 @@
       <table>
         <tr><td colspan="2" class="leyenda-seccion">Formulario principal</td></tr>
         <tr><td>Alt+A</td><td>Añadir línea</td></tr>
+        <tr><td>Alt+D</td><td>Eliminar última línea</td></tr>
         <tr><td>Alt+G</td><td>Generar factura</td></tr>
         <tr><td colspan="2" class="leyenda-seccion">Modal de pago</td></tr>
         <tr><td>E</td><td>Efectivo</td></tr>
@@ -952,9 +954,14 @@
         const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (!enInput) { e.preventDefault(); cerrarModalTicket(false); }
       }
-      // Alt+A = Añadir línea, Alt+G = Generar factura (solo sin modales abiertos)
+      // Alt+A = Añadir línea, Alt+D = Eliminar última línea, Alt+G = Generar factura (solo sin modales abiertos)
       if (e.altKey && pagoModalEl.hidden && ticketModalEl.hidden && cierreMesModalEl.hidden) {
         if (e.key === 'a' || e.key === 'A') { e.preventDefault(); addLinea(); }
+        if (e.key === 'd' || e.key === 'D') {
+          e.preventDefault();
+          const filas = lineasEl.querySelectorAll('.fila');
+          if (filas.length) filas[filas.length - 1].querySelector('.del').click();
+        }
         if (e.key === 'g' || e.key === 'G') { e.preventDefault(); document.getElementById('btn-generar').click(); }
       }
     });
