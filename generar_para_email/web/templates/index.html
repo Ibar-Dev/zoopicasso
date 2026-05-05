@@ -956,13 +956,13 @@
       }
       // Alt+A = Añadir línea, Alt+D = Eliminar última línea, Alt+G = Generar factura (solo sin modales abiertos)
       if (e.altKey && pagoModalEl.hidden && ticketModalEl.hidden && cierreMesModalEl.hidden) {
-        if (e.key === 'a' || e.key === 'A') { e.preventDefault(); addLinea(); }
-        if (e.key === 'd' || e.key === 'D') {
+        if (e.code === 'KeyA') { e.preventDefault(); addLinea(); }
+        if (e.code === 'KeyD') {
           e.preventDefault();
           const filas = lineasEl.querySelectorAll('.fila');
           if (filas.length) filas[filas.length - 1].querySelector('.del').click();
         }
-        if (e.key === 'g' || e.key === 'G') { e.preventDefault(); document.getElementById('btn-generar').click(); }
+        if (e.code === 'KeyG') { e.preventDefault(); document.getElementById('btn-generar').click(); }
       }
     });
 
