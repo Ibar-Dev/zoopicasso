@@ -17,7 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura
-from src.monthly_closure import process_monthly_closure
+from src.monthly_closure import process_monthly_closure, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
 from src.ventas_store import inicializar_db_ventas, registrar_ventas_factura, resumen_ventas_activas
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
@@ -203,7 +203,26 @@ def cierre_mensual(payload: MonthlyClosurePayload, request: Request) -> dict:
     if not payload.confirmacion:
         raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar mes")
     usuario = str(request.session.get("usuario", "(desconocido)"))
-    return process_monthly_closure(usuario=usuario)
+    resultado = process_monthly_closure(usuario=usuario)
+    if resultado.get("archivo_excel"):
+        resultado["download_url"] = f"/api/ganancias/descargar-cierre/{resultado['archivo_excel']}"
+    return resultado
+
+@app.get("/api/ganancias/descargar-cierre/{nombre_archivo}")
+def descargar_cierre(nombre_archivo: str, request: Request) -> FileResponse:
+    _requiere_login(request)
+    ruta = (RUTA_CIERRES / nombre_archivo).resolve()
+    if not str(ruta).startswith(str(RUTA_CIERRES.resolve())):
+        logger.warning("Intento de descarga de cierre con nombre inválido: %s", nombre_archivo)
+        raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
+    if not ruta.exists():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    logger.info("Descarga de cierre mensual: %s", ruta.name)
+    return FileResponse(
+        path=ruta,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=ruta.name,
+    )
 
 @app.post("/api/generar")
 def generar(payload: FacturaPayload, request: Request, background_tasks: BackgroundTasks) -> dict[str, object]:

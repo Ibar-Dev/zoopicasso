@@ -91,7 +91,10 @@
       </div>
 
       <button id="btn-generar" class="cta">Generar factura</button>
-      <button id="btn-cerrar-mes" class="ghost" type="button" style="margin-top:8px;">Cerrar mes</button>
+      <div style="display:flex;gap:0.5rem;margin-top:8px;align-items:center;">
+        <button id="btn-cerrar-mes" class="ghost" type="button">Cerrar mes</button>
+        <button id="btn-carpeta-cierres" class="ghost" type="button" title="Carpeta donde se guardan los cierres mensuales">📁 Cierres</button>
+      </div>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
 
@@ -754,6 +757,45 @@
       mostrarToast('Se ha guardado');
     }
 
+    async function guardarCierreEnCarpeta(data) {
+      const response = await fetch(data.download_url, { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('No se pudo descargar el archivo de cierre.');
+      const blob = await response.blob();
+
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = data.archivo_excel;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre descargado');
+        return;
+      }
+
+      let dirHandle = null;
+      try { dirHandle = await idbGet('config', 'carpeta_cierres'); } catch (_) {}
+
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        try { await idbSet('config', 'carpeta_cierres', dirHandle); } catch (_) {}
+        actualizarNombreCarpetaCierres(dirHandle.name);
+      }
+
+      const fileHandle = await dirHandle.getFileHandle(data.archivo_excel, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
     document.getElementById('btn-login').addEventListener('click', async () => {
       const usuario = document.getElementById('usuario').value.trim();
       const password = document.getElementById('password').value;
@@ -802,6 +844,38 @@
       } catch (err) {
         if (err && err.name !== 'AbortError') {
           errorEl.textContent = 'No se pudo configurar la carpeta de destino.';
+        }
+      }
+    });
+
+    const btnCarpetaCierres = document.getElementById('btn-carpeta-cierres');
+
+    function actualizarNombreCarpetaCierres(nombre) {
+      btnCarpetaCierres.title = nombre
+        ? `Carpeta de cierres: ${nombre} (clic para cambiar)`
+        : 'Carpeta donde se guardan los cierres mensuales';
+    }
+
+    // Cargar nombre de carpeta de cierres al inicio
+    idbGet('config', 'carpeta_cierres').then(h => {
+      if (h) actualizarNombreCarpetaCierres(h.name);
+    }).catch(() => {});
+
+    btnCarpetaCierres.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los cierres se descargarán automáticamente.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierres', dirHandle);
+        actualizarNombreCarpetaCierres(dirHandle.name);
+        resultadoEl.textContent = `Carpeta de cierres configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta de cierres.';
         }
       }
     });
@@ -1054,6 +1128,15 @@
         });
         resultadoEl.textContent = data.mensaje || 'Cierre mensual completado.';
         await refrescarResumenMensual();
+        if (data.download_url) {
+          try {
+            await guardarCierreEnCarpeta(data);
+          } catch (guardadoErr) {
+            if (guardadoErr.name !== 'AbortError') {
+              errorEl.textContent = 'Cierre completado, pero no se pudo guardar el archivo: ' + guardadoErr.message;
+            }
+          }
+        }
       } catch (e) {
         errorEl.textContent = e.message || 'No se pudo completar el cierre mensual.';
       }
