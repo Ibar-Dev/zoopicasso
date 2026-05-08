@@ -665,7 +665,7 @@
       });
     }
 
-    function restarAcumulado() {
+    async function restarAcumulado() {
       errorEl.textContent = '';
       const ajusteRaw = (ajusteEl.value || '').trim();
       if (!importeEurValido(ajusteRaw)) {
@@ -679,15 +679,22 @@
         return;
       }
 
-      if (ajuste > acumuladoDia) {
-        errorEl.textContent = 'El ajuste no puede superar el acumulado del día.';
-        return;
+      try {
+        const data = await request('/api/ganancias/ajuste', {
+          method: 'POST',
+          body: JSON.stringify({ monto: ajuste }),
+        });
+        ajusteEl.value = '';
+        resultadoEl.textContent = `Ajuste aplicado: -${ajuste.toFixed(2)} € al acumulado.`;
+        const resumen = data.resumen || {};
+        facturasDia = Number(resumen.cantidad_ventas || 0);
+        facturasDiaEl.textContent = String(facturasDia);
+        acumuladoDia = Number(resumen.total || 0);
+        acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
+        resetTablaAnimales(resumen);
+      } catch (err) {
+        errorEl.textContent = err.message || 'Error al guardar el ajuste.';
       }
-
-      acumuladoDia = Number((acumuladoDia - ajuste).toFixed(2));
-      acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
-      resultadoEl.textContent = `Ajuste aplicado: -${ajuste.toFixed(2)} € al acumulado.`;
-      ajusteEl.value = '';
     }
 
     async function request(path, options = {}) {
@@ -1308,14 +1315,6 @@
       } catch (e) {
         errorEl.textContent = e.message;
       }
-    });
-
-    window.addEventListener('beforeunload', (event) => {
-      if (!appCard.classList.contains('active')) {
-        return;
-      }
-      event.preventDefault();
-      event.returnValue = 'Si cierras la pestaña se reiniciará la sumatoria diaria de esta sesión.';
     });
 
     // ── Precios por categoría: edición y guardado global ──────────────────────
