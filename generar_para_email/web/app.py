@@ -19,7 +19,7 @@ from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura
 from src.monthly_closure import process_monthly_closure, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
-from src.ventas_store import inicializar_db_ventas, registrar_ventas_factura, resumen_ventas_activas
+from src.ventas_store import historial_ventas, inicializar_db_ventas, registrar_ajuste, registrar_ventas_factura, resumen_ventas_activas, resumen_ventas_dia
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,10 @@ class FacturaPayload(BaseModel):
 
 class MonthlyClosurePayload(BaseModel):
     confirmacion: bool = False
+
+
+class AjustePayload(BaseModel):
+    monto: float = Field(gt=0)
 
 app = FastAPI(title="Facturas Gisselle API", version="1.0.0")
 
@@ -191,10 +195,42 @@ def get_ganancias_resumen(request: Request) -> dict:
     _requiere_login(request)
     anio_mes = _anio_mes_actual()
     resumen = resumen_ventas_activas(anio_mes)
+    resumen_hoy = resumen_ventas_dia(date.today().isoformat())
     return {
         "ok": True,
         "resumen": resumen,
+        "resumen_hoy": resumen_hoy,
     }
+
+
+@app.get("/api/ganancias/historial")
+def get_historial(
+    request: Request,
+    fecha_desde: str,
+    fecha_hasta: str,
+    categoria: str = "",
+    metodo_pago: str = "",
+) -> dict:
+    _requiere_login(request)
+    filas = historial_ventas(
+        fecha_desde,
+        fecha_hasta,
+        categoria or None,
+        metodo_pago or None,
+    )
+    return {"ok": True, "filas": filas}
+
+
+@app.post("/api/ganancias/ajuste")
+def registrar_ajuste_endpoint(payload: AjustePayload, request: Request) -> dict:
+    _requiere_login(request)
+    usuario = str(request.session.get("usuario", ""))
+    anio_mes = _anio_mes_actual()
+    resumen = resumen_ventas_activas(anio_mes)
+    if payload.monto > resumen["total"]:
+        raise HTTPException(status_code=400, detail="El ajuste supera el total acumulado.")
+    registrar_ajuste(anio_mes, usuario, payload.monto)
+    return {"ok": True, "resumen": resumen_ventas_activas(anio_mes)}
 
 
 @app.post("/api/ganancias/cierre-mes")

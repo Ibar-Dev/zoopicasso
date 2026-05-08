@@ -7,6 +7,7 @@ import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from src.ventas_store import (
+    archivar_ajustes_activos,
     archivar_ventas_activas,
     registrar_cierre,
     resumen_ventas_activas,
@@ -107,6 +108,7 @@ def process_monthly_closure(usuario: str) -> dict:
     archived_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     actualizadas = archivar_ventas_activas(anio_mes, cierre_id, archived_at)
+    archivar_ajustes_activos(anio_mes, cierre_id, archived_at)
     registrar_cierre(
         cierre_id=cierre_id,
         anio_mes=anio_mes,
