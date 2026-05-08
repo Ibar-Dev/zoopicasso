@@ -226,6 +226,15 @@
     <button id="btn-leyenda" title="Atajos de teclado">⌨</button>
   </div>
 
+  <datalist id="conceptos-opciones">
+    <option value="Alimentación">
+    <option value="Snack">
+    <option value="Accesorios">
+    <option value="Higiene">
+    <option value="Salud">
+    <option value="Servicio de peluquería">
+  </datalist>
+
   <script>
     const loginCard = document.getElementById('login-card');
     const appCard = document.getElementById('app-card');
@@ -293,13 +302,7 @@
       const row = document.createElement('div');
       row.className = 'fila';
       row.innerHTML = `
-        <select class="concepto">
-          <option value="">— Concepto —</option>
-          <option value="Alimentación">Alimentación</option>
-          <option value="Accesorio">Accesorio</option>
-          <option value="Estética">Estética</option>
-          <option value="Medicación">Medicación</option>
-        </select>
+        <input list="conceptos-opciones" class="concepto" type="text" placeholder="— Concepto —" />
         <input class="precio" type="text" inputmode="decimal" placeholder="€" value="${precio}" />
         <input class="cantidad" type="number" min="1" value="${cantidad}" />
         <span class="parcial">0.00</span>
@@ -321,7 +324,7 @@
       row.querySelector('.cantidad').addEventListener('input', calcTotals);
       row.querySelector('.del').addEventListener('click', () => {
         if (lineasEl.children.length <= 1) {
-          row.querySelector('.concepto').selectedIndex = 0;
+          row.querySelector('.concepto').value = '';
           row.querySelector('.precio').value = '';
           row.querySelector('.cantidad').value = '1';
           calcTotals();
@@ -1192,6 +1195,12 @@
       errorEl.textContent = '';
 
       const filasArr = [...lineasEl.querySelectorAll('.fila')];
+
+      const sinConcepto = filasArr.some((fila) => !fila.querySelector('.concepto').value.trim());
+      if (sinConcepto) {
+        errorEl.textContent = 'Escribe o selecciona un concepto para cada línea.';
+        return;
+      }
 
       const sinCategoria = filasArr.some((fila) => !fila.querySelector('.categoria').value);
       if (sinCategoria) {

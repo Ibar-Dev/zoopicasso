@@ -372,7 +372,7 @@ def test_generar_mixto_suma_incorrecta_retorna_400(monkeypatch, tmp_path):
     assert res.status_code == 400
 
 
-@pytest.mark.parametrize("concepto", ["Alimentación", "Accesorio", "Estética", "Medicación"])
+@pytest.mark.parametrize("concepto", ["Alimentación", "Snack", "Accesorios", "Higiene", "Salud", "Servicio de peluquería"])
 def test_generar_concepto_valido(concepto, monkeypatch, tmp_path):
     client = _cliente_logueado(monkeypatch, tmp_path)
     res = client.post(
