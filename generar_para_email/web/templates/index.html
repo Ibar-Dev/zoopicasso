@@ -112,6 +112,12 @@
         <button id="btn-restar" class="ghost" type="button">Restar</button>
       </div>
 
+      <div class="lineas-head" style="margin-top:1rem;">
+        <h3>Copia de seguridad</h3>
+        <button id="btn-backup-manual" class="ghost" type="button">Hacer backup ahora</button>
+      </div>
+      <div id="backup-estado" style="font-size:0.85rem;color:#475569;margin-top:0.25rem;min-height:1.2em;"></div>
+
       <button id="btn-generar" class="cta" title="Atajo: Alt+G">Generar factura</button>
       <div class="chuleta">
         <span class="chuleta-titulo">⌨ Atajos</span>
@@ -1494,6 +1500,45 @@
       document.getElementById('panel-leyenda').classList.toggle('fijo');
     });
 
+    // ── Copia de seguridad ────────────────────────────────────────────────────
+    const backupEstadoEl = document.getElementById('backup-estado');
+    const btnBackupManual = document.getElementById('btn-backup-manual');
+
+    function _formatearFechaBackup(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return isNaN(d) ? iso : d.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    async function refrescarEstadoBackup() {
+      try {
+        const data = await request('/api/backup/estado');
+        if (data.ultimo === null && data.backup_ok === null) {
+          backupEstadoEl.textContent = 'Backup desactivado (configura BACKUP_DIR en .env)';
+          btnBackupManual.disabled = true;
+        } else {
+          const icono = data.backup_ok === false ? '✗' : '✓';
+          const fecha = _formatearFechaBackup(data.ultimo);
+          backupEstadoEl.textContent = `Último backup: ${fecha} ${icono}${data.mensaje ? '  ' + data.mensaje : ''}`;
+          btnBackupManual.disabled = false;
+        }
+      } catch (_) {
+        backupEstadoEl.textContent = '';
+      }
+    }
+
+    btnBackupManual.addEventListener('click', async () => {
+      btnBackupManual.disabled = true;
+      backupEstadoEl.textContent = 'Haciendo backup…';
+      try {
+        await request('/api/backup/manual', { method: 'POST' });
+        await refrescarEstadoBackup();
+      } catch (err) {
+        backupEstadoEl.textContent = err.message || 'Error al hacer backup.';
+        btnBackupManual.disabled = false;
+      }
+    });
+
     async function bootstrap() {
       try {
         const session = await request('/api/session');
@@ -1501,6 +1546,7 @@
         if (session.logged_in) {
           await cargarPreciosCategorias();
           await refrescarResumenMensual();
+          await refrescarEstadoBackup();
         }
       } catch {
         toggleView(false);

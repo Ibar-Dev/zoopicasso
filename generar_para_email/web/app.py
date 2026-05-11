@@ -1,7 +1,9 @@
+import asyncio
 import base64
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from typing import Optional, Literal
@@ -19,6 +21,7 @@ from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura
 from src.monthly_closure import process_monthly_closure, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
+from src.backup import guardar_estado, hacer_backup, leer_estado
 from src.ventas_store import historial_ventas, inicializar_db_ventas, registrar_ajuste, registrar_ventas_factura, resumen_ventas_activas, resumen_ventas_dia
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
 
@@ -31,6 +34,13 @@ PRECIOS_CATEGORIAS_PATH = BASE_DIR / "../data/precios_categorias.json"
 
 USUARIO_VALIDO = "Giselle"
 HASH_PASSWORD = "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda"
+
+DATA_DIR = PRECIOS_CATEGORIAS_PATH.resolve().parent
+
+_backup_dir_raw = os.getenv("BACKUP_DIR", "").strip()
+BACKUP_DIR: Path | None = Path(_backup_dir_raw).expanduser().resolve() if _backup_dir_raw else None
+BACKUP_INTERVALO_HORAS: int = int(os.getenv("BACKUP_INTERVALO_HORAS", "24"))
+BACKUP_RETENER: int = int(os.getenv("BACKUP_RETENER", "7"))
 
 # Garantizar que el directorio data existe
 PRECIOS_CATEGORIAS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -101,7 +111,33 @@ class MonthlyClosurePayload(BaseModel):
 class AjustePayload(BaseModel):
     monto: float = Field(gt=0)
 
-app = FastAPI(title="Facturas Gisselle API", version="1.0.0")
+
+async def _tarea_backup() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(hacer_backup, BACKUP_DIR, BACKUP_RETENER)
+            guardar_estado(DATA_DIR, ok=True)
+        except Exception as exc:
+            guardar_estado(DATA_DIR, ok=False, mensaje=str(exc))
+            logger.error("Backup automático fallido: %s", exc)
+        await asyncio.sleep(BACKUP_INTERVALO_HORAS * 3600)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    task = None
+    if BACKUP_DIR:
+        task = asyncio.create_task(_tarea_backup())
+        logger.info("Backup automático activado → %s (cada %dh)", BACKUP_DIR, BACKUP_INTERVALO_HORAS)
+    else:
+        logger.warning("BACKUP_DIR no configurado — backup automático desactivado")
+    yield
+    if task:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+app = FastAPI(title="Facturas Gisselle API", version="1.0.0", lifespan=lifespan)
 
 cola_impresion: list[bytes] = []
 
@@ -188,6 +224,22 @@ def set_precios_categorias(payload: PreciosCategoriasPayload, request: Request) 
                 usuario, cat, f"{anterior:.2f}" if anterior is not None else "None", nuevo
             )
     return {"ok": True, "precios": nuevos_precios}
+
+
+@app.get("/api/backup/estado")
+def get_backup_estado(request: Request) -> dict:
+    _requiere_login(request)
+    return {"ok": True, **leer_estado(DATA_DIR)}
+
+
+@app.post("/api/backup/manual")
+async def backup_manual(request: Request) -> dict:
+    _requiere_login(request)
+    if not BACKUP_DIR:
+        raise HTTPException(status_code=400, detail="BACKUP_DIR no configurado en .env")
+    await asyncio.to_thread(hacer_backup, BACKUP_DIR, BACKUP_RETENER)
+    guardar_estado(DATA_DIR, ok=True, mensaje="Manual")
+    return {"ok": True, **leer_estado(DATA_DIR)}
 
 
 @app.get("/api/ganancias/resumen")
