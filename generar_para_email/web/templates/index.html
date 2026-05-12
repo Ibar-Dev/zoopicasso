@@ -1501,7 +1501,7 @@
               total: Number(data.total),
               emisor: data.emisor || null,
               efectivo_entregado: pago.efectivo_entregado || 0,
-              cambio: (typeof pago.efectivo_entregado === 'number' && typeof pago.monto_efectivo === 'number' && pago.efectivo_entregado > 0 && pago.efectivo_entregado >= pago.monto_efectivo) ? +(pago.efectivo_entregado - pago.monto_efectivo).toFixed(2) : 0,
+              cambio: Number(data.cambio || 0),
               metodo_pago: pago.metodo_pago,
             });
             resultadoEl.textContent += ' Se abrió la vista de impresión del ticket.';
