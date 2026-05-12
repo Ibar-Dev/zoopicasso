@@ -402,7 +402,54 @@
       document.getElementById('cliente_nombre').value = '';
       document.getElementById('cliente_nif').value = '';
       lineasEl.innerHTML = '';
+      limpiarDraft();
       addLinea();
+    }
+
+    // ── Persistencia del borrador de factura (localStorage) ───────────────────
+    const _DRAFT_KEY = 'factura_draft';
+    let _draftTimer = null;
+
+    function guardarDraft() {
+      const lineas = [...lineasEl.querySelectorAll('.fila')].map((fila) => ({
+        concepto: fila.querySelector('.concepto')?.value || '',
+        precio: fila.querySelector('.precio')?.value || '',
+        cantidad: fila.querySelector('.cantidad')?.value || '1',
+        categoria: fila.querySelector('.categoria')?.value || '',
+      }));
+      try {
+        localStorage.setItem(_DRAFT_KEY, JSON.stringify({
+          cliente_nombre: document.getElementById('cliente_nombre').value,
+          cliente_nif: document.getElementById('cliente_nif').value,
+          lineas,
+        }));
+      } catch (_) {}
+    }
+
+    function limpiarDraft() {
+      try { localStorage.removeItem(_DRAFT_KEY); } catch (_) {}
+    }
+
+    function restaurarDraft() {
+      let draft = null;
+      try {
+        const raw = localStorage.getItem(_DRAFT_KEY);
+        if (raw) draft = JSON.parse(raw);
+      } catch (_) {}
+      if (!draft || !Array.isArray(draft.lineas) || draft.lineas.length === 0) {
+        addLinea();
+        return;
+      }
+      document.getElementById('cliente_nombre').value = draft.cliente_nombre || '';
+      document.getElementById('cliente_nif').value = draft.cliente_nif || '';
+      draft.lineas.forEach((l) =>
+        addLinea(l.concepto, Number(l.cantidad) || 1, l.precio, l.categoria)
+      );
+    }
+
+    function _programarGuardadoDraft() {
+      if (_draftTimer) clearTimeout(_draftTimer);
+      _draftTimer = setTimeout(guardarDraft, 300);
     }
 
     function actualizarTablaAnimales(categoria, importe) {
@@ -819,6 +866,19 @@
     }
 
     // ── Guardado en carpeta (File System Access API + IndexedDB) ──────────────
+    async function _descargarDirecto(url, nombreArchivo) {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('No se pudo descargar el archivo.');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
     async function guardarEnCarpeta(data) {
       const response = await fetch(data.download_url, { credentials: 'same-origin' });
       if (!response.ok) {
@@ -868,19 +928,15 @@
     }
 
     async function guardarCierreEnCarpeta(data) {
-      const response = await fetch(data.download_url, { credentials: 'same-origin' });
-      if (!response.ok) throw new Error('No se pudo descargar el archivo de cierre.');
-      const blob = await response.blob();
-
       if (!window.showDirectoryPicker) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = data.archivo_excel;
-        document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(url);
+        await _descargarDirecto(data.download_url, data.archivo_excel);
         mostrarToast('Cierre descargado');
         return;
       }
+
+      const response = await fetch(data.download_url, { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('No se pudo descargar el archivo de cierre.');
+      const blob = await response.blob();
 
       let dirHandle = null;
       try { dirHandle = await idbGet('config', 'carpeta_cierres'); } catch (_) {}
@@ -921,13 +977,15 @@
         toggleView(true);
         await cargarPreciosCategorias();
         await refrescarResumenMensual();
+        await refrescarEstadoBackup();
+        restaurarDraft();
       } catch (e) {
         error.textContent = e.message;
       }
     });
 
     document.getElementById('btn-logout').addEventListener('click', async () => {
-      if (!confirmarSalida('Si sales ahora, se reiniciará la sumatoria diaria de esta sesión. ¿Deseas continuar?')) {
+      if (!confirmarSalida('Si sales ahora, el borrador de factura en curso se perderá. ¿Deseas continuar?')) {
         return;
       }
       await request('/api/logout', { method: 'POST', body: '{}' });
@@ -991,6 +1049,10 @@
     });
 
     document.getElementById('btn-add').addEventListener('click', () => addLinea());
+    document.getElementById('cliente_nombre').addEventListener('input', _programarGuardadoDraft);
+    document.getElementById('cliente_nif').addEventListener('input', _programarGuardadoDraft);
+    lineasEl.addEventListener('input', _programarGuardadoDraft);
+    lineasEl.addEventListener('change', _programarGuardadoDraft);
     document.getElementById('btn-restar').addEventListener('click', restarAcumulado);
     ajusteEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -1251,8 +1313,13 @@
           try {
             await guardarCierreEnCarpeta(data);
           } catch (guardadoErr) {
-            if (guardadoErr.name !== 'AbortError') {
-              errorEl.textContent = 'Cierre completado, pero no se pudo guardar el archivo: ' + guardadoErr.message;
+            if (guardadoErr.name === 'AbortError') return;
+            // El cierre se completó; iniciamos descarga directa como fallback.
+            try {
+              await _descargarDirecto(data.download_url, data.archivo_excel);
+              resultadoEl.textContent += ' (descarga iniciada automáticamente)';
+            } catch (_) {
+              errorEl.textContent = 'Cierre completado, pero no se pudo guardar el archivo.';
             }
           }
         }
@@ -1540,10 +1607,12 @@
     });
 
     async function bootstrap() {
+      let loggedIn = false;
       try {
         const session = await request('/api/session');
-        toggleView(Boolean(session.logged_in));
-        if (session.logged_in) {
+        loggedIn = Boolean(session.logged_in);
+        toggleView(loggedIn);
+        if (loggedIn) {
           await cargarPreciosCategorias();
           await refrescarResumenMensual();
           await refrescarEstadoBackup();
@@ -1551,7 +1620,11 @@
       } catch {
         toggleView(false);
       }
-      addLinea();
+      if (loggedIn) {
+        restaurarDraft();
+      } else {
+        addLinea();
+      }
     }
 
     bootstrap();
