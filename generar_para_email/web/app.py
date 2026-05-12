@@ -22,7 +22,7 @@ from src.factura_model import Factura, LineaFactura
 from src.monthly_closure import process_monthly_closure, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
-from src.ventas_store import historial_ventas, inicializar_db_ventas, registrar_ajuste, registrar_ventas_factura, resumen_ventas_activas, resumen_ventas_dia
+from src.ventas_store import historial_ventas, inicializar_db_ventas, listar_ajustes_activos, registrar_ajuste, registrar_ventas_factura, resumen_ventas_activas, resumen_ventas_dia
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
 
 logger = logging.getLogger(__name__)
@@ -236,7 +236,7 @@ def get_backup_estado(request: Request) -> dict:
 async def backup_manual(request: Request) -> dict:
     _requiere_login(request)
     if not BACKUP_DIR:
-        raise HTTPException(status_code=400, detail="BACKUP_DIR no configurado en .env")
+        raise HTTPException(status_code=400, detail="El backup no está configurado en este servidor.")
     await asyncio.to_thread(hacer_backup, BACKUP_DIR, BACKUP_RETENER)
     guardar_estado(DATA_DIR, ok=True, mensaje="Manual")
     return {"ok": True, **leer_estado(DATA_DIR)}
@@ -271,6 +271,13 @@ def get_historial(
         metodo_pago or None,
     )
     return {"ok": True, "filas": filas}
+
+
+@app.get("/api/ganancias/ajustes")
+def get_ajustes(request: Request) -> dict:
+    _requiere_login(request)
+    anio_mes = _anio_mes_actual()
+    return {"ok": True, "ajustes": listar_ajustes_activos(anio_mes)}
 
 
 @app.post("/api/ganancias/ajuste")

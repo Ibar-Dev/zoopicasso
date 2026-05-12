@@ -324,6 +324,21 @@ def historial_ventas(
     return [dict(row) for row in rows]
 
 
+def listar_ajustes_activos(anio_mes: str) -> list[dict]:
+    inicializar_db_ventas()
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, monto, created_at
+            FROM ajustes_manuales
+            WHERE estado = 'active' AND anio_mes = ?
+            ORDER BY id ASC
+            """,
+            (anio_mes,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def ventas_activas_detalle(anio_mes: str) -> list[dict]:
     inicializar_db_ventas()
     with _connect() as conn:

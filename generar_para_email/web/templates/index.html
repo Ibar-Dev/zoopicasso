@@ -103,6 +103,9 @@
         <span>Ventas del mes:</span><strong id="facturas-dia">0</strong>
         <span>Ganancias del mes:</span><strong id="acumulado-dia">0.00 €</strong>
       </div>
+      <div style="text-align:right;margin-top:0.35rem;">
+        <button id="btn-ver-historial" class="ghost" type="button" style="font-size:0.82rem;padding:0.3rem 0.75rem;">Ver historial de ventas →</button>
+      </div>
 
       <div class="lineas-head">
         <h3>Ajuste Manual</h3>
@@ -111,6 +114,7 @@
         <input id="ajuste" type="text" inputmode="decimal" placeholder="Importe EUR a restar del acumulado" />
         <button id="btn-restar" class="ghost" type="button">Restar</button>
       </div>
+      <div id="lista-ajustes" style="font-size:0.82rem;color:#475569;margin-top:0.4rem;min-height:1em;"></div>
 
       <div class="lineas-head" style="margin-top:1rem;">
         <h3>Copia de seguridad</h3>
@@ -151,7 +155,7 @@
       </table>
       <button id="btn-guardar-precios" class="cta" style="margin-top:8px;">Guardar precios categorías</button>
 
-      <div class="lineas-head" style="margin-top:1.5rem;">
+      <div id="seccion-historial" class="lineas-head" style="margin-top:1.5rem;">
         <h3>Historial de ventas</h3>
         <button id="btn-toggle-historial" class="ghost" type="button">Ver / Ocultar</button>
       </div>
@@ -242,7 +246,7 @@
         </div>
           <div id="pago-montos">
             <div id="pago-efectivo-group" style="display:none; margin-bottom:0.5em;">
-              <label>Monto del Total (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
+              <label>Monto en efectivo (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
             </div>
             <div id="pago-entregado-group" style="display:none; margin-bottom:0.5em;">
               <label>Efectivo entregado (€): <input id="pago-entregado" type="number" min="0" step="0.01"></label>
@@ -363,7 +367,7 @@
       const row = document.createElement('div');
       row.className = 'fila';
       row.innerHTML = `
-        <input list="conceptos-opciones" class="concepto" type="text" placeholder="— Concepto —" />
+        <input list="conceptos-opciones" class="concepto" type="text" placeholder="Elige o escribe concepto…" />
         <input class="precio" type="text" inputmode="decimal" placeholder="€" value="${precio}" />
         <input class="cantidad" type="number" min="1" value="${cantidad}" />
         <span class="parcial">0.00</span>
@@ -377,12 +381,21 @@
           <option value="reptiles">Reptiles</option>
           <option value="peluqueria">Peluquería</option>
         </select>
-        <button class="del" type="button">×</button>
+        <button class="del" type="button" aria-label="Eliminar línea" title="Eliminar línea">×</button>
       `;
       if (concepto) row.querySelector('.concepto').value = concepto;
       if (categoria) row.querySelector('.categoria').value = categoria;
       row.querySelector('.precio').addEventListener('input', calcTotals);
       row.querySelector('.cantidad').addEventListener('input', calcTotals);
+      row.querySelector('.categoria').addEventListener('change', function () {
+        const cat = this.value;
+        const precioInput = row.querySelector('.precio');
+        if (cat && preciosCategorias[cat] !== undefined && !precioInput.value.trim()) {
+          precioInput.value = preciosCategorias[cat].toFixed(2);
+          calcTotals();
+          _programarGuardadoDraft();
+        }
+      });
       row.querySelector('.del').addEventListener('click', () => {
         if (lineasEl.children.length <= 1) {
           row.querySelector('.concepto').value = '';
@@ -776,6 +789,25 @@
       });
     }
 
+    async function refrescarListaAjustes() {
+      const el = document.getElementById('lista-ajustes');
+      try {
+        const data = await request('/api/ganancias/ajustes');
+        const ajustes = data.ajustes || [];
+        if (ajustes.length === 0) {
+          el.textContent = '';
+          return;
+        }
+        const items = ajustes.map((a) => {
+          const fecha = new Date(a.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+          return `−${Number(a.monto).toFixed(2)} € (${fecha})`;
+        });
+        el.textContent = `Ajustes este mes: ${items.join(' · ')}`;
+      } catch (_) {
+        el.textContent = '';
+      }
+    }
+
     async function restarAcumulado() {
       errorEl.textContent = '';
       const ajusteRaw = (ajusteEl.value || '').trim();
@@ -790,6 +822,8 @@
         return;
       }
 
+      if (!confirm(`¿Restar ${ajuste.toFixed(2)} € del total del mes? Esta acción no se puede deshacer.`)) return;
+
       try {
         const data = await request('/api/ganancias/ajuste', {
           method: 'POST',
@@ -803,6 +837,7 @@
         acumuladoDia = Number(resumen.total || 0);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
         resetTablaAnimales(resumen);
+        await refrescarListaAjustes();
       } catch (err) {
         errorEl.textContent = err.message || 'Error al guardar el ajuste.';
       }
@@ -978,6 +1013,7 @@
         await cargarPreciosCategorias();
         await refrescarResumenMensual();
         await refrescarEstadoBackup();
+        await refrescarListaAjustes();
         restaurarDraft();
       } catch (e) {
         error.textContent = e.message;
@@ -1198,7 +1234,7 @@
         pagoEntregadoGroup.style.display = '';
         pagoTarjetaGroup.style.display = 'none';
         pagoMixtoInfo.style.display = '';
-        pagoMixtoInfo.textContent = 'Ingresa el Monto del Total. El resto se calculará automáticamente como tarjeta.';
+        pagoMixtoInfo.textContent = 'Ingresa el monto en efectivo. El resto se cargará a tarjeta automáticamente.';
       }
       actualizarCambio();
     });
@@ -1251,7 +1287,7 @@
       const tolerancia = 0.01;
       if (metodo === 'efectivo') {
         if (montoEfectivo <= 0 || Math.abs(montoEfectivo - totalFactura) > tolerancia) {
-          pagoErrorEl.textContent = 'El Monto del Total debe ser igual al total.';
+          pagoErrorEl.textContent = 'El monto en efectivo debe ser igual al total.';
           pagoEfectivoEl.focus();
           return;
         }
@@ -1271,7 +1307,7 @@
         efectivoEntregado = 0;
       } else if (metodo === 'mixto') {
         if (montoEfectivo < 0 || montoEfectivo > totalFactura) {
-          pagoErrorEl.textContent = 'El Monto del Total debe ser entre 0 y el total.';
+          pagoErrorEl.textContent = 'El monto en efectivo debe estar entre 0 y el total.';
           pagoEfectivoEl.focus();
           return;
         }
@@ -1296,6 +1332,11 @@
     btnCierreMes.addEventListener('click', async () => {
       errorEl.textContent = '';
       resultadoEl.textContent = '';
+      const mesActual = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+      const pModalP = cierreMesModalEl.querySelector('p');
+      if (pModalP) {
+        pModalP.textContent = `Vas a cerrar ${mesActual}: ${facturasDia} venta${facturasDia !== 1 ? 's' : ''} por ${acumuladoDia.toFixed(2)} €. Esto generará el Excel del mes y reiniciará los contadores. Esta acción no se puede deshacer.`;
+      }
       const confirmado = await pedirConfirmacionCierreMes();
       if (!confirmado) {
         resultadoEl.textContent = 'Cierre mensual cancelado.';
@@ -1515,6 +1556,11 @@
         panel.hidden = !panel.hidden;
       });
 
+      document.getElementById('btn-ver-historial').addEventListener('click', () => {
+        panel.hidden = false;
+        document.getElementById('seccion-historial').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
       btnBuscar.addEventListener('click', buscarHistorial);
 
       async function buscarHistorial() {
@@ -1581,7 +1627,7 @@
       try {
         const data = await request('/api/backup/estado');
         if (data.ultimo === null && data.backup_ok === null) {
-          backupEstadoEl.textContent = 'Backup desactivado (configura BACKUP_DIR en .env)';
+          backupEstadoEl.textContent = 'Backup desactivado. Para activarlo, contacta al administrador.';
           btnBackupManual.disabled = true;
         } else {
           const icono = data.backup_ok === false ? '✗' : '✓';
@@ -1616,6 +1662,7 @@
           await cargarPreciosCategorias();
           await refrescarResumenMensual();
           await refrescarEstadoBackup();
+          await refrescarListaAjustes();
         }
       } catch {
         toggleView(false);
