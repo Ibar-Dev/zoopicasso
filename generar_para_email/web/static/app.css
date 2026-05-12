@@ -318,3 +318,9 @@ input[readonly] {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}

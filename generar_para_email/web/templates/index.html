@@ -843,17 +843,39 @@
       }
     }
 
-    async function request(path, options = {}) {
-      const res = await fetch(path, {
-        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-        credentials: 'same-origin',
-        ...options,
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || 'Error inesperado');
+    async function request(path, options = {}, timeoutMs = 30000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(path, {
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+          credentials: 'same-origin',
+          signal: controller.signal,
+          ...options,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.detail || 'Error inesperado');
+        }
+        return res.json().catch(() => ({}));
+      } catch (err) {
+        if (err.name === 'AbortError') throw new Error('La operación tardó demasiado. Comprueba la conexión e inténtalo de nuevo.');
+        throw err;
+      } finally {
+        clearTimeout(timer);
       }
-      return res.json().catch(() => ({}));
+    }
+
+    async function conCarga(btn, textoEspera, fn) {
+      const textoOriginal = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = textoEspera;
+      try {
+        return await fn();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+      }
     }
 
     // ── IndexedDB helpers ─────────────────────────────────────────────────────
@@ -1089,11 +1111,13 @@
     document.getElementById('cliente_nif').addEventListener('input', _programarGuardadoDraft);
     lineasEl.addEventListener('input', _programarGuardadoDraft);
     lineasEl.addEventListener('change', _programarGuardadoDraft);
-    document.getElementById('btn-restar').addEventListener('click', restarAcumulado);
+    document.getElementById('btn-restar').addEventListener('click', () => {
+      conCarga(document.getElementById('btn-restar'), 'Aplicando…', restarAcumulado);
+    });
     ajusteEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        restarAcumulado();
+        conCarga(document.getElementById('btn-restar'), 'Aplicando…', restarAcumulado);
       }
     });
 
@@ -1343,30 +1367,32 @@
         return;
       }
 
-      try {
-        const data = await request('/api/ganancias/cierre-mes', {
-          method: 'POST',
-          body: JSON.stringify({ confirmacion: true }),
-        });
-        resultadoEl.textContent = data.mensaje || 'Cierre mensual completado.';
-        await refrescarResumenMensual();
-        if (data.download_url) {
-          try {
-            await guardarCierreEnCarpeta(data);
-          } catch (guardadoErr) {
-            if (guardadoErr.name === 'AbortError') return;
-            // El cierre se completó; iniciamos descarga directa como fallback.
+      await conCarga(btnCierreMes, 'Cerrando mes…', async () => {
+        try {
+          const data = await request('/api/ganancias/cierre-mes', {
+            method: 'POST',
+            body: JSON.stringify({ confirmacion: true }),
+          });
+          resultadoEl.textContent = data.mensaje || 'Cierre mensual completado.';
+          await refrescarResumenMensual();
+          if (data.download_url) {
             try {
-              await _descargarDirecto(data.download_url, data.archivo_excel);
-              resultadoEl.textContent += ' (descarga iniciada automáticamente)';
-            } catch (_) {
-              errorEl.textContent = 'Cierre completado, pero no se pudo guardar el archivo.';
+              await guardarCierreEnCarpeta(data);
+            } catch (guardadoErr) {
+              if (guardadoErr.name === 'AbortError') return;
+              // El cierre se completó; iniciamos descarga directa como fallback.
+              try {
+                await _descargarDirecto(data.download_url, data.archivo_excel);
+                resultadoEl.textContent += ' (descarga iniciada automáticamente)';
+              } catch (_) {
+                errorEl.textContent = 'Cierre completado, pero no se pudo guardar el archivo.';
+              }
             }
           }
+        } catch (e) {
+          errorEl.textContent = e.message || 'No se pudo completar el cierre mensual.';
         }
-      } catch (e) {
-        errorEl.textContent = e.message || 'No se pudo completar el cierre mensual.';
-      }
+      });
     });
 
     document.getElementById('btn-generar').addEventListener('click', async () => {
@@ -1395,6 +1421,7 @@
         return;
       }
 
+      const btnGenerar = document.getElementById('btn-generar');
       // Paso 1: método de pago
       const totalFactura = Number(totalEl.textContent.replace('€','').trim());
       const pago = await abrirModalPago(totalFactura);
@@ -1417,6 +1444,7 @@
         categoria: fila.querySelector('.categoria').value,
       }));
 
+      await conCarga(btnGenerar, 'Generando…', async () => {
       try {
         const data = await request('/api/generar', {
           method: 'POST',
@@ -1487,6 +1515,7 @@
       } catch (e) {
         errorEl.textContent = e.message;
       }
+      }); // fin conCarga
     });
 
     // ── Precios por categoría: edición y guardado global ──────────────────────
@@ -1533,7 +1562,9 @@
       }
     }
 
-    btnGuardarPrecios.addEventListener('click', guardarPreciosCategorias);
+    btnGuardarPrecios.addEventListener('click', () => {
+      conCarga(btnGuardarPrecios, 'Guardando…', guardarPreciosCategorias);
+    });
 
     // ── Historial de ventas ───────────────────────────────────────────────────
     (function () {
@@ -1561,7 +1592,9 @@
         document.getElementById('seccion-historial').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
 
-      btnBuscar.addEventListener('click', buscarHistorial);
+      btnBuscar.addEventListener('click', () => {
+        conCarga(btnBuscar, 'Buscando…', buscarHistorial);
+      });
 
       async function buscarHistorial() {
         const desde = inputDesde.value;
@@ -1570,7 +1603,6 @@
           histEstado.textContent = 'Indica un rango de fechas.';
           return;
         }
-        histEstado.textContent = 'Cargando…';
         tablaHistorial.hidden = true;
         const categoria = document.getElementById('hist-categoria').value;
         const metodo = document.getElementById('hist-metodo').value;
@@ -1640,16 +1672,15 @@
       }
     }
 
-    btnBackupManual.addEventListener('click', async () => {
-      btnBackupManual.disabled = true;
-      backupEstadoEl.textContent = 'Haciendo backup…';
-      try {
-        await request('/api/backup/manual', { method: 'POST' });
-        await refrescarEstadoBackup();
-      } catch (err) {
-        backupEstadoEl.textContent = err.message || 'Error al hacer backup.';
-        btnBackupManual.disabled = false;
-      }
+    btnBackupManual.addEventListener('click', () => {
+      conCarga(btnBackupManual, 'Guardando…', async () => {
+        try {
+          await request('/api/backup/manual', { method: 'POST' });
+          await refrescarEstadoBackup();
+        } catch (err) {
+          backupEstadoEl.textContent = err.message || 'Error al hacer backup.';
+        }
+      });
     });
 
     async function bootstrap() {
