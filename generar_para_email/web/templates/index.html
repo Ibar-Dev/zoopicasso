@@ -120,7 +120,10 @@
 
       <div class="lineas-head" style="margin-top:1rem;">
         <h3>Copia de seguridad</h3>
-        <button id="btn-backup-manual" class="ghost" type="button">Hacer backup ahora</button>
+        <div class="header-actions">
+          <button id="btn-carpeta-backup" class="ghost" type="button" title="Carpeta donde se guardan los backups">📁 Backup</button>
+          <button id="btn-backup-manual" class="ghost" type="button">Guardar backup</button>
+        </div>
       </div>
       <div id="backup-estado" style="font-size:0.85rem;color:#475569;margin-top:0.25rem;min-height:1.2em;"></div>
 
@@ -1080,6 +1083,35 @@
       mostrarToast(`Guardado en: ${dirHandle.name}`);
     }
 
+    async function guardarBackupEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Backup descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_backup').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_backup', dirHandle).catch(() => {});
+        actualizarNombreCarpetaBackup(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Backup guardado en: ${dirHandle.name}`);
+    }
+
     document.getElementById('btn-login').addEventListener('click', async () => {
       const usuario = document.getElementById('usuario').value.trim();
       const password = document.getElementById('password').value;
@@ -1137,6 +1169,7 @@
     });
 
     const btnCarpetaCierres = document.getElementById('btn-carpeta-cierres');
+    const btnCarpetaBackup  = document.getElementById('btn-carpeta-backup');
 
     function actualizarNombreCarpetaCierres(nombre) {
       btnCarpetaCierres.title = nombre
@@ -1144,9 +1177,19 @@
         : 'Carpeta donde se guardan los cierres mensuales';
     }
 
-    // Cargar nombre de carpeta de cierres al inicio
+    function actualizarNombreCarpetaBackup(nombre) {
+      btnCarpetaBackup.title = nombre
+        ? `Carpeta de backups: ${nombre} (clic para cambiar)`
+        : 'Carpeta donde se guardan los backups';
+    }
+
+    // Cargar nombres de carpetas al inicio
     idbGet('config', 'carpeta_cierres').then(h => {
       if (h) actualizarNombreCarpetaCierres(h.name);
+    }).catch(() => {});
+
+    idbGet('config', 'carpeta_backup').then(h => {
+      if (h) actualizarNombreCarpetaBackup(h.name);
     }).catch(() => {});
 
     btnCarpetaCierres.addEventListener('click', async () => {
@@ -1165,6 +1208,21 @@
         if (err && err.name !== 'AbortError') {
           errorEl.textContent = 'No se pudo configurar la carpeta de cierres.';
         }
+      }
+    });
+
+    btnCarpetaBackup.addEventListener('click', async () => {
+      if (!window.showDirectoryPicker) {
+        backupEstadoEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_backup', dirHandle);
+        actualizarNombreCarpetaBackup(dirHandle.name);
+        backupEstadoEl.textContent = `Carpeta de backup: ${dirHandle.name}`;
+      } catch (err) {
+        if (err?.name !== 'AbortError') backupEstadoEl.textContent = 'No se pudo configurar la carpeta.';
       }
     });
 
@@ -1727,15 +1785,14 @@
     async function refrescarEstadoBackup() {
       try {
         const data = await request('/api/backup/estado');
-        if (data.ultimo === null && data.backup_ok === null) {
-          backupEstadoEl.textContent = 'Backup desactivado. Para activarlo, contacta al administrador.';
-          btnBackupManual.disabled = true;
+        if (data.ultimo === null) {
+          backupEstadoEl.textContent = 'Sin backups aún.';
         } else {
           const icono = data.backup_ok === false ? '✗' : '✓';
           const fecha = _formatearFechaBackup(data.ultimo);
           backupEstadoEl.textContent = `Último backup: ${fecha} ${icono}${data.mensaje ? '  ' + data.mensaje : ''}`;
-          btnBackupManual.disabled = false;
         }
+        btnBackupManual.disabled = false;
       } catch (_) {
         backupEstadoEl.textContent = '';
       }
@@ -1743,12 +1800,16 @@
 
     btnBackupManual.addEventListener('click', () => {
       conCarga(btnBackupManual, 'Guardando…', async () => {
-        try {
-          await request('/api/backup/manual', { method: 'POST' });
-          await refrescarEstadoBackup();
-        } catch (err) {
-          backupEstadoEl.textContent = err.message || 'Error al hacer backup.';
+        const res = await fetch('/api/backup/manual', { method: 'POST', credentials: 'same-origin' });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || 'Error al generar backup');
         }
+        const blob = await res.blob();
+        const cd = res.headers.get('content-disposition') || '';
+        const nombre = cd.match(/filename=([^;]+)/)?.[1] ?? `backup_${Date.now()}.zip`;
+        await guardarBackupEnCarpeta(blob, nombre);
+        await refrescarEstadoBackup();
       });
     });
 

@@ -3,6 +3,8 @@ import base64
 import json
 import logging
 import os
+import shutil
+import tempfile
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -13,6 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 from starlette.middleware.sessions import SessionMiddleware
 
 # Carga configuración de logging y rutas de facturas.
@@ -233,13 +236,22 @@ def get_backup_estado(request: Request) -> dict:
 
 
 @app.post("/api/backup/manual")
-async def backup_manual(request: Request) -> dict:
+async def backup_manual(request: Request) -> FileResponse:
     _requiere_login(request)
-    if not BACKUP_DIR:
-        raise HTTPException(status_code=400, detail="El backup no está configurado en este servidor.")
-    await asyncio.to_thread(hacer_backup, BACKUP_DIR, BACKUP_RETENER)
-    guardar_estado(DATA_DIR, ok=True, mensaje="Manual")
-    return {"ok": True, **leer_estado(DATA_DIR)}
+    tmp_dir = Path(tempfile.mkdtemp())
+    try:
+        archivo = await asyncio.to_thread(hacer_backup, tmp_dir, 99)
+        guardar_estado(DATA_DIR, ok=True, mensaje="Manual")
+    except Exception as exc:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        logger.error("Error al generar backup manual: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error al generar backup: {exc}")
+    return FileResponse(
+        path=archivo,
+        media_type="application/zip",
+        filename=archivo.name,
+        background=BackgroundTask(shutil.rmtree, str(tmp_dir), True),
+    )
 
 
 @app.get("/api/ganancias/resumen")

@@ -507,7 +507,8 @@ def test_precios_categorias_get_y_post(monkeypatch, tmp_path):
 
 # ── /api/backup/manual ────────────────────────────────────────────────────────
 
-def test_backup_manual_sin_configurar_retorna_400(monkeypatch, tmp_path):
+def test_backup_manual_devuelve_zip(monkeypatch, tmp_path):
+    import zipfile as zf
     client = TestClient(app)
     client.post(
         "/api/login",
@@ -516,26 +517,25 @@ def test_backup_manual_sin_configurar_retorna_400(monkeypatch, tmp_path):
             "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
         },
     )
-    monkeypatch.setattr("web.app.BACKUP_DIR", None)
-    res = client.post("/api/backup/manual")
-    assert res.status_code == 400
 
+    def _fake_backup(backup_dir, retener):
+        archivo = backup_dir / "backup_test.zip"
+        with zf.ZipFile(archivo, "w") as z:
+            z.writestr("test.txt", "ok")
+        return archivo
 
-def test_backup_manual_ok(monkeypatch, tmp_path):
-    client = TestClient(app)
-    client.post(
-        "/api/login",
-        json={
-            "usuario": "Giselle",
-            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
-        },
-    )
-    monkeypatch.setattr("web.app.BACKUP_DIR", tmp_path / "bkp")
-    monkeypatch.setattr("web.app.hacer_backup", lambda *_: None)
+    monkeypatch.setattr("web.app.hacer_backup", _fake_backup)
     monkeypatch.setattr("web.app.DATA_DIR", tmp_path)
     res = client.post("/api/backup/manual")
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    assert "zip" in res.headers["content-type"]
+    assert len(res.content) > 0
+
+
+def test_backup_manual_sin_login_retorna_401():
+    client = TestClient(app)
+    res = client.post("/api/backup/manual")
+    assert res.status_code == 401
 
 
 # ── /api/backup/estado ────────────────────────────────────────────────────────
