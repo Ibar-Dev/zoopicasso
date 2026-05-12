@@ -1439,7 +1439,6 @@
             try {
               await guardarCierreEnCarpeta(data);
             } catch (guardadoErr) {
-              if (guardadoErr.name === 'AbortError') return;
               // El cierre se completó; iniciamos descarga directa como fallback.
               try {
                 await _descargarDirecto(data.download_url, data.archivo_excel);
