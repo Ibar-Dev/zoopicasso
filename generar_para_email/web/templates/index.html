@@ -402,13 +402,16 @@
           row.querySelector('.precio').value = '';
           row.querySelector('.cantidad').value = '1';
           calcTotals();
+          _actualizarBotones();
           return;
         }
         row.remove();
         calcTotals();
+        _actualizarBotones();
       });
       lineasEl.appendChild(row);
       calcTotals();
+      _actualizarBotones();
     }
 
     function resetFormulario() {
@@ -417,6 +420,7 @@
       lineasEl.innerHTML = '';
       limpiarDraft();
       addLinea();
+      _actualizarBotones();
     }
 
     // ── Persistencia del borrador de factura (localStorage) ───────────────────
@@ -496,8 +500,58 @@
         const resumenHoy = data.resumen_hoy || { total: 0, cantidad_ventas: 0 };
         document.getElementById('ventas-hoy').textContent = String(Number(resumenHoy.cantidad_ventas || 0));
         document.getElementById('acumulado-hoy').textContent = `${Number(resumenHoy.total || 0).toFixed(2)} €`;
+        _actualizarBotones();
       } catch (_) {
         // Si no hay sesión o falla puntual, no romper la UI
+      }
+    }
+
+    function _actualizarBotonLogin() {
+      const btn = document.getElementById('btn-login');
+      const ok = document.getElementById('usuario').value.trim() &&
+                 document.getElementById('password').value;
+      btn.disabled = !ok;
+      if (!ok) btn.dataset.tooltip = 'Introduce tu usuario y contraseña';
+      else delete btn.dataset.tooltip;
+    }
+
+    function _actualizarBotones() {
+      // btn-generar: solo evaluar si no está en medio de conCarga
+      const btnGenerar = document.getElementById('btn-generar');
+      if (!btnGenerar.disabled || btnGenerar.textContent === 'Generar factura') {
+        const filas = [...lineasEl.querySelectorAll('.fila')];
+        let razon = '';
+        if (filas.length === 0 || filas.every(f => !f.querySelector('.concepto').value.trim())) {
+          razon = 'Añade al menos una línea con concepto';
+        } else if (filas.some(f => !f.querySelector('.concepto').value.trim())) {
+          razon = 'Completa el concepto en todas las líneas';
+        } else if (filas.some(f => !f.querySelector('.categoria').value)) {
+          razon = 'Selecciona una categoría en cada línea';
+        } else if (filas.some(f => !importeEurValido((f.querySelector('.precio').value || '').trim()))) {
+          razon = 'Hay precios vacíos o con formato incorrecto';
+        }
+        btnGenerar.disabled = Boolean(razon);
+        if (razon) btnGenerar.dataset.tooltip = razon;
+        else delete btnGenerar.dataset.tooltip;
+      }
+
+      // btn-cerrar-mes
+      const btnCierre = document.getElementById('btn-cerrar-mes');
+      if (!btnCierre.disabled || btnCierre.textContent === 'Cerrar mes') {
+        const sinVentas = facturasDia === 0 && acumuladoDia === 0;
+        btnCierre.disabled = sinVentas;
+        if (sinVentas) btnCierre.dataset.tooltip = 'No hay ventas activas este mes';
+        else delete btnCierre.dataset.tooltip;
+      }
+
+      // btn-restar
+      const btnRestar = document.getElementById('btn-restar');
+      if (!btnRestar.disabled || btnRestar.textContent === 'Restar') {
+        const ajusteRaw = (ajusteEl.value || '').trim();
+        const ok = importeEurValido(ajusteRaw) && Number(ajusteRaw.replace(',', '.')) > 0;
+        btnRestar.disabled = !ok;
+        if (!ok) btnRestar.dataset.tooltip = 'Introduce un importe válido para restar';
+        else delete btnRestar.dataset.tooltip;
       }
     }
 
@@ -838,6 +892,7 @@
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
         resetTablaAnimales(resumen);
         await refrescarListaAjustes();
+        _actualizarBotones();
       } catch (err) {
         errorEl.textContent = err.message || 'Error al guardar el ajuste.';
       }
@@ -1111,9 +1166,14 @@
     document.getElementById('cliente_nif').addEventListener('input', _programarGuardadoDraft);
     lineasEl.addEventListener('input', _programarGuardadoDraft);
     lineasEl.addEventListener('change', _programarGuardadoDraft);
+    lineasEl.addEventListener('input', _actualizarBotones);
+    lineasEl.addEventListener('change', _actualizarBotones);
+    document.getElementById('usuario').addEventListener('input', _actualizarBotonLogin);
+    document.getElementById('password').addEventListener('input', _actualizarBotonLogin);
     document.getElementById('btn-restar').addEventListener('click', () => {
       conCarga(document.getElementById('btn-restar'), 'Aplicando…', restarAcumulado);
     });
+    ajusteEl.addEventListener('input', _actualizarBotones);
     ajusteEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -1393,6 +1453,7 @@
           errorEl.textContent = e.message || 'No se pudo completar el cierre mensual.';
         }
       });
+      _actualizarBotones();
     });
 
     document.getElementById('btn-generar').addEventListener('click', async () => {
@@ -1516,6 +1577,7 @@
         errorEl.textContent = e.message;
       }
       }); // fin conCarga
+      _actualizarBotones();
     });
 
     // ── Precios por categoría: edición y guardado global ──────────────────────
@@ -1702,6 +1764,7 @@
         restaurarDraft();
       } else {
         addLinea();
+        _actualizarBotonLogin();
       }
     }
 

@@ -322,5 +322,37 @@ input[readonly] {
 button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+button[disabled][data-tooltip] {
+  position: relative;
+}
+
+button[disabled][data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  white-space: nowrap;
   pointer-events: none;
+  z-index: 200;
+}
+
+button[disabled][data-tooltip]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1e293b;
+  pointer-events: none;
+  z-index: 200;
 }
