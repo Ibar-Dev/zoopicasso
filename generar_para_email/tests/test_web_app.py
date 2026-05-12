@@ -384,3 +384,222 @@ def test_generar_concepto_valido(concepto, monkeypatch, tmp_path):
         },
     )
     assert res.status_code == 200
+
+
+# ── /api/session ──────────────────────────────────────────────────────────────
+
+def test_session_sin_login():
+    client = TestClient(app)
+    res = client.get("/api/session")
+    assert res.status_code == 200
+    assert res.json() == {"logged_in": False}
+
+
+def test_session_con_login():
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    res = client.get("/api/session")
+    assert res.status_code == 200
+    assert res.json() == {"logged_in": True}
+
+
+# ── /api/logout ───────────────────────────────────────────────────────────────
+
+def test_logout():
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    res = client.post("/api/logout")
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+    session = client.get("/api/session")
+    assert session.json() == {"logged_in": False}
+
+
+# ── /api/ganancias/ajuste ─────────────────────────────────────────────────────
+
+def test_ajuste_ok(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test ajuste", "cantidad": 1, "precio_unitario": 50.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 50.0,
+        },
+    )
+    res = client.post("/api/ganancias/ajuste", json={"monto": 10.0})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    assert body["resumen"]["ajuste_total"] == 10.0
+
+
+def test_ajuste_supera_total_retorna_400(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 20.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 20.0,
+        },
+    )
+    res = client.post("/api/ganancias/ajuste", json={"monto": 999.0})
+    assert res.status_code == 400
+
+
+# ── /api/ganancias/historial ──────────────────────────────────────────────────
+
+def test_historial_ok(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Historial test", "cantidad": 1, "precio_unitario": 15.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 15.0,
+        },
+    )
+    hoy = date.today().isoformat()
+    res = client.get(f"/api/ganancias/historial?fecha_desde={hoy}&fecha_hasta={hoy}")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    assert len(body["filas"]) >= 1
+
+
+# ── /api/precios_categorias ───────────────────────────────────────────────────
+
+def test_precios_categorias_get_y_post(monkeypatch, tmp_path):
+    precios_path = tmp_path / "precios_categorias.json"
+    monkeypatch.setattr("web.app.PRECIOS_CATEGORIAS_PATH", precios_path)
+
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    post_res = client.post("/api/precios_categorias", json={"precios": {"aves": 25.50, "perros": 30.0}})
+    assert post_res.status_code == 200
+    assert post_res.json()["ok"] is True
+
+    get_res = client.get("/api/precios_categorias")
+    assert get_res.status_code == 200
+    precios = get_res.json()["precios"]
+    assert precios["aves"] == 25.50
+    assert precios["perros"] == 30.0
+
+
+# ── /api/backup/manual ────────────────────────────────────────────────────────
+
+def test_backup_manual_sin_configurar_retorna_400(monkeypatch, tmp_path):
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    monkeypatch.setattr("web.app.BACKUP_DIR", None)
+    res = client.post("/api/backup/manual")
+    assert res.status_code == 400
+
+
+def test_backup_manual_ok(monkeypatch, tmp_path):
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    monkeypatch.setattr("web.app.BACKUP_DIR", tmp_path / "bkp")
+    monkeypatch.setattr("web.app.hacer_backup", lambda *_: None)
+    monkeypatch.setattr("web.app.DATA_DIR", tmp_path)
+    res = client.post("/api/backup/manual")
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+
+# ── /api/backup/estado ────────────────────────────────────────────────────────
+
+def test_backup_estado_ok(monkeypatch, tmp_path):
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    monkeypatch.setattr("web.app.DATA_DIR", tmp_path)
+    res = client.get("/api/backup/estado")
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+
+# ── /api/ganancias/ajustes ────────────────────────────────────────────────────
+
+def test_ajustes_lista_ok(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    res = client.get("/api/ganancias/ajustes")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    assert isinstance(body["ajustes"], list)
+
+
+# ── /api/descargar/<archivo> ──────────────────────────────────────────────────
+
+def test_descargar_factura_no_encontrada(monkeypatch, tmp_path):
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
+    res = client.get("/api/descargar/no_existe.xlsx")
+    assert res.status_code == 404
+
+
+# ── /api/impresion/siguiente ──────────────────────────────────────────────────
+
+def test_siguiente_ticket_vacio():
+    import web.app as webapp
+    webapp.cola_impresion.clear()
+    client = TestClient(app)
+    res = client.get("/api/impresion/siguiente")
+    assert res.status_code == 204
+
+
+def test_siguiente_ticket_con_datos():
+    import web.app as webapp
+    webapp.cola_impresion.clear()
+    webapp.cola_impresion.append(b"\x1b\x40Hello\n")
+    client = TestClient(app)
+    res = client.get("/api/impresion/siguiente")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["hay_ticket"] is True
+    assert "ticket_b64" in body
+    webapp.cola_impresion.clear()
