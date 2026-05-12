@@ -20,4 +20,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "pytest-cov>=6.0",
 ]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov=web --cov-report=term-missing --cov-fail-under=80"
