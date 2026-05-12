@@ -18,7 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 # Carga configuración de logging y rutas de facturas.
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
-from src.factura_model import Factura, LineaFactura
+from src.factura_model import Factura, LineaFactura, PagoInfo
 from src.monthly_closure import process_monthly_closure, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
@@ -158,9 +158,9 @@ def _anio_mes_actual() -> str:
     return date.today().strftime("%Y-%m")
 
 
-def _registrar_ventas_factura_background(factura: Factura, usuario: str) -> None:
+def _registrar_ventas_factura_background(factura: Factura, usuario: str, pago: PagoInfo | None = None) -> None:
     try:
-        registrar_ventas_factura(factura, usuario)
+        registrar_ventas_factura(factura, usuario, pago)
     except Exception as exc:
         logger.error(
             "Error registrando ventas en buffer mensual para factura %s: %s",
@@ -397,22 +397,20 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
         monto_tarjeta or 0,
     )
     usuario = str(request.session.get("usuario", "(desconocido)"))
-    # Hack: pasar datos de pago a la función de persistencia
-    pago_dict = {
-        'monto_total': total,
-        'monto_efectivo': monto_efectivo or 0,
-        'monto_tarjeta': monto_tarjeta or 0,
-        'metodo_pago': metodo,
-        'efectivo_entregado': efectivo_entregado,
-        'cambio': cambio,
-    }
-    setattr(factura, '_pago_dict', pago_dict)
-    background_tasks.add_task(_registrar_ventas_factura_background, factura, usuario)
+    pago = PagoInfo(
+        monto_total=total,
+        monto_efectivo=monto_efectivo or 0,
+        monto_tarjeta=monto_tarjeta or 0,
+        metodo_pago=metodo,
+        efectivo_entregado=efectivo_entregado,
+        cambio=cambio,
+    )
+    background_tasks.add_task(_registrar_ventas_factura_background, factura, usuario, pago)
     ticket_impreso = False
     ticket_estado = "Ticket no solicitado."
     if payload.imprimir_ticket:
         try:
-            ticket = generar_ticket_escpos(factura, ancho=42)
+            ticket = generar_ticket_escpos(factura, ancho=42, pago=pago)
             cola_impresion.append(ticket)
             ticket_impreso = True
             ticket_estado = "Ticket encolado para impresión."

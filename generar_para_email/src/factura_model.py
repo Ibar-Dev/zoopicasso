@@ -76,3 +76,13 @@ class Factura:
     @property
     def fecha_formateada(self) -> str:
         return self.fecha.strftime("%d/%m/%Y")
+
+
+@dataclass
+class PagoInfo:
+    monto_total: float
+    monto_efectivo: float
+    monto_tarjeta: float
+    metodo_pago: str
+    efectivo_entregado: float
+    cambio: float

@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.factura_model import Factura
+from src.factura_model import Factura, PagoInfo
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ def inicializar_db_ventas() -> None:
         )
 
 
-def registrar_ventas_factura(factura: Factura, usuario: str) -> None:
+def registrar_ventas_factura(factura: Factura, usuario: str, pago: PagoInfo | None = None) -> None:
     inicializar_db_ventas()
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     anio_mes = factura.fecha.strftime("%Y-%m")
@@ -134,9 +134,6 @@ def registrar_ventas_factura(factura: Factura, usuario: str) -> None:
         )
         for linea in factura.lineas
     ]
-    # Registrar ventas por línea y pago por factura
-    # Se asume que los datos de pago están en factura._pago_dict (hack temporal)
-    pago_dict = getattr(factura, '_pago_dict', None)
     with _connect() as conn:
         conn.executemany(
             """
@@ -147,7 +144,7 @@ def registrar_ventas_factura(factura: Factura, usuario: str) -> None:
             """,
             filas,
         )
-        if pago_dict:
+        if pago:
             conn.execute(
                 """
                 INSERT INTO pagos_factura (
@@ -158,10 +155,10 @@ def registrar_ventas_factura(factura: Factura, usuario: str) -> None:
                     factura.numero_formateado,
                     factura.fecha.isoformat(),
                     anio_mes,
-                    float(pago_dict.get('monto_total', factura.base_imponible)),
-                    float(pago_dict.get('monto_efectivo', 0)),
-                    float(pago_dict.get('monto_tarjeta', 0)),
-                    pago_dict.get('metodo_pago', ''),
+                    pago.monto_total,
+                    pago.monto_efectivo,
+                    pago.monto_tarjeta,
+                    pago.metodo_pago,
                     (usuario or '').strip(),
                     created_at,
                 )
@@ -170,7 +167,7 @@ def registrar_ventas_factura(factura: Factura, usuario: str) -> None:
         "Ventas registradas en buffer mensual. factura=%s filas=%d pago=%s",
         factura.numero_formateado,
         len(filas),
-        pago_dict,
+        pago,
     )
 
 

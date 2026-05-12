@@ -4,7 +4,7 @@ from datetime import datetime
 
 from src.factura_model import EMAIL_EMISOR
 from src.factura_model import TELEFONO_EMISOR
-from src.factura_model import Factura
+from src.factura_model import Factura, PagoInfo
 
 
 def _normalizar_importe(valor: float) -> str:
@@ -39,7 +39,7 @@ def _alinear_izq_der(izquierda: str, derecha: str, ancho: int) -> str:
     return izq + (" " * espacio) + der
 
 
-def generar_ticket_escpos(factura: Factura, ancho: int = 42) -> bytes:
+def generar_ticket_escpos(factura: Factura, ancho: int = 42, pago: PagoInfo | None = None) -> bytes:
     """Construye ticket ESC/POS para papel de 80mm usando maquetado de 72mm."""
     lineas: list[bytes] = []
 
@@ -91,16 +91,10 @@ def generar_ticket_escpos(factura: Factura, ancho: int = 42) -> bytes:
     cmd(b"\x1bE\x01")
     txt(_alinear_izq_der("TOTAL", total, ancho))
     cmd(b"\x1bE\x00")
-    # Mostrar efectivo entregado y cambio si corresponde
-    pago = getattr(factura, '_pago_dict', None)
-    if pago:
-        efectivo_entregado = pago.get('efectivo_entregado', 0)
-        cambio = pago.get('cambio', 0)
-        metodo = pago.get('metodo_pago', '')
-        if metodo in ('efectivo', 'mixto') and efectivo_entregado > 0:
-            txt(_alinear_izq_der("Efectivo entregado", _normalizar_importe(efectivo_entregado), ancho))
-            if cambio > 0:
-                txt(_alinear_izq_der("Cambio a devolver", _normalizar_importe(cambio), ancho))
+    if pago and pago.metodo_pago in ('efectivo', 'mixto') and pago.efectivo_entregado > 0:
+        txt(_alinear_izq_der("Efectivo entregado", _normalizar_importe(pago.efectivo_entregado), ancho))
+        if pago.cambio > 0:
+            txt(_alinear_izq_der("Cambio a devolver", _normalizar_importe(pago.cambio), ancho))
     txt("IVA incluido")
     separador()
     cmd(b"\x1ba\x01")
