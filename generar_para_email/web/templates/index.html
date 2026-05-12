@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/app.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@2/dist/driver.css" />
   <style>
     #leyenda-atajos { position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; }
     #btn-leyenda {
@@ -76,6 +77,7 @@
         </div>
         <div class="header-actions">
           <button id="btn-carpeta" class="ghost" type="button" title="Cambiar carpeta de destino">📁 Carpeta</button>
+          <button id="btn-tutorial" class="ghost" type="button" title="Guía de la aplicación" aria-label="Abrir guía">?</button>
           <button id="btn-logout" class="ghost">Salir</button>
         </div>
       </div>
@@ -299,6 +301,10 @@
     <option value="Salud">
     <option value="Servicio de peluquería">
   </datalist>
+
+  <script src="https://cdn.jsdelivr.net/npm/driver.js@2/dist/driver.js.iife.js"></script>
+  <script src="/static/tutorial-pasos.js"></script>
+  <script src="/static/tutorial.js"></script>
 
   <script>
     const loginCard = document.getElementById('login-card');
@@ -1092,6 +1098,7 @@
         await refrescarEstadoBackup();
         await refrescarListaAjustes();
         restaurarDraft();
+        tutorialManager.checkAutoStart();
       } catch (e) {
         error.textContent = e.message;
       }
@@ -1162,6 +1169,7 @@
     });
 
     document.getElementById('btn-add').addEventListener('click', () => addLinea());
+    document.getElementById('btn-tutorial').addEventListener('click', () => tutorialManager.reactivar());
     document.getElementById('cliente_nombre').addEventListener('input', _programarGuardadoDraft);
     document.getElementById('cliente_nif').addEventListener('input', _programarGuardadoDraft);
     lineasEl.addEventListener('input', _programarGuardadoDraft);
@@ -1761,6 +1769,7 @@
       }
       if (loggedIn) {
         restaurarDraft();
+        tutorialManager.checkAutoStart();
       } else {
         addLinea();
         _actualizarBotonLogin();

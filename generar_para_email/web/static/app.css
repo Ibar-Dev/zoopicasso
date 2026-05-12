@@ -356,3 +356,57 @@ button[disabled][data-tooltip]:hover::before {
   pointer-events: none;
   z-index: 200;
 }
+
+/* ── Driver.js tutorial theme ────────────────────────────────────────────── */
+.driver-popover {
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 50px rgba(58, 29, 11, 0.25) !important;
+  font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+  color: var(--ink);
+  max-width: 320px;
+}
+
+.driver-popover-title {
+  font-size: 0.97rem !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+}
+
+.driver-popover-description {
+  font-size: 0.86rem !important;
+  color: var(--ink-soft) !important;
+  line-height: 1.55 !important;
+}
+
+.driver-popover-next-btn {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-family: inherit !important;
+  font-weight: 700 !important;
+}
+
+.driver-popover-next-btn:hover,
+.driver-popover-next-btn:focus {
+  background: var(--accent-deep) !important;
+}
+
+.driver-popover-prev-btn {
+  background: transparent !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink) !important;
+  border-radius: 8px !important;
+  font-family: inherit !important;
+}
+
+.driver-popover-close-btn {
+  color: var(--ink-soft) !important;
+}
+
+.driver-popover-progress-text {
+  color: var(--ink-soft) !important;
+  font-size: 0.78rem !important;
+}
