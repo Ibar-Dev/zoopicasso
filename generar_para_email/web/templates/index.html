@@ -1048,20 +1048,16 @@
       mostrarToast('Se ha guardado');
     }
 
-    async function guardarCierreEnCarpeta(data) {
+    async function guardarCierreEnCarpeta(blob, nombre) {
       if (!window.showDirectoryPicker) {
-        await _descargarDirecto(data.download_url, data.archivo_excel);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
         mostrarToast('Cierre descargado');
         return;
       }
-
-      const response = await fetch(data.download_url, { credentials: 'same-origin' });
-      if (!response.ok) throw new Error('No se pudo descargar el archivo de cierre.');
-      const blob = await response.blob();
-
-      let dirHandle = null;
-      try { dirHandle = await idbGet('config', 'carpeta_cierres'); } catch (_) {}
-
+      let dirHandle = await idbGet('config', 'carpeta_cierres').catch(() => null);
       if (dirHandle) {
         const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
         if (perm !== 'granted') {
@@ -1069,14 +1065,12 @@
           if (req !== 'granted') dirHandle = null;
         }
       }
-
       if (!dirHandle) {
         dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        try { await idbSet('config', 'carpeta_cierres', dirHandle); } catch (_) {}
+        await idbSet('config', 'carpeta_cierres', dirHandle).catch(() => {});
         actualizarNombreCarpetaCierres(dirHandle.name);
       }
-
-      const fileHandle = await dirHandle.getFileHandle(data.archivo_excel, { create: true });
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();
@@ -1495,23 +1489,37 @@
 
       await conCarga(btnCierreMes, 'Cerrando mes…', async () => {
         try {
-          const data = await request('/api/ganancias/cierre-mes', {
+          const res = await fetch('/api/ganancias/cierre-mes', {
             method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ confirmacion: true }),
           });
-          resultadoEl.textContent = data.mensaje || 'Cierre mensual completado.';
-          await refrescarResumenMensual();
-          if (data.download_url) {
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'No se pudo completar el cierre mensual.');
+          }
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await res.json();
+            resultadoEl.textContent = data.mensaje || 'No hay ventas activas para cerrar.';
+            await refrescarResumenMensual();
+          } else {
+            const blob = await res.blob();
+            const cd = res.headers.get('content-disposition') || '';
+            const nombre = cd.match(/filename=([^;]+)/)?.[1] ?? `cierre_${Date.now()}.xlsx`;
+            const mensaje = res.headers.get('x-cierre-mensaje') || 'Cierre mensual completado.';
+            resultadoEl.textContent = mensaje;
+            await refrescarResumenMensual();
             try {
-              await guardarCierreEnCarpeta(data);
-            } catch (guardadoErr) {
-              // El cierre se completó; iniciamos descarga directa como fallback.
-              try {
-                await _descargarDirecto(data.download_url, data.archivo_excel);
-                resultadoEl.textContent += ' (descarga iniciada automáticamente)';
-              } catch (_) {
-                errorEl.textContent = 'Cierre completado, pero no se pudo guardar el archivo.';
-              }
+              await guardarCierreEnCarpeta(blob, nombre);
+            } catch (_) {
+              // Cierre completado — fallback con el blob ya descargado, sin segunda petición
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = nombre; a.click();
+              URL.revokeObjectURL(url);
+              resultadoEl.textContent += ' (descarga iniciada automáticamente)';
             }
           }
         } catch (e) {

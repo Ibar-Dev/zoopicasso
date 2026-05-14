@@ -155,9 +155,9 @@ def test_resumen_y_cierre_mensual_con_login(monkeypatch, tmp_path: Path):
 
     cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
     assert cierre.status_code == 200
-    cierre_body = cierre.json()
-    assert cierre_body["ok"] is True
-    assert "mensaje" in cierre_body
+    assert "spreadsheetml" in cierre.headers["content-type"]
+    assert cierre.headers.get("x-cierre-ventas") is not None
+    assert int(cierre.headers["x-cierre-ventas"]) >= 1
 
 
 def test_cierre_mes_requiere_login():
@@ -214,15 +214,15 @@ def _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=888):
     return client
 
 
-def test_cierre_mes_incluye_download_url(monkeypatch, tmp_path):
+def test_cierre_mensual_devuelve_excel(monkeypatch, tmp_path):
     client = _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=881)
     cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
     assert cierre.status_code == 200
-    body = cierre.json()
-    assert body["ok"] is True
-    assert "archivo_excel" in body
-    assert "download_url" in body
-    assert body["download_url"] == f"/api/ganancias/descargar-cierre/{body['archivo_excel']}"
+    assert "spreadsheetml" in cierre.headers["content-type"]
+    assert cierre.headers.get("x-cierre-ventas") is not None
+    assert int(cierre.headers["x-cierre-ventas"]) >= 1
+    assert cierre.headers.get("x-cierre-mensaje") is not None
+    assert len(cierre.content) > 0
 
 
 def test_descargar_cierre_requiere_login():
@@ -235,9 +235,11 @@ def test_descargar_cierre_ok(monkeypatch, tmp_path):
     client = _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=882)
     cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
     assert cierre.status_code == 200
-    download_url = cierre.json()["download_url"]
+    cd = cierre.headers.get("content-disposition", "")
+    nombre = cd.split("filename=")[-1].strip('"')
+    assert nombre.endswith(".xlsx")
 
-    descarga = client.get(download_url)
+    descarga = client.get(f"/api/ganancias/descargar-cierre/{nombre}")
     assert descarga.status_code == 200
     assert (
         descarga.headers["content-type"]

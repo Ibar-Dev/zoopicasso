@@ -11,7 +11,6 @@ from src.ventas_store import (
     archivar_ventas_activas,
     registrar_cierre,
     resumen_ventas_activas,
-    ventas_activas_detalle,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,7 +77,11 @@ def _generar_excel_cierre(anio_mes: str, resumen: dict) -> Path:
     return archivo
 
 
-def process_monthly_closure(usuario: str) -> dict:
+def cerrar_mes(usuario: str) -> tuple[dict, Path | None]:
+    """Cierra el mes activo: archiva ventas, genera Excel y registra el cierre.
+
+    Devuelve (metadata, Path_al_excel) o (metadata, None) si no hay ventas.
+    """
     anio_mes = datetime.now().strftime("%Y-%m")
     resumen = resumen_ventas_activas(anio_mes)
 
@@ -86,22 +89,10 @@ def process_monthly_closure(usuario: str) -> dict:
         return {
             "ok": True,
             "anio_mes": anio_mes,
-            "archivo_excel": None,
             "cantidad_ventas": 0,
             "total": 0.0,
             "mensaje": "No hay ventas activas para cerrar en este mes.",
-        }
-
-    detalle = ventas_activas_detalle(anio_mes)
-    if not detalle:
-        return {
-            "ok": True,
-            "anio_mes": anio_mes,
-            "archivo_excel": None,
-            "cantidad_ventas": 0,
-            "total": 0.0,
-            "mensaje": "No hay ventas activas para cerrar en este mes.",
-        }
+        }, None
 
     archivo = _generar_excel_cierre(anio_mes, resumen)
     cierre_id = f"{anio_mes}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
@@ -118,21 +109,14 @@ def process_monthly_closure(usuario: str) -> dict:
         cantidad_ventas=int(actualizadas),
         archivo_excel=str(archivo),
     )
-
     logger.info(
-        "Cierre mensual completado usuario=%s periodo=%s ventas=%d total=%.2f archivo=%s",
-        usuario,
-        anio_mes,
-        actualizadas,
-        float(resumen["total"]),
-        archivo,
+        "Cierre mensual. usuario=%s periodo=%s ventas=%d total=%.2f",
+        usuario, anio_mes, actualizadas, float(resumen["total"]),
     )
-
     return {
         "ok": True,
         "anio_mes": anio_mes,
-        "archivo_excel": archivo.name,
         "cantidad_ventas": int(actualizadas),
         "total": float(resumen["total"]),
         "mensaje": "Cierre mensual completado correctamente.",
-    }
+    }, archivo
