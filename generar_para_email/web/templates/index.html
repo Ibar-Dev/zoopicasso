@@ -1367,9 +1367,11 @@
         pagoTarjetaGroup.style.display = 'none';
         pagoMixtoInfo.style.display = 'none';
       } else if (metodo === 'tarjeta') {
+        const total = Number(totalEl.textContent.replace('€', '').trim());
         pagoEfectivoGroup.style.display = 'none';
         pagoEntregadoGroup.style.display = 'none';
         pagoTarjetaGroup.style.display = '';
+        pagoTarjetaEl.value = total.toFixed(2);
         pagoMixtoInfo.style.display = 'none';
       } else if (metodo === 'mixto') {
         pagoEfectivoEl.readOnly = false;
@@ -1507,7 +1509,7 @@
           } else {
             const blob = await res.blob();
             const cd = res.headers.get('content-disposition') || '';
-            const nombre = cd.match(/filename=([^;]+)/)?.[1] ?? `cierre_${Date.now()}.xlsx`;
+            const nombre = cd.match(/filename=["']?([^"';\r\n]+)/)?.[1]?.trim() ?? `cierre_${Date.now()}.xlsx`;
             const mensaje = res.headers.get('x-cierre-mensaje') || 'Cierre mensual completado.';
             resultadoEl.textContent = mensaje;
             await refrescarResumenMensual();
@@ -1815,7 +1817,7 @@
         }
         const blob = await res.blob();
         const cd = res.headers.get('content-disposition') || '';
-        const nombre = cd.match(/filename=([^;]+)/)?.[1] ?? `backup_${Date.now()}.zip`;
+        const nombre = cd.match(/filename=["']?([^"';\r\n]+)/)?.[1]?.trim() ?? `backup_${Date.now()}.zip`;
         await guardarBackupEnCarpeta(blob, nombre);
         await refrescarEstadoBackup();
       });
