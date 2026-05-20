@@ -22,7 +22,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura, PagoInfo
-from src.monthly_closure import cerrar_mes, RUTA_CIERRES
+from src.monthly_closure import cerrar_mes, cerrar_dia, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
 from src.ventas_store import historial_ventas, inicializar_db_ventas, listar_ajustes_activos, registrar_ajuste, registrar_ventas_factura, resumen_ventas_activas, resumen_ventas_dia
@@ -324,6 +324,28 @@ def cierre_mensual(payload: MonthlyClosurePayload, request: Request):
             "x-cierre-mensaje": meta["mensaje"],
         },
     )
+
+@app.post("/api/ganancias/cierre-dia")
+def cierre_diario(payload: MonthlyClosurePayload, request: Request):
+    _requiere_login(request)
+    if not payload.confirmacion:
+        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar día")
+    usuario = str(request.session.get("usuario", "(desconocido)"))
+    meta, archivo = cerrar_dia(usuario=usuario)
+    if archivo is None:
+        return JSONResponse(meta)
+    return FileResponse(
+        path=archivo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=archivo.name,
+        headers={
+            "x-cierre-fecha": meta["fecha"],
+            "x-cierre-ventas": str(meta["cantidad_ventas"]),
+            "x-cierre-total": str(meta["total"]),
+            "x-cierre-mensaje": meta["mensaje"],
+        },
+    )
+
 
 @app.get("/api/ganancias/descargar-cierre/{nombre_archivo}")
 def descargar_cierre(nombre_archivo: str, request: Request) -> FileResponse:

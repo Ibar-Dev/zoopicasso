@@ -94,3 +94,41 @@ class TestConVentas:
         r = vs.resumen_ventas_activas(anio_mes)
         assert r["total"] == 0.0
         assert r["cantidad_ventas"] == 0
+
+
+# ── Cierre diario ───────────────────────────────────────────────────────────────
+
+class TestCierreDiario:
+    def test_sin_ventas_devuelve_none(self):
+        vs.inicializar_db_ventas()
+        meta, archivo = mc.cerrar_dia("admin")
+        assert meta["ok"] is True
+        assert archivo is None
+        assert meta["cantidad_ventas"] == 0
+
+    def test_con_ventas_genera_excel(self):
+        vs.registrar_ventas_factura(_factura_mes_actual(), "admin")
+        meta, archivo = mc.cerrar_dia("admin")
+        assert meta["ok"] is True
+        assert archivo is not None and archivo.exists()
+        assert archivo.stat().st_size > 0
+
+    def test_total_correcto(self):
+        vs.registrar_ventas_factura(_factura_mes_actual(importe=60.0), "admin")
+        meta, _ = mc.cerrar_dia("admin")
+        assert meta["total"] == 60.0
+
+    def test_ventas_siguen_activas_tras_cierre_dia(self):
+        vs.registrar_ventas_factura(_factura_mes_actual(), "admin")
+        mc.cerrar_dia("admin")
+        from datetime import datetime
+        anio_mes = datetime.now().strftime("%Y-%m")
+        assert vs.resumen_ventas_activas(anio_mes)["total"] == 100.0
+
+    def test_cierre_dia_no_impide_cierre_mes(self):
+        vs.registrar_ventas_factura(_factura_mes_actual(importe=50.0), "admin")
+        mc.cerrar_dia("admin")
+        meta, archivo = mc.cerrar_mes("admin")
+        assert meta["ok"] is True
+        assert meta["total"] == 50.0
+        assert archivo is not None

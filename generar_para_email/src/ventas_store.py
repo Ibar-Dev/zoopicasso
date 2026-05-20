@@ -115,6 +115,26 @@ def inicializar_db_ventas() -> None:
             ON ajustes_manuales (estado, anio_mes)
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cierres_diarios (
+                cierre_id TEXT PRIMARY KEY,
+                fecha TEXT NOT NULL,
+                anio_mes TEXT NOT NULL,
+                usuario TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                total REAL NOT NULL,
+                cantidad_ventas INTEGER NOT NULL,
+                archivo_excel TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_cierres_diarios_fecha
+            ON cierres_diarios (fecha)
+            """
+        )
 
 
 def registrar_ventas_factura(factura: Factura, usuario: str, pago: PagoInfo | None = None) -> None:
@@ -384,6 +404,38 @@ def registrar_cierre(
             """,
             (
                 cierre_id,
+                anio_mes,
+                (usuario or "").strip(),
+                created_at,
+                float(total),
+                int(cantidad_ventas),
+                archivo_excel,
+            ),
+        )
+
+
+def registrar_cierre_diario(
+    cierre_id: str,
+    fecha: str,
+    anio_mes: str,
+    usuario: str,
+    created_at: str,
+    total: float,
+    cantidad_ventas: int,
+    archivo_excel: str,
+) -> None:
+    inicializar_db_ventas()
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO cierres_diarios (
+                cierre_id, fecha, anio_mes, usuario, created_at,
+                total, cantidad_ventas, archivo_excel
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                cierre_id,
+                fecha,
                 anio_mes,
                 (usuario or "").strip(),
                 created_at,

@@ -136,6 +136,7 @@
         <span class="chuleta-item"><kbd>Alt</kbd>+<kbd>G</kbd> Generar factura</span>
       </div>
       <div style="display:flex;gap:0.5rem;margin-top:8px;align-items:center;">
+        <button id="btn-cerrar-dia" class="ghost" type="button">Cerrar día</button>
         <button id="btn-cerrar-mes" class="ghost" type="button">Cerrar mes</button>
         <button id="btn-carpeta-cierres" class="ghost" type="button" title="Carpeta donde se guardan los cierres mensuales">📁 Cierres</button>
       </div>
@@ -240,6 +241,17 @@
     </div>
   </div>
 
+  <div id="cierre-dia-modal" class="modal-backdrop" aria-hidden="true" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cierre-dia-modal-title">
+      <h3 id="cierre-dia-modal-title">Confirmar cierre del día</h3>
+      <p id="cierre-dia-modal-info"></p>
+      <div class="modal-actions">
+        <button id="btn-cierre-dia-cancelar" class="ghost" type="button">Cancelar</button>
+        <button id="btn-cierre-dia-confirmar" type="button">Sí, Cerrar Día</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal método de pago -->
   <div id="pago-modal" class="modal-backdrop" aria-hidden="true" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pago-modal-title">
@@ -329,6 +341,10 @@
     const btnCierreMes = document.getElementById('btn-cerrar-mes');
     const btnCierreCancelar = document.getElementById('btn-cierre-cancelar');
     const btnCierreConfirmar = document.getElementById('btn-cierre-confirmar');
+    const cierreDiaModalEl = document.getElementById('cierre-dia-modal');
+    const btnCierreDiaCancelar = document.getElementById('btn-cierre-dia-cancelar');
+    const btnCierreDiaConfirmar = document.getElementById('btn-cierre-dia-confirmar');
+    let resolverCierreDiaModal = null;
     let acumuladoDia = 0;
     let facturasDia = 0;
     const totalesPorAnimal = {
@@ -554,6 +570,15 @@
         else delete btnGenerar.dataset.tooltip;
       }
 
+      // btn-cerrar-dia
+      const btnCierreDia = document.getElementById('btn-cerrar-dia');
+      if (!btnCierreDia.disabled || btnCierreDia.textContent === 'Cerrar día') {
+        const ventasHoy = Number(document.getElementById('ventas-hoy')?.textContent || 0);
+        btnCierreDia.disabled = ventasHoy === 0;
+        if (ventasHoy === 0) btnCierreDia.dataset.tooltip = 'No hay ventas hoy para cerrar';
+        else delete btnCierreDia.dataset.tooltip;
+      }
+
       // btn-cerrar-mes
       const btnCierre = document.getElementById('btn-cerrar-mes');
       if (!btnCierre.disabled || btnCierre.textContent === 'Cerrar mes') {
@@ -567,9 +592,12 @@
       const btnRestar = document.getElementById('btn-restar');
       if (!btnRestar.disabled || btnRestar.textContent === 'Restar') {
         const ajusteRaw = (ajusteEl.value || '').trim();
-        const ok = importeEurValido(ajusteRaw) && Number(ajusteRaw.replace(',', '.')) > 0;
-        btnRestar.disabled = !ok;
-        if (!ok) btnRestar.dataset.tooltip = 'Introduce un importe válido para restar';
+        const ajusteNum = Number(ajusteRaw.replace(',', '.'));
+        const formatoOk = importeEurValido(ajusteRaw) && ajusteNum > 0;
+        const superaTotal = formatoOk && acumuladoDia > 0 && ajusteNum > acumuladoDia;
+        btnRestar.disabled = !formatoOk || superaTotal;
+        if (!formatoOk) btnRestar.dataset.tooltip = 'Introduce un importe válido para restar';
+        else if (superaTotal) btnRestar.dataset.tooltip = `Supera el total del mes (${acumuladoDia.toFixed(2)} €)`;
         else delete btnRestar.dataset.tooltip;
       }
     }
@@ -597,6 +625,27 @@
         const resolve = resolverCierreModal;
         resolverCierreModal = null;
         resolve(valor);
+      }
+    }
+
+    function pedirConfirmacionCierreDia() {
+      return new Promise((resolve) => {
+        resolverCierreDiaModal = resolve;
+        cierreDiaModalEl.classList.add('active');
+        cierreDiaModalEl.setAttribute('aria-hidden', 'false');
+        cierreDiaModalEl.hidden = false;
+        btnCierreDiaConfirmar.focus();
+      });
+    }
+
+    function cerrarModalCierreDia(valor) {
+      cierreDiaModalEl.classList.remove('active');
+      cierreDiaModalEl.setAttribute('aria-hidden', 'true');
+      cierreDiaModalEl.hidden = true;
+      if (resolverCierreDiaModal) {
+        const r = resolverCierreDiaModal;
+        resolverCierreDiaModal = null;
+        r(valor);
       }
     }
 
@@ -892,6 +941,11 @@
 
       if (!Number.isFinite(ajuste) || ajuste <= 0) {
         errorEl.textContent = 'Introduce un importe válido mayor que 0 para ajustar.';
+        return;
+      }
+
+      if (ajuste > acumuladoDia) {
+        errorEl.textContent = `El ajuste (${ajuste.toFixed(2)} €) supera el total acumulado del mes (${acumuladoDia.toFixed(2)} €).`;
         return;
       }
 
@@ -1256,6 +1310,8 @@
     btnTicketSi.addEventListener('click', () => cerrarModalTicket(true));
     btnCierreCancelar.addEventListener('click', () => cerrarModalCierre(false));
     btnCierreConfirmar.addEventListener('click', () => cerrarModalCierre(true));
+    btnCierreDiaCancelar.addEventListener('click', () => cerrarModalCierreDia(false));
+    btnCierreDiaConfirmar.addEventListener('click', () => cerrarModalCierreDia(true));
 
     ticketModalEl.addEventListener('click', (e) => {
       if (e.target === ticketModalEl) {
@@ -1269,6 +1325,10 @@
       }
     });
 
+    cierreDiaModalEl.addEventListener('click', (e) => {
+      if (e.target === cierreDiaModalEl) cerrarModalCierreDia(false);
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && ticketModalEl.classList.contains('active')) {
         cerrarModalTicket(null);
@@ -1276,12 +1336,15 @@
       if (e.key === 'Escape' && cierreMesModalEl.classList.contains('active')) {
         cerrarModalCierre(false);
       }
+      if (e.key === 'Escape' && cierreDiaModalEl.classList.contains('active')) {
+        cerrarModalCierreDia(false);
+      }
       if ((e.key === 'n' || e.key === 'N') && ticketModalEl.classList.contains('active')) {
         const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (!enInput) { e.preventDefault(); cerrarModalTicket(false); }
       }
       // Alt+A = Añadir línea, Alt+D = Eliminar última línea, Alt+G = Generar factura (solo sin modales abiertos)
-      if (e.altKey && pagoModalEl.hidden && ticketModalEl.hidden && cierreMesModalEl.hidden) {
+      if (e.altKey && pagoModalEl.hidden && ticketModalEl.hidden && cierreMesModalEl.hidden && cierreDiaModalEl.hidden) {
         if (e.code === 'KeyA') { e.preventDefault(); addLinea(); }
         if (e.code === 'KeyD') {
           e.preventDefault();
@@ -1483,6 +1546,61 @@
         return;
       }
       cerrarModalPago({ metodo_pago: metodo, monto_efectivo: +montoEfectivo, monto_tarjeta: +montoTarjeta, efectivo_entregado: +efectivoEntregado });
+    });
+
+    document.getElementById('btn-cerrar-dia').addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      const ventasHoy = Number(document.getElementById('ventas-hoy').textContent || 0);
+      const acumuladoHoyText = document.getElementById('acumulado-hoy').textContent.replace('€', '').trim();
+      const acumuladoHoy = Number(acumuladoHoyText) || 0;
+      const pModal = document.getElementById('cierre-dia-modal-info');
+      if (pModal) {
+        const fechaHoy = new Date().toLocaleDateString('es-ES');
+        pModal.textContent = `Vas a cerrar el día ${fechaHoy}: ${ventasHoy} venta${ventasHoy !== 1 ? 's' : ''} por ${acumuladoHoy.toFixed(2)} €. Se generará el Excel del día.`;
+      }
+      const confirmado = await pedirConfirmacionCierreDia();
+      if (!confirmado) return;
+
+      await conCarga(document.getElementById('btn-cerrar-dia'), 'Cerrando día…', async () => {
+        try {
+          const res = await fetch('/api/ganancias/cierre-dia', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmacion: true }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'No se pudo completar el cierre diario.');
+          }
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await res.json();
+            resultadoEl.textContent = data.mensaje || 'No hay ventas para cerrar hoy.';
+          } else {
+            const blob = await res.blob();
+            const cd = res.headers.get('content-disposition') || '';
+            const nombre = cd.match(/filename=["']?([^"';\r\n]+)/)?.[1]?.trim() ?? `cierre_diario_${Date.now()}.xlsx`;
+            const mensaje = res.headers.get('x-cierre-mensaje') || 'Cierre diario completado.';
+            resultadoEl.textContent = mensaje;
+            try {
+              await guardarCierreEnCarpeta(blob, nombre);
+              mostrarToast('✓ Día cerrado correctamente');
+            } catch (_) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = nombre; a.click();
+              URL.revokeObjectURL(url);
+              resultadoEl.textContent += ' (descarga automática)';
+              mostrarToast('✓ Día cerrado (descarga automática)');
+            }
+          }
+        } catch (e) {
+          errorEl.textContent = e.message || 'No se pudo completar el cierre diario.';
+        }
+      });
+      _actualizarBotones();
     });
 
     btnCierreMes.addEventListener('click', async () => {
