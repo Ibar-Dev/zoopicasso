@@ -93,6 +93,7 @@
 
       <div class="lineas-head">
         <h3>Líneas</h3>
+        <span id="draft-guardado" class="draft-saved-hint" hidden>✓ Borrador</span>
         <button id="btn-add" class="ghost" title="Atajo: Alt+A">+ Añadir línea</button>
       </div>
       <div id="lineas"></div>
@@ -449,6 +450,13 @@
           cliente_nif: document.getElementById('cliente_nif').value,
           lineas,
         }));
+        const hint = document.getElementById('draft-guardado');
+        if (hint) {
+          hint.hidden = false;
+          hint.classList.add('visible');
+          clearTimeout(hint._timer);
+          hint._timer = setTimeout(() => hint.classList.remove('visible'), 1800);
+        }
       } catch (_) {}
     }
 
@@ -498,6 +506,7 @@
     }
 
     async function refrescarResumenMensual() {
+      const totalesDiv = document.querySelector('.totales');
       try {
         const data = await request('/api/ganancias/resumen');
         const resumen = data.resumen || { total: 0, cantidad_ventas: 0, por_categoria: {} };
@@ -509,9 +518,10 @@
         const resumenHoy = data.resumen_hoy || { total: 0, cantidad_ventas: 0 };
         document.getElementById('ventas-hoy').textContent = String(Number(resumenHoy.cantidad_ventas || 0));
         document.getElementById('acumulado-hoy').textContent = `${Number(resumenHoy.total || 0).toFixed(2)} €`;
+        if (totalesDiv) totalesDiv.classList.remove('datos-error');
         _actualizarBotones();
       } catch (_) {
-        // Si no hay sesión o falla puntual, no romper la UI
+        if (totalesDiv) totalesDiv.classList.add('datos-error');
       }
     }
 
@@ -1515,6 +1525,7 @@
             await refrescarResumenMensual();
             try {
               await guardarCierreEnCarpeta(blob, nombre);
+              mostrarToast('✓ Mes cerrado correctamente');
             } catch (_) {
               // Cierre completado — fallback con el blob ya descargado, sin segunda petición
               const url = URL.createObjectURL(blob);
@@ -1522,6 +1533,7 @@
               a.href = url; a.download = nombre; a.click();
               URL.revokeObjectURL(url);
               resultadoEl.textContent += ' (descarga iniciada automáticamente)';
+              mostrarToast('✓ Mes cerrado (descarga automática)');
             }
           }
         } catch (e) {
@@ -1798,9 +1810,12 @@
         if (data.ultimo === null) {
           backupEstadoEl.textContent = 'Sin backups aún.';
         } else {
-          const icono = data.backup_ok === false ? '✗' : '✓';
+          const ok = data.backup_ok !== false;
+          const icono = ok ? '✓' : '✗';
+          const clase = ok ? 'backup-ok' : 'backup-fail';
           const fecha = _formatearFechaBackup(data.ultimo);
-          backupEstadoEl.textContent = `Último backup: ${fecha} ${icono}${data.mensaje ? '  ' + data.mensaje : ''}`;
+          const msg = data.mensaje ? `  ${data.mensaje}` : '';
+          backupEstadoEl.innerHTML = `Último backup: ${fecha} <span class="${clase}">${icono}${escaparHtml(msg)}</span>`;
         }
         btnBackupManual.disabled = false;
       } catch (_) {
@@ -1830,10 +1845,12 @@
         loggedIn = Boolean(session.logged_in);
         toggleView(loggedIn);
         if (loggedIn) {
+          estadoEl.textContent = 'Cargando datos…';
           await cargarPreciosCategorias();
           await refrescarResumenMensual();
           await refrescarEstadoBackup();
           await refrescarListaAjustes();
+          estadoEl.textContent = 'Completa los datos y genera el Excel.';
         }
       } catch {
         toggleView(false);

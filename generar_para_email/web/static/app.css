@@ -410,3 +410,36 @@ button[disabled][data-tooltip]:hover::before {
   color: var(--ink-soft) !important;
   font-size: 0.78rem !important;
 }
+
+/* ── Draft save indicator ──────────────────────────────────────────────────── */
+.draft-saved-hint {
+  font-size: 0.78rem;
+  color: #5a7a5a;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.draft-saved-hint.visible {
+  opacity: 1;
+}
+
+/* ── Totales: aviso de datos no actualizados ───────────────────────────────── */
+.totales.datos-error {
+  border: 1px solid #c94315;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  position: relative;
+}
+.totales.datos-error::after {
+  content: '⚠ Datos no actualizados';
+  position: absolute;
+  top: -0.7rem;
+  right: 0.5rem;
+  font-size: 0.7rem;
+  color: #c94315;
+  background: var(--bg-1);
+  padding: 0 0.25rem;
+}
+
+/* ── Backup status color coding ────────────────────────────────────────────── */
+.backup-ok   { color: #3a7a3a; font-weight: 600; }
+.backup-fail { color: #c94315; font-weight: 600; }
