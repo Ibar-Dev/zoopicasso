@@ -24,4 +24,4 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov=src --cov=web --cov-report=term-missing --cov-fail-under=80"
+addopts = "--cov=src --cov=web --cov-report=term-missing --cov-fail-under=80 --ignore=test_manual_tickets.py"

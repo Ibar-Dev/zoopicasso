@@ -1,10 +1,11 @@
 import logging
 import os
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.factura_model import Factura, PagoInfo
+from factura_model import Factura, PagoInfo
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +25,16 @@ def _ruta_db_ventas() -> Path:
 RUTA_DB_VENTAS = _ruta_db_ventas()
 
 
-def _connect() -> sqlite3.Connection:
+@contextmanager
+def _connect():
     RUTA_DB_VENTAS.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(RUTA_DB_VENTAS)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def inicializar_db_ventas() -> None:
