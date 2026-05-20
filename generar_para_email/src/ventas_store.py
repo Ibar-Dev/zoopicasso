@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from factura_model import Factura, PagoInfo
+from src.factura_model import Factura, PagoInfo
 
 logger = logging.getLogger(__name__)
 
