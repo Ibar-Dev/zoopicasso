@@ -138,7 +138,8 @@
       <div style="display:flex;gap:0.5rem;margin-top:8px;align-items:center;">
         <button id="btn-cerrar-dia" class="ghost" type="button">Cerrar día</button>
         <button id="btn-cerrar-mes" class="ghost" type="button">Cerrar mes</button>
-        <button id="btn-carpeta-cierres" class="ghost" type="button" title="Carpeta donde se guardan los cierres mensuales">📁 Cierres</button>
+        <button id="btn-carpeta-cierres" class="ghost" type="button" title="Carpeta donde se guardan los cierres mensuales">📁 Cierres mes</button>
+        <button id="btn-carpeta-cierres-dia" class="ghost" type="button" title="Carpeta donde se guardan los cierres diarios">📁 Cierres día</button>
       </div>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
@@ -1141,6 +1142,35 @@
       mostrarToast(`Guardado en: ${dirHandle.name}`);
     }
 
+    async function guardarCierreDiaEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre del día descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierres_dia').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierres_dia', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierresDia(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
     async function guardarBackupEnCarpeta(blob, nombre) {
       if (!window.showDirectoryPicker) {
         const url = URL.createObjectURL(blob);
@@ -1226,13 +1256,20 @@
       }
     });
 
-    const btnCarpetaCierres = document.getElementById('btn-carpeta-cierres');
-    const btnCarpetaBackup  = document.getElementById('btn-carpeta-backup');
+    const btnCarpetaCierres    = document.getElementById('btn-carpeta-cierres');
+    const btnCarpetaCierresDia = document.getElementById('btn-carpeta-cierres-dia');
+    const btnCarpetaBackup     = document.getElementById('btn-carpeta-backup');
 
     function actualizarNombreCarpetaCierres(nombre) {
       btnCarpetaCierres.title = nombre
-        ? `Carpeta de cierres: ${nombre} (clic para cambiar)`
+        ? `Carpeta de cierres mensuales: ${nombre} (clic para cambiar)`
         : 'Carpeta donde se guardan los cierres mensuales';
+    }
+
+    function actualizarNombreCarpetaCierresDia(nombre) {
+      btnCarpetaCierresDia.title = nombre
+        ? `Carpeta de cierres diarios: ${nombre} (clic para cambiar)`
+        : 'Carpeta donde se guardan los cierres diarios';
     }
 
     function actualizarNombreCarpetaBackup(nombre) {
@@ -1244,6 +1281,10 @@
     // Cargar nombres de carpetas al inicio
     idbGet('config', 'carpeta_cierres').then(h => {
       if (h) actualizarNombreCarpetaCierres(h.name);
+    }).catch(() => {});
+
+    idbGet('config', 'carpeta_cierres_dia').then(h => {
+      if (h) actualizarNombreCarpetaCierresDia(h.name);
     }).catch(() => {});
 
     idbGet('config', 'carpeta_backup').then(h => {
@@ -1261,10 +1302,29 @@
         const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
         await idbSet('config', 'carpeta_cierres', dirHandle);
         actualizarNombreCarpetaCierres(dirHandle.name);
-        resultadoEl.textContent = `Carpeta de cierres configurada: ${dirHandle.name}`;
+        resultadoEl.textContent = `Carpeta de cierres mensuales configurada: ${dirHandle.name}`;
       } catch (err) {
         if (err && err.name !== 'AbortError') {
-          errorEl.textContent = 'No se pudo configurar la carpeta de cierres.';
+          errorEl.textContent = 'No se pudo configurar la carpeta de cierres mensuales.';
+        }
+      }
+    });
+
+    btnCarpetaCierresDia.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los cierres se descargarán automáticamente.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierres_dia', dirHandle);
+        actualizarNombreCarpetaCierresDia(dirHandle.name);
+        resultadoEl.textContent = `Carpeta de cierres diarios configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta de cierres diarios.';
         }
       }
     });
@@ -1585,7 +1645,7 @@
             const mensaje = res.headers.get('x-cierre-mensaje') || 'Cierre diario completado.';
             resultadoEl.textContent = mensaje;
             try {
-              await guardarCierreEnCarpeta(blob, nombre);
+              await guardarCierreDiaEnCarpeta(blob, nombre);
               mostrarToast('✓ Día cerrado correctamente');
             } catch (_) {
               const url = URL.createObjectURL(blob);
