@@ -10,7 +10,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, Literal
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -161,16 +161,6 @@ def _anio_mes_actual() -> str:
     return date.today().strftime("%Y-%m")
 
 
-def _registrar_ventas_factura_background(factura: Factura, usuario: str, pago: PagoInfo | None = None) -> None:
-    try:
-        registrar_ventas_factura(factura, usuario, pago)
-    except Exception as exc:
-        logger.error(
-            "Error registrando ventas en buffer mensual para factura %s: %s",
-            factura.numero_formateado,
-            exc,
-            exc_info=True,
-        )
 
 def _requiere_login(request: Request) -> None:
     if not request.session.get("logged_in"):
@@ -364,7 +354,7 @@ def descargar_cierre(nombre_archivo: str, request: Request) -> FileResponse:
     )
 
 @app.post("/api/generar")
-def generar(payload: FacturaPayload, request: Request, background_tasks: BackgroundTasks) -> dict[str, object]:
+def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     _requiere_login(request)
     # Validación método de pago y montos
     metodo = payload.metodo_pago
@@ -449,7 +439,7 @@ def generar(payload: FacturaPayload, request: Request, background_tasks: Backgro
         efectivo_entregado=efectivo_entregado,
         cambio=cambio,
     )
-    background_tasks.add_task(_registrar_ventas_factura_background, factura, usuario, pago)
+    registrar_ventas_factura(factura, usuario, pago)
     ticket_impreso = False
     ticket_estado = "Ticket no solicitado."
     if payload.imprimir_ticket:

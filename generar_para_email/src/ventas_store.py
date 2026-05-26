@@ -391,6 +391,53 @@ def archivar_ventas_activas(anio_mes: str, cierre_id: str, archived_at: str) -> 
         return int(cur.rowcount)
 
 
+def cerrar_mes_atomico(
+    anio_mes: str,
+    cierre_id: str,
+    archived_at: str,
+    usuario: str,
+    total: float,
+    archivo_excel: str,
+) -> int:
+    """Archiva ventas y ajustes del mes y registra el cierre en una sola transacción."""
+    inicializar_db_ventas()
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE ventas
+            SET estado = 'archived', archived_at = ?, cierre_id = ?
+            WHERE estado = 'active' AND anio_mes = ?
+            """,
+            (archived_at, cierre_id, anio_mes),
+        )
+        actualizadas = int(cur.rowcount)
+        conn.execute(
+            """
+            UPDATE ajustes_manuales
+            SET estado = 'archived', archived_at = ?, cierre_id = ?
+            WHERE estado = 'active' AND anio_mes = ?
+            """,
+            (archived_at, cierre_id, anio_mes),
+        )
+        conn.execute(
+            """
+            INSERT INTO cierres_mensuales (
+                cierre_id, anio_mes, usuario, created_at, total, cantidad_ventas, archivo_excel
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                cierre_id,
+                anio_mes,
+                (usuario or "").strip(),
+                archived_at,
+                float(total),
+                actualizadas,
+                archivo_excel,
+            ),
+        )
+    return actualizadas
+
+
 def registrar_cierre(
     cierre_id: str,
     anio_mes: str,

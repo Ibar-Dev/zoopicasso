@@ -7,9 +7,7 @@ import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from src.ventas_store import (
-    archivar_ajustes_activos,
-    archivar_ventas_activas,
-    registrar_cierre,
+    cerrar_mes_atomico,
     registrar_cierre_diario,
     resumen_ventas_activas,
     resumen_ventas_dia,
@@ -146,15 +144,12 @@ def cerrar_mes(usuario: str) -> tuple[dict, Path | None]:
     cierre_id = f"{anio_mes}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
     archived_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    actualizadas = archivar_ventas_activas(anio_mes, cierre_id, archived_at)
-    archivar_ajustes_activos(anio_mes, cierre_id, archived_at)
-    registrar_cierre(
-        cierre_id=cierre_id,
+    actualizadas = cerrar_mes_atomico(
         anio_mes=anio_mes,
+        cierre_id=cierre_id,
+        archived_at=archived_at,
         usuario=(usuario or "").strip(),
-        created_at=archived_at,
         total=float(resumen["total"]),
-        cantidad_ventas=int(actualizadas),
         archivo_excel=str(archivo),
     )
     logger.info(
