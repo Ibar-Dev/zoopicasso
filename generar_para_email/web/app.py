@@ -142,7 +142,104 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Facturas Gisselle API", version="1.0.0", lifespan=lifespan)
 
-cola_impresion: list[bytes] = []
+
+# ════════════════════════════════════════════════════════════════════════════════
+# COLA PERSISTENTE - Almacena tickets encolados en disco (JSON + base64)
+# ════════════════════════════════════════════════════════════════════════════════
+class ColaPersistente:
+    """
+    Cola thread-safe que persiste tickets en JSON.
+    
+    RESPONSABILIDAD:
+      Mantener cola de tickets ESC/POS que sobrevive reinicios de Render.
+      Los bytes se serializan en base64 para almacenarlos en JSON.
+    
+    COMUNICACIÓN:
+      - Entrada: bytes (ESC/POS generados por src/printer.py)
+      - Persistencia: data/cola_impresion.json
+      - Salida: bytes (descodificados de base64 para impresora)
+    
+    MÉTODOS:
+      - append(item: bytes) → Añade ticket y persiste
+      - pop(index=0) → Retira y devuelve ticket, persiste
+      - __len__() → Cantidad de tickets en cola
+      - __bool__() → True si hay tickets
+    """
+    
+    def __init__(self, ruta: Path | str = "data/cola_impresion.json"):
+        self.ruta = Path(ruta) if isinstance(ruta, str) else ruta
+        self.ruta.parent.mkdir(parents=True, exist_ok=True)
+        self._datos: list[str] = self._cargar()  # Lista de strings base64
+    
+    def _cargar(self) -> list[str]:
+        """Carga cola desde disco JSON. Retorna lista vacía si no existe."""
+        if self.ruta.exists():
+            try:
+                with open(self.ruta, "r", encoding="utf-8") as f:
+                    contenido = json.load(f)
+                    if isinstance(contenido, dict) and "tickets" in contenido:
+                        return contenido["tickets"]
+                    elif isinstance(contenido, list):
+                        return contenido
+                    return []
+            except Exception as e:
+                logger.error("Error al cargar cola desde %s: %s", self.ruta, e)
+                return []
+        return []
+    
+    def _guardar(self) -> None:
+        """Persiste cola a disco JSON."""
+        try:
+            with open(self.ruta, "w", encoding="utf-8") as f:
+                json.dump({"tickets": self._datos}, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error("Error al guardar cola en %s: %s", self.ruta, e)
+    
+    def append(self, item: bytes) -> None:
+        """
+        Añade ticket a la cola y persiste.
+        
+        Args:
+            item: bytes en formato ESC/POS
+        """
+        ticket_b64 = base64.b64encode(item).decode("ascii")
+        self._datos.append(ticket_b64)
+        self._guardar()
+    
+    def pop(self, index: int = 0) -> bytes:
+        """
+        Retira ticket de la cola y persiste.
+        
+        Args:
+            index: Índice a remover (default: 0 = FIFO)
+        
+        Returns:
+            bytes: Datos ESC/POS decodificados
+        """
+        ticket_b64 = self._datos.pop(index)
+        self._guardar()
+        return base64.b64decode(ticket_b64)
+    
+    def __len__(self) -> int:
+        """Cantidad de tickets en cola."""
+        return len(self._datos)
+    
+    def __bool__(self) -> bool:
+        """True si hay tickets, False si vacía."""
+        return len(self._datos) > 0
+    
+    def clear(self) -> None:
+        """Vacía la cola y persiste los cambios (para testing)."""
+        self._datos.clear()
+        self._guardar()
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Inicializar cola persistente
+COLA_IMPRESION_RUTA = Path(__file__).parent.parent / "data" / "cola_impresion.json"
+cola_impresion = ColaPersistente(COLA_IMPRESION_RUTA)
+logger.info("Cola persistente inicializada: %s (%d tickets pendientes)", COLA_IMPRESION_RUTA, len(cola_impresion))
+
 
 app.add_middleware(
     SessionMiddleware,
@@ -474,9 +571,44 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     }
 
 @app.get("/api/impresion/siguiente")
-def siguiente_ticket() -> JSONResponse:
+def siguiente_ticket(request: Request) -> JSONResponse:
+    """
+    Endpoint para poll_and_print.py - Retira ticket de la cola persistente.
+    
+    RESPONSABILIDAD:
+      Despacha tickets ESC/POS a agents Windows para impresión.
+    
+    AUTENTICACIÓN:
+      Requiere sesión válida (login).
+    
+    FLUJO:
+      1. Verifica si hay tickets en cola_impresion
+      2. Si vacía → 204 No Content (cliente debe reintentar)
+      3. Si hay → pop(0) retira primero ticket
+      4. Encoda base64 para transporte JSON
+      5. Responde 200 OK con ticket_b64
+    
+    COMUNICACIÓN:
+      - Entrada: GET request (poll desde Windows)
+      - Cola: cola_impresion (ColaPersistente)
+      - Salida: JSON {hay_ticket: bool, ticket_b64: str}
+      - Cliente: poll_and_print.py desencoda y imprime
+    
+    EJEMPLO CLIENTE (poll_and_print.py):
+      resp = session.get("{RENDER_URL}/api/impresion/siguiente", timeout=10)
+      if resp.status_code == 200:
+          ticket_bytes = base64.b64decode(resp.json()["ticket_b64"])
+          imprimir_ticket_usb_windows(ticket_bytes)
+      elif resp.status_code == 204:
+          # Nada en cola, esperar 3 segundos
+    """
+    _requiere_login(request)
+    
     if not cola_impresion:
+        # Cola vacía - cliente debe reintentar más tarde
         return JSONResponse({"hay_ticket": False}, status_code=204)
+    
+    # Despacha ticket (FIFO)
     ticket = cola_impresion.pop(0)
     logger.info(
         "Ticket despachado (%d bytes, quedan %d en cola)",

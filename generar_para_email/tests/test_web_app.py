@@ -590,6 +590,17 @@ def test_siguiente_ticket_vacio():
     import web.app as webapp
     webapp.cola_impresion.clear()
     client = TestClient(app)
+    
+    # Login requerido para acceder al endpoint
+    login_res = client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    assert login_res.status_code == 200
+    
     res = client.get("/api/impresion/siguiente")
     assert res.status_code == 204
 
@@ -599,6 +610,17 @@ def test_siguiente_ticket_con_datos():
     webapp.cola_impresion.clear()
     webapp.cola_impresion.append(b"\x1b\x40Hello\n")
     client = TestClient(app)
+    
+    # Login requerido para acceder al endpoint
+    login_res = client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    assert login_res.status_code == 200
+    
     res = client.get("/api/impresion/siguiente")
     assert res.status_code == 200
     body = res.json()

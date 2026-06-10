@@ -40,7 +40,46 @@ def _alinear_izq_der(izquierda: str, derecha: str, ancho: int) -> str:
 
 
 def generar_ticket_escpos(factura: Factura, ancho: int = 42, pago: PagoInfo | None = None) -> bytes:
-    """Construye ticket ESC/POS para papel de 80mm usando maquetado de 72mm."""
+    """
+    Genera bytecode ESC/POS (Seiko Epson) para impresora térmica POS-80.
+    
+    ════════════════════════════════════════════════════════════════════════════════
+    RESPONSABILIDAD:
+      Convierte datos de factura a protocolo ESC/POS para impresoras térmicas.
+      No comunica directamente con impresora; solo genera bytecode.
+    
+    ENTRADA:
+      factura: src.factura_model.Factura - Datos de venta con cliente y líneas
+      ancho: int - Caracteres disponibles en papel (42 para 80mm, 32 para 58mm)
+      pago: src.factura_model.PagoInfo - Opcional, datos de efectivo/cambio
+    
+    SALIDA:
+      bytes: Secuencia de bytes ESC/POS listo para impresora térmica
+    
+    PROTOCOLO ESC/POS:
+      - \\x1b@ = Reset impresora
+      - \\x1bE\\x01/\\x00 = Bold ON/OFF
+      - \\x1ba\\x01/\\x00 = Centrar ON/OFF
+      - \\x1dV\\x00 = Corte de papel
+      - cp850 = Codificación para caracteres españoles
+    
+    ESTRUCTURA DEL OUTPUT:
+      [RESET] [CABECERA] [DATOS CLIENTE] [LÍNEAS] [TOTAL] [PIE] [CORTE]
+    
+    COMUNICACIÓN:
+      - ✅ Entrada: src.factura_model.Factura, EMAIL_EMISOR, TELEFONO_EMISOR
+      - ✅ Salida: bytes ESC/POS
+      - ✅ Usado por: main.py, web/app.py, poll_and_print.py
+      - ❌ NO comunica con impresora: Ver imprimir_ticket_usb_windows()
+    
+    EXCEPCIONES:
+      ValueError: Si factura sin líneas
+    
+    EJEMPLO:
+      factura = Factura(...)
+      ticket_bytes = generar_ticket_escpos(factura, ancho=42)
+      # ticket_bytes listo para imprimir_ticket_usb_windows()
+    """
     lineas: list[bytes] = []
 
     def cmd(x: bytes) -> None:
@@ -106,7 +145,30 @@ def generar_ticket_escpos(factura: Factura, ancho: int = 42, pago: PagoInfo | No
 
 
 def preview_ticket(factura: Factura, ancho: int = 42) -> str:
-    """Devuelve el ticket ESC/POS como texto plano para validar el layout sin impresora."""
+    """
+    Genera preview de ticket como texto plano (sin impresora).
+    
+    ════════════════════════════════════════════════════════════════════════════════
+    RESPONSABILIDAD:
+      Valida layout del ticket sin necesidad de impresora.
+      Útil para testing, debugging y preview en UI web.
+    
+    ENTRADA:
+      factura: src.factura_model.Factura
+      ancho: int - Caracteres disponibles (42 o 32)
+    
+    SALIDA:
+      str: Ticket formateado como texto puro (sin ESC/POS)
+    
+    COMUNICACIÓN:
+      - ✅ Entrada: src.factura_model.Factura
+      - ✅ Salida: str (texto plano)
+      - ✅ Usado por: Tests, validación de layout
+    
+    EJEMPLO:
+      preview = preview_ticket(factura)
+      print(preview)  # Muestra layout sin enviar a impresora
+    """
     lineas: list[str] = []
 
     def txt(s: str = "") -> None:
@@ -155,7 +217,55 @@ def preview_ticket(factura: Factura, ancho: int = 42) -> str:
 
 
 def imprimir_ticket_usb_windows(ticket: bytes) -> str:
-    """Imprime ticket ESC/POS en impresora predeterminada de Windows por RAW."""
+    """
+    Envía ticket ESC/POS a impresora Windows por RAW printing.
+    
+    ════════════════════════════════════════════════════════════════════════════════
+    RESPONSABILIDAD:
+      Imprime bytecode ESC/POS en impresora predeterminada Windows.
+      Acceso a impresoras a nivel SO (win32print API).
+    
+    ENTRADA:
+      ticket: bytes en formato ESC/POS (salida de generar_ticket_escpos)
+    
+    SALIDA:
+      str: Nombre de la impresora utilizada
+    
+    SO SOPORTADO:
+      ✅ Windows (require pywin32)
+      ❌ Linux/Mac: Lanza RuntimeError
+    
+    DEPENDENCIAS EXTERNAS:
+      - pywin32: Acceso a APIs de Windows (win32print)
+      - Instalación: uv sync (ya incluido en pyproject.toml)
+    
+    CONFIGURACIÓN:
+      - Variable env: ESC_POS_PRINTER_NAME (opcional)
+      - Default: Usa impresora predeterminada del SO
+    
+    API WINDOWS UTILIZADA:
+      - win32print.GetDefaultPrinter() → Nombre impresora predeterminada
+      - win32print.OpenPrinter() → Conecta con impresora
+      - win32print.StartDocPrinter() → Inicia documento RAW
+      - win32print.WritePrinter() → Envía bytes
+      - win32print.EndDocPrinter() → Cierra documento
+      - win32print.ClosePrinter() → Desconecta
+    
+    COMUNICACIÓN:
+      - ✅ Entrada: bytes ESC/POS (de generar_ticket_escpos)
+      - ✅ Salida: str (nombre de impresora)
+      - ✅ Comunica con: Impresora USB/Spooler Windows
+      - ✅ Usado por: main.py, tickets_main.py, poll_and_print.py
+    
+    EXCEPCIONES:
+      RuntimeError: Si no es Windows o pywin32 no disponible
+      Exception: Si impresora no accesible
+    
+    EJEMPLO:
+      ticket_bytes = generar_ticket_escpos(factura)
+      impresora_usada = imprimir_ticket_usb_windows(ticket_bytes)
+      print(f"Imprimió en: {impresora_usada}")
+    """
     if not sys.platform.startswith("win"):
         raise RuntimeError("La impresion ESC/POS USB esta habilitada solo en Windows.")
 
