@@ -25,7 +25,17 @@ from src.factura_model import Factura, LineaFactura, PagoInfo
 from src.monthly_closure import cerrar_mes, cerrar_dia, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
-from src.ventas_store import historial_ventas, inicializar_db_ventas, listar_ajustes_activos, registrar_ajuste, registrar_ventas_factura, resumen_ventas_activas, resumen_ventas_dia
+from src.ventas_store import (
+    historial_ventas,
+    inicializar_db_ventas,
+    listar_ajustes_activos,
+    registrar_ajuste,
+    registrar_ventas_factura,
+    resumen_ventas_activas,
+    resumen_ventas_activas_por_periodo,
+    resumen_ventas_dia,
+    resumen_ventas_dia_por_periodo,
+)
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
 
 logger = logging.getLogger(__name__)
@@ -351,6 +361,89 @@ def get_ganancias_resumen(request: Request) -> dict:
         "ok": True,
         "resumen": resumen,
         "resumen_hoy": resumen_hoy,
+    }
+
+
+@app.get("/api/ganancias/resumen-periodo")
+def get_ganancias_resumen_periodo(request: Request) -> dict:
+    """
+    Obtiene resumen de ventas por período (mañana/tarde) para mes actual y hoy.
+    
+    Períodos: Mañana (6-14h) y Tarde (14-22h) en UTC.
+    
+    Returns:
+        {
+            "ok": True,
+            "resumen_mes": {...mañana..., ...tarde...},
+            "resumen_hoy": {...mañana..., ...tarde...}
+        }
+    """
+    _requiere_login(request)
+    anio_mes = _anio_mes_actual()
+    resumen_mes = resumen_ventas_activas_por_periodo(anio_mes)
+    resumen_hoy = resumen_ventas_dia_por_periodo(date.today().isoformat())
+    return {
+        "ok": True,
+        "resumen_mes": resumen_mes,
+        "resumen_hoy": resumen_hoy,
+    }
+
+
+@app.get("/api/ganancias/resumen-periodo-fecha")
+def get_ganancias_resumen_periodo_fecha(request: Request, fecha: str = "") -> dict:
+    """
+    Obtiene resumen de ventas por período (mañana/tarde) para una fecha específica.
+    
+    Args:
+        fecha: Formato YYYY-MM-DD (ej: 2026-06-11). Si no se proporciona, usa hoy.
+    
+    Returns:
+        {
+            "ok": True,
+            "resumen": {
+                "fecha": "2026-06-11",
+                "total": 150.00,
+                "mañana": {total, cantidad, por_categoria},
+                "tarde": {total, cantidad, por_categoria}
+            }
+        }
+    """
+    _requiere_login(request)
+    if not fecha:
+        fecha = date.today().isoformat()
+    resumen = resumen_ventas_dia_por_periodo(fecha)
+    return {
+        "ok": True,
+        "resumen": resumen,
+    }
+
+
+@app.get("/api/ganancias/resumen-periodo-mes")
+def get_ganancias_resumen_periodo_mes(request: Request, anio_mes: str = "") -> dict:
+    """
+    Obtiene resumen de ventas por período (mañana/tarde) para un mes específico.
+    
+    Args:
+        anio_mes: Formato YYYY-MM (ej: 2026-06). Si no se proporciona, usa mes actual.
+    
+    Returns:
+        {
+            "ok": True,
+            "resumen": {
+                "anio_mes": "2026-06",
+                "total": 500.00,
+                "mañana": {total, cantidad, total_efectivo, total_tarjeta, por_categoria},
+                "tarde": {total, cantidad, total_efectivo, total_tarjeta, por_categoria}
+            }
+        }
+    """
+    _requiere_login(request)
+    if not anio_mes:
+        anio_mes = _anio_mes_actual()
+    resumen = resumen_ventas_activas_por_periodo(anio_mes)
+    return {
+        "ok": True,
+        "resumen": resumen,
     }
 
 

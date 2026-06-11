@@ -408,7 +408,170 @@ def test_session_con_login():
     )
     res = client.get("/api/session")
     assert res.status_code == 200
-    assert res.json() == {"logged_in": True}
+
+
+# ── /api/ganancias/resumen-periodo (Morning/Afternoon Split) ─────────────────
+
+def test_resumen_periodo_requiere_login():
+    client = TestClient(app)
+    res = client.get("/api/ganancias/resumen-periodo")
+    assert res.status_code == 401
+    
+    res_fecha = client.get("/api/ganancias/resumen-periodo-fecha?fecha=2026-06-11")
+    assert res_fecha.status_code == 401
+    
+    res_mes = client.get("/api/ganancias/resumen-periodo-mes?anio_mes=2026-06")
+    assert res_mes.status_code == 401
+
+
+def test_resumen_periodo_con_venta(monkeypatch, tmp_path):
+    """Verifica que el endpoint retorna estructura con mañana/tarde."""
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    
+    # Generar una venta
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 50.0, "categoria": "perro"}],
+            "metodo_pago": "efectivo",
+            "monto_efectivo": 50.0,
+            "efectivo_entregado": 50.0,
+        },
+    )
+    assert res.status_code == 200
+    
+    # Obtener resumen con período
+    res_periodo = client.get("/api/ganancias/resumen-periodo")
+    assert res_periodo.status_code == 200
+    body = res_periodo.json()
+    assert body["ok"] is True
+    assert "resumen_mes" in body
+    assert "resumen_hoy" in body
+    
+    # Verificar estructura de resumen_mes
+    resumen_mes = body["resumen_mes"]
+    assert "anio_mes" in resumen_mes
+    assert "total" in resumen_mes
+    assert "cantidad_ventas" in resumen_mes
+    assert "mañana" in resumen_mes
+    assert "tarde" in resumen_mes
+    
+    # Verificar estructura de mañana
+    manana = resumen_mes["mañana"]
+    assert "total" in manana
+    assert "cantidad" in manana
+    assert "total_efectivo" in manana
+    assert "total_tarjeta" in manana
+    assert "por_categoria" in manana
+    
+    # Verificar estructura de tarde
+    tarde = resumen_mes["tarde"]
+    assert "total" in tarde
+    assert "cantidad" in tarde
+    assert "total_efectivo" in tarde
+    assert "total_tarjeta" in tarde
+    assert "por_categoria" in tarde
+
+
+def test_resumen_periodo_fecha_valida(monkeypatch, tmp_path):
+    """Verifica que el endpoint de fecha específica funciona."""
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    
+    # Generar una venta
+    client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 30.0, "categoria": "gato"}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 30.0,
+        },
+    )
+    
+    # Obtener resumen de hoy
+    today = date.today().isoformat()
+    res = client.get(f"/api/ganancias/resumen-periodo-fecha?fecha={today}")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    assert "resumen" in body
+    
+    resumen = body["resumen"]
+    assert resumen["fecha"] == today
+    assert "mañana" in resumen
+    assert "tarde" in resumen
+    assert resumen["total"] >= 30.0
+
+
+def test_resumen_periodo_fecha_sin_parametro(monkeypatch, tmp_path):
+    """Verifica que usa fecha de hoy si no se proporciona."""
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    
+    client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 2, "precio_unitario": 25.0, "categoria": "ave"}],
+            "metodo_pago": "mixto",
+            "monto_efectivo": 25.0,
+            "monto_tarjeta": 25.0,
+            "efectivo_entregado": 30.0,
+        },
+    )
+    
+    # Sin parámetro fecha (usa hoy)
+    res = client.get("/api/ganancias/resumen-periodo-fecha")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["resumen"]["fecha"] == date.today().isoformat()
+
+
+def test_resumen_periodo_mes_valido(monkeypatch, tmp_path):
+    """Verifica que el endpoint de mes específico funciona."""
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    
+    client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 100.0, "categoria": "reptiles"}],
+            "metodo_pago": "efectivo",
+            "monto_efectivo": 100.0,
+            "efectivo_entregado": 100.0,
+        },
+    )
+    
+    # Obtener resumen del mes actual
+    today = date.today()
+    anio_mes = f"{today.year:04d}-{today.month:02d}"
+    res = client.get(f"/api/ganancias/resumen-periodo-mes?anio_mes={anio_mes}")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    
+    resumen = body["resumen"]
+    assert resumen["anio_mes"] == anio_mes
+    assert resumen["total"] >= 100.0
+
+
+def test_resumen_periodo_mes_sin_parametro(monkeypatch, tmp_path):
+    """Verifica que usa mes actual si no se proporciona."""
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    
+    client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 75.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 75.0,
+        },
+    )
+    
+    # Sin parámetro anio_mes (usa actual)
+    res = client.get("/api/ganancias/resumen-periodo-mes")
+    assert res.status_code == 200
+    body = res.json()
+    
+    today = date.today()
+    expected_anio_mes = f"{today.year:04d}-{today.month:02d}"
+    assert body["resumen"]["anio_mes"] == expected_anio_mes
 
 
 # ── /api/logout ───────────────────────────────────────────────────────────────

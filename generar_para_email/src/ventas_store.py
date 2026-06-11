@@ -307,6 +307,254 @@ def resumen_ventas_dia(fecha: str) -> dict:
     }
 
 
+def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
+    """
+    Resumen de ventas activas por período (mañana/tarde) para un día concreto.
+    
+    Períodos definidos por hora UTC (created_at):
+    - Mañana: 6:00 - 14:00 (HOUR >= 6 AND HOUR < 14)
+    - Tarde: 14:00 - 22:00 (HOUR >= 14 AND HOUR < 22)
+    
+    Args:
+        fecha: Formato YYYY-MM-DD
+    
+    Returns:
+        dict con estructura:
+        {
+            "fecha": "2026-06-11",
+            "total": 150.00,
+            "cantidad_ventas": 3,
+            "mañana": {
+                "total": 100.00,
+                "cantidad": 2,
+                "por_categoria": {"perro": 60.00, "gato": 40.00}
+            },
+            "tarde": {
+                "total": 50.00,
+                "cantidad": 1,
+                "por_categoria": {"ave": 50.00}
+            }
+        }
+    """
+    inicializar_db_ventas()
+    with _connect() as conn:
+        # Resumen general del día
+        total_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            """,
+            (fecha,),
+        ).fetchone()
+        
+        # Mañana: 6-14
+        manana_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+            """,
+            (fecha,),
+        ).fetchone()
+        manana_cat_rows = conn.execute(
+            """
+            SELECT categoria, COALESCE(SUM(monto), 0) AS total
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+            GROUP BY categoria
+            ORDER BY categoria ASC
+            """,
+            (fecha,),
+        ).fetchall()
+        
+        # Tarde: 14-22
+        tarde_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+            """,
+            (fecha,),
+        ).fetchone()
+        tarde_cat_rows = conn.execute(
+            """
+            SELECT categoria, COALESCE(SUM(monto), 0) AS total
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+            GROUP BY categoria
+            ORDER BY categoria ASC
+            """,
+            (fecha,),
+        ).fetchall()
+    
+    manana_por_cat = {row["categoria"]: round(float(row["total"]), 2) for row in manana_cat_rows}
+    tarde_por_cat = {row["categoria"]: round(float(row["total"]), 2) for row in tarde_cat_rows}
+    
+    return {
+        "fecha": fecha,
+        "total": round(float(total_row["total"]), 2),
+        "cantidad_ventas": int(total_row["cantidad"]),
+        "mañana": {
+            "total": round(float(manana_row["total"]), 2),
+            "cantidad": int(manana_row["cantidad"]),
+            "por_categoria": manana_por_cat,
+        },
+        "tarde": {
+            "total": round(float(tarde_row["total"]), 2),
+            "cantidad": int(tarde_row["cantidad"]),
+            "por_categoria": tarde_por_cat,
+        },
+    }
+
+
+def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
+    """
+    Resumen de ventas activas por período (mañana/tarde) para un mes completo.
+    
+    Períodos definidos por hora UTC (created_at):
+    - Mañana: 6:00 - 14:00 (HOUR >= 6 AND HOUR < 14)
+    - Tarde: 14:00 - 22:00 (HOUR >= 14 AND HOUR < 22)
+    
+    Args:
+        anio_mes: Formato YYYY-MM (e.g., "2026-06")
+    
+    Returns:
+        dict con estructura:
+        {
+            "anio_mes": "2026-06",
+            "total": 500.00,
+            "cantidad_ventas": 10,
+            "mañana": {
+                "total": 300.00,
+                "cantidad": 6,
+                "total_efectivo": 150.00,
+                "total_tarjeta": 150.00,
+                "por_categoria": {"perro": 200.00, "gato": 100.00}
+            },
+            "tarde": {
+                "total": 200.00,
+                "cantidad": 4,
+                "total_efectivo": 100.00,
+                "total_tarjeta": 100.00,
+                "por_categoria": {"ave": 120.00, "reptiles": 80.00}
+            }
+        }
+    """
+    inicializar_db_ventas()
+    with _connect() as conn:
+        # Resumen general del mes
+        total_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND anio_mes = ?
+            """,
+            (anio_mes,),
+        ).fetchone()
+        
+        # Mañana: ventas
+        manana_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND anio_mes = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+            """,
+            (anio_mes,),
+        ).fetchone()
+        manana_cat_rows = conn.execute(
+            """
+            SELECT categoria, COALESCE(SUM(monto), 0) AS total
+            FROM ventas
+            WHERE estado = 'active' AND anio_mes = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+            GROUP BY categoria
+            ORDER BY categoria ASC
+            """,
+            (anio_mes,),
+        ).fetchall()
+        manana_pago = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto_efectivo), 0) AS total_efectivo,
+                   COALESCE(SUM(monto_tarjeta), 0) AS total_tarjeta
+            FROM pagos_factura
+            WHERE estado = 'active' AND anio_mes = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+            """,
+            (anio_mes,),
+        ).fetchone()
+        
+        # Tarde: ventas
+        tarde_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND anio_mes = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+            """,
+            (anio_mes,),
+        ).fetchone()
+        tarde_cat_rows = conn.execute(
+            """
+            SELECT categoria, COALESCE(SUM(monto), 0) AS total
+            FROM ventas
+            WHERE estado = 'active' AND anio_mes = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+            GROUP BY categoria
+            ORDER BY categoria ASC
+            """,
+            (anio_mes,),
+        ).fetchall()
+        tarde_pago = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto_efectivo), 0) AS total_efectivo,
+                   COALESCE(SUM(monto_tarjeta), 0) AS total_tarjeta
+            FROM pagos_factura
+            WHERE estado = 'active' AND anio_mes = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+            """,
+            (anio_mes,),
+        ).fetchone()
+    
+    manana_por_cat = {row["categoria"]: round(float(row["total"]), 2) for row in manana_cat_rows}
+    tarde_por_cat = {row["categoria"]: round(float(row["total"]), 2) for row in tarde_cat_rows}
+    
+    return {
+        "anio_mes": anio_mes,
+        "total": round(float(total_row["total"]), 2),
+        "cantidad_ventas": int(total_row["cantidad"]),
+        "mañana": {
+            "total": round(float(manana_row["total"]), 2),
+            "cantidad": int(manana_row["cantidad"]),
+            "total_efectivo": round(float(manana_pago["total_efectivo"]), 2),
+            "total_tarjeta": round(float(manana_pago["total_tarjeta"]), 2),
+            "por_categoria": manana_por_cat,
+        },
+        "tarde": {
+            "total": round(float(tarde_row["total"]), 2),
+            "cantidad": int(tarde_row["cantidad"]),
+            "total_efectivo": round(float(tarde_pago["total_efectivo"]), 2),
+            "total_tarjeta": round(float(tarde_pago["total_tarjeta"]), 2),
+            "por_categoria": tarde_por_cat,
+        },
+    }
+
+
 def historial_ventas(
     fecha_desde: str,
     fecha_hasta: str,
