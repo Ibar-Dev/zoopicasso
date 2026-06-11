@@ -163,6 +163,41 @@
       </table>
       <button id="btn-guardar-precios" class="cta" style="margin-top:8px;">Guardar precios categorías</button>
 
+      <div class="lineas-head" style="margin-top:1rem;">
+        <h3>Ventas por período (mañana/tarde)</h3>
+        <button id="btn-toggle-periodo" class="ghost" type="button" style="font-size:0.9rem;">Mostrar</button>
+      </div>
+      <div id="periodo-breakdown" hidden>
+        <div id="periodo-contenido" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.5rem;">
+          <div id="periodo-manana" style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">
+            <h4 style="margin-top:0;color:#1e293b;">🌅 Mañana (6-14h)</h4>
+            <div style="font-size:0.95rem;color:#475569;">
+              <p style="margin:0.25rem 0;"><strong>Total:</strong> <span id="manana-total">0.00</span> €</p>
+              <p style="margin:0.25rem 0;"><strong>Ventas:</strong> <span id="manana-cantidad">0</span></p>
+              <p style="margin:0.25rem 0;"><strong>Efectivo:</strong> <span id="manana-efectivo">0.00</span> €</p>
+              <p style="margin:0.25rem 0;"><strong>Tarjeta:</strong> <span id="manana-tarjeta">0.00</span> €</p>
+            </div>
+            <div style="margin-top:0.5rem;font-size:0.85rem;color:#64748b;">
+              <strong>Por categoría:</strong>
+              <div id="manana-categorias" style="margin-top:0.25rem;"></div>
+            </div>
+          </div>
+          <div id="periodo-tarde" style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">
+            <h4 style="margin-top:0;color:#1e293b;">🌆 Tarde (14-22h)</h4>
+            <div style="font-size:0.95rem;color:#475569;">
+              <p style="margin:0.25rem 0;"><strong>Total:</strong> <span id="tarde-total">0.00</span> €</p>
+              <p style="margin:0.25rem 0;"><strong>Ventas:</strong> <span id="tarde-cantidad">0</span></p>
+              <p style="margin:0.25rem 0;"><strong>Efectivo:</strong> <span id="tarde-efectivo">0.00</span> €</p>
+              <p style="margin:0.25rem 0;"><strong>Tarjeta:</strong> <span id="tarde-tarjeta">0.00</span> €</p>
+            </div>
+            <div style="margin-top:0.5rem;font-size:0.85rem;color:#64748b;">
+              <strong>Por categoría:</strong>
+              <div id="tarde-categorias" style="margin-top:0.25rem;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="seccion-historial" class="lineas-head" style="margin-top:1.5rem;">
         <h3>Historial de ventas</h3>
         <button id="btn-toggle-historial" class="ghost" type="button">Ver / Ocultar</button>
@@ -537,8 +572,56 @@
         document.getElementById('acumulado-hoy').textContent = `${Number(resumenHoy.total || 0).toFixed(2)} €`;
         if (totalesDiv) totalesDiv.classList.remove('datos-error');
         _actualizarBotones();
+        refrescarResumenPeriodo();
       } catch (_) {
         if (totalesDiv) totalesDiv.classList.add('datos-error');
+      }
+    }
+
+    async function refrescarResumenPeriodo() {
+      try {
+        const data = await request('/api/ganancias/resumen-periodo');
+        const resumenMes = data.resumen_mes || { anio_mes: '', total: 0, mañana: {}, tarde: {} };
+        
+        // Mostrar datos de mañana
+        document.getElementById('manana-total').textContent = (resumenMes.mañana?.total || 0).toFixed(2);
+        document.getElementById('manana-cantidad').textContent = String(resumenMes.mañana?.cantidad || 0);
+        document.getElementById('manana-efectivo').textContent = (resumenMes.mañana?.total_efectivo || 0).toFixed(2);
+        document.getElementById('manana-tarjeta').textContent = (resumenMes.mañana?.total_tarjeta || 0).toFixed(2);
+        
+        // Mostrar categorías de mañana
+        const mananaCategoriasDiv = document.getElementById('manana-categorias');
+        mananaCategoriasDiv.innerHTML = '';
+        if (resumenMes.mañana?.por_categoria) {
+          Object.entries(resumenMes.mañana.por_categoria).forEach(([cat, total]) => {
+            const p = document.createElement('p');
+            p.style.margin = '0.1rem 0';
+            p.style.fontSize = '0.85rem';
+            p.textContent = `${cat}: ${total.toFixed(2)} €`;
+            mananaCategoriasDiv.appendChild(p);
+          });
+        }
+        
+        // Mostrar datos de tarde
+        document.getElementById('tarde-total').textContent = (resumenMes.tarde?.total || 0).toFixed(2);
+        document.getElementById('tarde-cantidad').textContent = String(resumenMes.tarde?.cantidad || 0);
+        document.getElementById('tarde-efectivo').textContent = (resumenMes.tarde?.total_efectivo || 0).toFixed(2);
+        document.getElementById('tarde-tarjeta').textContent = (resumenMes.tarde?.total_tarjeta || 0).toFixed(2);
+        
+        // Mostrar categorías de tarde
+        const tardeCategoriasDiv = document.getElementById('tarde-categorias');
+        tardeCategoriasDiv.innerHTML = '';
+        if (resumenMes.tarde?.por_categoria) {
+          Object.entries(resumenMes.tarde.por_categoria).forEach(([cat, total]) => {
+            const p = document.createElement('p');
+            p.style.margin = '0.1rem 0';
+            p.style.fontSize = '0.85rem';
+            p.textContent = `${cat}: ${total.toFixed(2)} €`;
+            tardeCategoriasDiv.appendChild(p);
+          });
+        }
+      } catch (_) {
+        // Silenciosamente fallar si no está disponible
       }
     }
 
@@ -1912,6 +1995,14 @@
 
       btnToggle.addEventListener('click', () => {
         panel.hidden = !panel.hidden;
+      });
+
+      // Toggle para periodo (mañana/tarde)
+      document.getElementById('btn-toggle-periodo').addEventListener('click', () => {
+        const periodoBreakdown = document.getElementById('periodo-breakdown');
+        const btnTogglePeriodo = document.getElementById('btn-toggle-periodo');
+        periodoBreakdown.hidden = !periodoBreakdown.hidden;
+        btnTogglePeriodo.textContent = periodoBreakdown.hidden ? 'Mostrar' : 'Ocultar';
       });
 
       document.getElementById('btn-ver-historial').addEventListener('click', () => {
