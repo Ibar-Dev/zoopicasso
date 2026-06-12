@@ -1,7 +1,7 @@
 # Documentación Técnica para Desarrolladores - Zoo Picasso
 
-**Última actualización**: 2026-06-11  
-**Versión**: 2.0 (Actualizada con Docker, Tests E2E, Sistema Tickets)  
+**Última actualización**: 2026-06-12  
+**Versión**: 2.1 (Cierres por Período: Mañana/Tarde)  
 **Audiencia**: Desarrolladores que mantengan o extiendan los sistemas de cierres, API, y ticketing
 
 ---
@@ -24,18 +24,19 @@
 
 ## Resumen Ejecutivo
 
-El sistema de **cierres** permite a los usuarios generar reportes de ventas (diarios o mensuales) con la opción de archivar datos permanentemente.
+El sistema de **cierres** permite a los usuarios generar reportes de ventas (por período diario, por turno o mensual) con la opción de archivar datos permanentemente.
 
-### Dos Tipos de Cierres
+### Cuatro Tipos de Cierres
 
-| Aspecto | Cierre del Día | Cierre del Mes |
-|--------|---|---|
-| **Propósito** | Snapshot sin archivado | Cierre destructivo |
-| **Frecuencia** | Opcional, repetible | 1x/mes recomendado |
-| **Datos** | Solo lectura | Archiva `estado='active'` |
-| **Excel** | Sí (si hay ventas) | Sí (si hay ventas) |
-| **Reversible** | N/A (no archiva) | No (transacción atómica) |
-| **Casos de uso** | Auditoría diaria | Cierre contable mensual |
+| Aspecto | Mañana (06:00-14:00) | Tarde (14:00-22:00) | Día Completo | Cierre del Mes |
+|--------|---|---|---|---|
+| **Propósito** | Snapshot turno matutino | Snapshot turno vespertino | Snapshot sin archivado | Cierre destructivo |
+| **Frecuencia** | Opcional, repetible | Opcional, repetible | Opcional, repetible | 1x/mes recomendado |
+| **Datos** | Solo lectura (período) | Solo lectura (período) | Solo lectura | Archiva `estado='active'` |
+| **Excel** | Sí (si hay ventas) | Sí (si hay ventas) | Sí (si hay ventas) | Sí (si hay ventas) |
+| **Reversible** | N/A (no archiva) | N/A (no archiva) | N/A (no archiva) | No (transacción atómica) |
+| **Endpoint** | `POST /api/ganancias/cierre-mañana` | `POST /api/ganancias/cierre-tarde` | `POST /api/ganancias/cierre-dia` | `POST /api/ganancias/cierre-mes` |
+| **Tabla BD** | `cierres_diarios` | `cierres_diarios` | `cierres_diarios` | `cierres_mensuales` |
 
 ### Stack Tecnológico
 
@@ -106,6 +107,12 @@ src/
 ├─ monthly_closure.py ............. Orquestación de cierres
 │   ├─ cerrar_mes(usuario)
 │   ├─ cerrar_dia(usuario)
+│   ├─ cerrar_mañana(usuario)        **NEW**
+│   ├─ cerrar_tarde(usuario)         **NEW**
+│   ├─ cerrar_día_completo(usuario)  **NEW**
+│   ├─ obtener_resumen_cierre_mañana()
+│   ├─ obtener_resumen_cierre_tarde()
+│   ├─ obtener_resumen_cierre_dia_completo()
 │   ├─ _generar_excel_cierre()
 │   └─ _generar_excel_cierre_dia()
 │
@@ -113,12 +120,20 @@ src/
 │   ├─ cerrar_mes_atomico() **CRÍTICO: transacción atómica
 │   ├─ registrar_cierre_diario()
 │   ├─ resumen_ventas_activas()
-│   └─ resumen_ventas_dia()
+│   ├─ resumen_ventas_dia()
+│   ├─ resumen_ventas_mañana()       **NEW**
+│   ├─ resumen_ventas_tarde()        **NEW**
+│   └─ resumen_ventas_dia_por_periodo() **NEW**
 │
 web/
 ├─ app.py ........................ FastAPI endpoints
 │   ├─ @app.post("/api/ganancias/cierre-mes")
 │   ├─ @app.post("/api/ganancias/cierre-dia")
+│   ├─ @app.post("/api/ganancias/cierre-mañana")    **NEW**
+│   ├─ @app.post("/api/ganancias/cierre-tarde")     **NEW**
+│   ├─ @app.post("/api/ganancias/cierre-dia-completo") **NEW**
+│   ├─ @app.get("/api/ganancias/estado-cierres")    **NEW**
+│   ├─ @app.get("/api/ganancias/resumen-periodo")   **NEW**
 │   └─ @app.get("/api/ganancias/descargar-cierre/{nombre}")
 │
 └─ templates/
@@ -476,11 +491,17 @@ CREATE TABLE cierres_diarios (
     total REAL,
     cantidad_ventas INTEGER,
     archivo_excel TEXT,
+    tipo_cierre TEXT,              -- 'full_day', 'morning', 'afternoon' **NEW**
     ...
 );
 ```
 
 **Nota**: `cierres_diarios` es solo registro (auditoría), no afecta `ventas.estado`
+
+**Tipos de Cierre**:
+- `'full_day'`: Día completo (06:00-22:00)
+- `'morning'`: Período matutino (06:00-14:00)
+- `'afternoon'`: Período vespertino (14:00-22:00)
 
 ---
 
@@ -540,6 +561,150 @@ Content-Type: application/json
 - Header en respuesta: `x-cierre-fecha` (en lugar de `x-cierre-mes`)
 - Archivo: `cierre_diario_YYYY_MM_DD.xlsx`
 - NO archiva datos (solo lectura)
+
+---
+
+### `POST /api/ganancias/cierre-mañana` **NEW**
+
+**Autenticación**: ✅ Requiere login
+
+**Descripción**: Cierre de período matutino (06:00-14:00). Funciona en dos fases:
+
+**Fase 1 - Obtener resumen (confirmacion=false)**:
+
+```http
+POST /api/ganancias/cierre-mañana
+Content-Type: application/json
+
+{ "confirmacion": false }
+```
+
+**Respuesta Fase 1**:
+```json
+{
+    "ok": true,
+    "tipo_cierre": "morning",
+    "periodo": "Mañana (06:00-14:00)",
+    "dinero_bruto": 245.50,
+    "cantidad_ventas": 8,
+    "por_categoria": {
+        "Perro": 150.00,
+        "Gato": 95.50
+    }
+}
+```
+
+**Fase 2 - Confirmar y descargar Excel (confirmacion=true)**:
+
+```http
+POST /api/ganancias/cierre-mañana
+Content-Type: application/json
+
+{ "confirmacion": true }
+```
+
+**Respuesta Fase 2 (con ventas)**:
+```http
+HTTP/1.1 200 OK
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+x-cierre-tipo: morning
+x-cierre-fecha: 2026-06-12
+x-cierre-ventas: 8
+x-cierre-total: 245.50
+x-cierre-mensaje: Cierre de mañana completado.
+
+[binary Excel data]
+```
+
+---
+
+### `POST /api/ganancias/cierre-tarde` **NEW**
+
+**Idéntico a `cierre-mañana`** excepto:
+- Período: Tarde (14:00-22:00)
+- `tipo_cierre`: `"afternoon"`
+- `x-cierre-tipo`: `afternoon`
+- Archivo: `cierre_diario_YYYY_MM_DD.xlsx` (mismo nombre, incluye ambos períodos)
+
+---
+
+### `POST /api/ganancias/cierre-dia-completo` **NEW**
+
+**Idéntico a `cierre-mañana`** excepto:
+- Período: Día Completo (06:00-22:00)
+- `tipo_cierre`: `"full_day"`
+- `x-cierre-tipo`: `full_day`
+- Suma de todas las ventas del día (ambos turnos)
+
+---
+
+### `GET /api/ganancias/resumen-periodo` **NEW**
+
+**Autenticación**: ✅ Requiere login
+
+**Query Parameters**:
+- `fecha`: `YYYY-MM-DD` (obligatorio)
+- `tipo`: `morning` | `afternoon` | `full_day` (obligatorio)
+
+**Ejemplo**:
+```http
+GET /api/ganancias/resumen-periodo?fecha=2026-06-12&tipo=morning
+```
+
+**Respuesta**:
+```json
+{
+    "ok": true,
+    "tipo_cierre": "morning",
+    "periodo": "Mañana (06:00-14:00)",
+    "dinero_bruto": 245.50,
+    "cantidad_ventas": 8,
+    "por_categoria": {...}
+}
+```
+
+---
+
+### `GET /api/ganancias/estado-cierres` **NEW**
+
+**Autenticación**: ✅ Requiere login
+
+**Descripción**: Obtiene el estado de todos los cierres de hoy
+
+**Ejemplo**:
+```http
+GET /api/ganancias/estado-cierres
+```
+
+**Respuesta**:
+```json
+{
+    "fecha_hoy": "2026-06-12",
+    "cierres": {
+        "morning": {
+            "hecho": true,
+            "hora_cierre": "2026-06-12T14:15:30",
+            "usuario": "Giselle",
+            "total": 245.50,
+            "cantidad_ventas": 8
+        },
+        "afternoon": {
+            "hecho": false,
+            "hora_cierre": null,
+            "usuario": null,
+            "total": null,
+            "cantidad_ventas": null
+        },
+        "full_day": {
+            "hecho": false,
+            "hora_cierre": null,
+            "usuario": null,
+            "total": null,
+            "cantidad_ventas": null
+        }
+    }
+}
+```
 
 ---
 

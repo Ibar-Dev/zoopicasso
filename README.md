@@ -81,6 +81,54 @@ uv run uvicorn web.app:app --host 127.0.0.1 --port 8000
 
 Abrir en navegador: `http://127.0.0.1:8000`
 
+### Cierres por Período (Mañana/Tarde)
+
+El sistema permite hacer cierres parciales de turnos para un mejor control de caja:
+
+#### Tipos de Cierre
+
+| Tipo | Horario | Descripción | Archivo |
+|------|---------|-------------|---------|
+| **Mañana** | 06:00-14:00 | Cierre de turno matutino | `cierre_diario_YYYY_MM_DD.xlsx` |
+| **Tarde** | 14:00-22:00 | Cierre de turno vespertino | `cierre_diario_YYYY_MM_DD.xlsx` |
+| **Día Completo** | 06:00-22:00 | Cierre total del día | `cierre_diario_YYYY_MM_DD.xlsx` |
+| **Mes** | 01-30/31 | Archiva ventas y reinicia | `cierre_mensual_YYYY_MM.xlsx` |
+
+#### Características
+
+- **No destructivo**: Cierres de mañana/tarde/día NO archivan datos (solo snapshot para auditoría)
+- **Resumen previo**: Muestra dinero bruto antes de generar Excel
+- **Exportación en Excel**: Cada cierre genera un Excel con desglose por categoría
+- **Totales por categoría**: Incluye resumen de ganancias por animal/servicio
+- **Auditoría completa**: Registra quién hizo el cierre y cuándo
+
+#### Cómo usar en la interfaz web
+
+1. Pulsa en el botón del tipo de cierre deseado (🌅 Mañana, 🌆 Tarde, 🌞 Día Completo, o 📅 Mes)
+2. Se muestra el dinero bruto del período en un modal de confirmación
+3. Pulsa **Confirmar** para generar y descargar el Excel
+4. El archivo se guarda automáticamente en tu carpeta de cierres
+
+#### Endpoints API
+
+```bash
+# Obtener resumen de mañana (sin generar Excel)
+POST /api/ganancias/cierre-mañana
+Content-Type: application/json
+{ "confirmacion": false }
+
+# Generar Excel de mañana
+POST /api/ganancias/cierre-mañana
+Content-Type: application/json
+{ "confirmacion": true }
+
+# Igual para cierre-tarde y cierre-dia-completo
+```
+
+Más detalles en [DEVELOPERS.md](generar_para_email/DEVELOPERS.md#frontend-api-endpoints).
+
+---
+
 ### Deploy barato en VPS (recomendado)
 
 Recomendación de coste: VPS básico (3-6 EUR/mes) para evitar suspensión y pérdida de persistencia.

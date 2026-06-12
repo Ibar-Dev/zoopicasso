@@ -34,6 +34,49 @@ Checklist recomendado antes de publicar cambios:
 6. `Salir` pide confirmacion antes de cerrar sesion.
 7. Cerrar/recargar pestana con sesion activa dispara confirmacion del navegador.
 
+### Cierres Parciales (`web/app.py` - Nuevas Funcionalidades)
+
+**Funcionalidades por Período - Mañana/Tarde/Día Completo**
+
+1. **Cierre de Mañana (🌅)**:
+   - Botón visible en pantalla principal
+   - Al pulsar muestra modal con resumen de 06:00-14:00
+   - Resumen incluye: dinero bruto, cantidad ventas, desglose por categoría
+   - Pulsar confirmar genera Excel con datos del período
+   - Archivo se descarga como `cierre_diario_YYYY_MM_DD.xlsx`
+   - NO archiva datos (estado de ventas sigue siendo 'active')
+   - Resumen se guarda en tabla `cierres_diarios` con `tipo_cierre='morning'`
+
+2. **Cierre de Tarde (🌆)**:
+   - Botón visible en pantalla principal
+   - Al pulsar muestra modal con resumen de 14:00-22:00
+   - Mismo flujo que Mañana pero para período vespertino
+   - Archivo se descarga como `cierre_diario_YYYY_MM_DD.xlsx`
+   - NO archiva datos
+
+3. **Cierre del Día Completo (🌞)**:
+   - Botón visible en pantalla principal
+   - Al pulsar muestra modal con resumen total de 06:00-22:00
+   - Suma totales de ambos turnos
+   - Archivo se descarga como `cierre_diario_YYYY_MM_DD.xlsx`
+   - NO archiva datos
+
+4. **Endpoints de Validación**:
+   - `POST /api/ganancias/cierre-mañana` con `confirmacion=false` devuelve resumen sin generar Excel
+   - `POST /api/ganancias/cierre-tarde` con `confirmacion=false` devuelve resumen sin generar Excel
+   - `POST /api/ganancias/cierre-dia-completo` con `confirmacion=false` devuelve resumen sin generar Excel
+   - `GET /api/ganancias/resumen-periodo?fecha=YYYY-MM-DD&tipo=morning|afternoon|full_day` obtiene resumen dinámicamente
+
+5. **Integridad de Datos**:
+   - Cierres parciales NO modifican estado de ventas
+   - Cierres parciales NO afectan contadores visibles
+   - Solo Cierre Mensual archiva datos permanentemente
+   - Máximo 3 cierres por día (mañana, tarde, día completo)
+
+6. **Auditoria**:
+   - Tabla `cierres_diarios` registra: quién hizo cierre, cuándo, tipo, totales
+   - Headers de respuesta incluyen: `x-cierre-tipo`, `x-cierre-fecha`, `x-cierre-ventas`, `x-cierre-total`
+
 ### Deploy (simulacro obligatorio)
 
 Antes de push de cambios en `deploy/`:

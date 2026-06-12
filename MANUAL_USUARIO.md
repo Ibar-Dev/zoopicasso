@@ -1,6 +1,6 @@
 # Manual de usuario — Zoo Picasso · Facturación Web
 
-> Versión actual · última actualización: mayo 2026
+> Versión actual · última actualización: junio 2026
 
 ---
 
@@ -13,7 +13,7 @@
 5. [Impresión de ticket térmico](#5-impresión-de-ticket-térmico)
 6. [Seguimiento de ganancias del mes](#6-seguimiento-de-ganancias-del-mes)
 7. [Ajuste manual del acumulado](#7-ajuste-manual-del-acumulado)
-8. [Cierre mensual](#8-cierre-mensual)
+8. [Cierres (Parciales y Mensual)](#8-cierres-parciales-y-mensual)
 9. [Precios por categoría](#9-precios-por-categoría)
 10. [Configurar carpeta de destino](#10-configurar-carpeta-de-destino)
 11. [Referencia de atajos de teclado](#11-referencia-de-atajos-de-teclado)
@@ -150,11 +150,67 @@ El ajuste queda registrado y el acumulado se actualiza inmediatamente.
 
 ---
 
-## 8. Cierre mensual
+## 8. Cierres (Parciales y Mensual)
 
-Al terminar el mes hay que realizar el cierre para reiniciar los contadores y guardar un informe en Excel con el resumen de ventas.
+El sistema permite hacer cierres en diferentes niveles para un mejor control de caja:
 
-### Configurar la carpeta de destino (solo la primera vez)
+### Tipos de Cierre Disponibles
+
+| Tipo | Cuándo | Acción |
+|------|--------|--------|
+| **🌅 Cierre de Mañana** | Fin del turno matutino (14:00) | Snapshot de 06:00-14:00, genera Excel |
+| **🌆 Cierre de Tarde** | Fin del turno vespertino (22:00) | Snapshot de 14:00-22:00, genera Excel |
+| **🌞 Cierre del Día** | Fin de jornada | Snapshot total de 06:00-22:00, genera Excel |
+| **📅 Cierre Mensual** | Fin de mes | Archiva todas las ventas, genera Excel, reinicia contadores |
+
+> ⚠️ **Importante**: Los cierres de mañana, tarde y día NO archivan datos. Son solo snapshots para auditoría. Solo el **Cierre Mensual** archiva los datos de forma permanente.
+
+---
+
+### 8.1 Cierres Parciales (Mañana, Tarde, Día Completo)
+
+Estas opciones generan informes sin modificar los datos del sistema.
+
+#### Paso 1: Pulsa el botón del tipo de cierre
+
+En la parte inferior izquierda de la pantalla encontrarás los botones:
+- 🌅 **Cierre de Mañana**
+- 🌆 **Cierre de Tarde**
+- 🌞 **Cierre del Día**
+
+#### Paso 2: Revisa el dinero bruto
+
+Se abrirá un modal mostrando:
+- **Período**: El rango horario del cierre
+- **Dinero bruto**: Total en euros de las ventas del período
+- **Cantidad de ventas**: Número de facturas registradas
+- **Desglose por categoría**: Ganancias por animal/servicio
+
+#### Paso 3: Confirma y descarga
+
+1. Pulsa **Confirmar** para generar el Excel
+2. El archivo se descarga automáticamente: `cierre_diario_AAAA_MM_DD.xlsx`
+3. El archivo incluye:
+   - Período exacto (ej: "Mañana 06:00-14:00")
+   - Total en euros
+   - Cantidad de ventas
+   - Desglose por categoría
+
+#### Nota sobre carpetas de descarga
+
+- Los archivos se descargan en la **carpeta de Descargas** del navegador por defecto
+- Puedes mover los archivos a otra ubicación manualmente
+- No es necesario configurar carpeta especial (como en el cierre mensual)
+
+---
+
+### 8.2 Cierre Mensual (Archivado Permanente)
+
+Al terminar el mes hay que realizar este cierre para reiniciar los contadores y guardar un informe definitivo en Excel.
+
+> ⚠️ **ATENCIÓN**: Esta acción archiva todos los datos del mes y NO se puede deshacer.
+
+#### Configurar la carpeta de destino (solo la primera vez)
 
 1. Pulsa el botón **📁 Cierres** junto al botón «Cerrar mes».
 2. Se abre el selector de carpetas del sistema operativo.
@@ -163,18 +219,46 @@ Al terminar el mes hay que realizar el cierre para reiniciar los contadores y gu
 
 > En Firefox, la selección de carpeta no está disponible. El archivo se descargará automáticamente en la carpeta de Descargas del navegador.
 
-### Realizar el cierre
+#### Realizar el cierre mensual
 
-1. Pulsa **Cerrar mes**.
+1. Pulsa **📅 Cerrar mes** (botón naranja).
 2. Lee el aviso de confirmación — **esta acción no se puede deshacer**.
 3. Pulsa **Sí, Cerrar Mes**.
 4. Se genera el informe Excel `cierre_mensual_AAAA_MM.xlsx` y se guarda en la carpeta configurada.
-5. Los contadores del mes quedan a cero.
+5. **Los contadores del mes quedan a cero** (vuelven a empezar desde 0).
+6. Las ventas antiguas del mes ya no aparecen en la lista (están archivadas).
 
-El informe Excel incluye:
-- Periodo del cierre.
-- Número total de ventas y suma total.
-- Desglose por categoría de animal / servicio.
+#### Qué incluye el Excel de cierre mensual
+
+- **Período**: Mes y año cerrado (ej: 2026-06)
+- **Total activo**: Suma de todas las ventas archivadas
+- **Cantidad de ventas**: Número de facturas registradas
+- **Desglose por categoría**: Ganancias por animal/servicio
+- **Datos de auditoría**: Quién hizo el cierre y cuándo
+
+---
+
+### 8.3 Flujo Recomendado de Cierres Diarios
+
+Para un mejor control de caja, se recomienda este orden:
+
+```
+14:00 → Cierre de Mañana (🌅)
+           ↓ Arqueo de caja del turno matutino
+           ↓ Verificar totales
+
+22:00 → Cierre de Tarde (🌆)
+           ↓ Arqueo de caja del turno vespertino
+           ↓ Verificar totales
+
+23:00 → Cierre del Día (🌞) [OPCIONAL]
+           ↓ Arqueo final del día
+           ↓ Reconciliación total
+           
+Fin de mes → Cierre Mensual (📅)
+           ↓ Archiva datos permanentemente
+           ↓ Prepara nueva entrada contable
+```
 
 ---
 
