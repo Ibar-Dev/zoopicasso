@@ -207,9 +207,21 @@
 
       <div id="seccion-cierres" class="lineas-head" style="margin-top:1.5rem;border-top:1px solid #ccc;padding-top:1rem;">
         <h3>📋 Cierres Contables</h3>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem;">
-          <button id="btn-cierre-dia" type="button" style="flex:1;min-width:140px;padding:0.75rem;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">🌅 Cierre del Día</button>
-          <button id="btn-cierre-mes" type="button" style="flex:1;min-width:140px;padding:0.75rem;background:#FF9800;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">📅 Cierre del Mes</button>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem;flex-direction:column;">
+          <!-- Cierres diarios secuenciales -->
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <button id="btn-cierre-mañana" type="button" data-estado="pending" style="flex:1;min-width:140px;padding:0.75rem;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;transition:opacity 0.3s,background 0.3s;">🌅 Cierre Mañana</button>
+            <button id="btn-cierre-tarde" type="button" data-estado="disabled" style="flex:1;min-width:140px;padding:0.75rem;background:#FF9800;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;opacity:0.5;transition:opacity 0.3s,background 0.3s;">🌤️ Cierre Tarde</button>
+            <button id="btn-cierre-dia-completo" type="button" data-estado="disabled" style="flex:1;min-width:140px;padding:0.75rem;background:#2196F3;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;opacity:0.5;transition:opacity 0.3s,background 0.3s;">📅 Cierre Día Completo</button>
+          </div>
+          <!-- Indicadores de completado -->
+          <div style="display:flex;gap:0.5rem;font-size:0.85rem;color:#666;">
+            <span id="cierre-mañana-status" style="display:none;color:#4CAF50;font-weight:bold;">✓ Mañana completada</span>
+            <span id="cierre-tarde-status" style="display:none;color:#FF9800;font-weight:bold;">✓ Tarde completada</span>
+            <span id="cierre-dia-completo-status" style="display:none;color:#2196F3;font-weight:bold;">✓ Día completo completado</span>
+          </div>
+          <!-- Cierre mensual -->
+          <button id="btn-cierre-mes" type="button" style="padding:0.75rem;background:#9C27B0;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">📅 Cierre del Mes</button>
         </div>
         <div id="cierre-status" style="margin-top:0.75rem;padding:0.5rem;border-radius:4px;display:none;font-size:0.9rem;"></div>
       </div>
@@ -2144,7 +2156,9 @@
 
     // ── Cierres Contables ─────────────────────────────────────────────────────
     (function() {
-      const btnCierreDia = document.getElementById('btn-cierre-dia');
+      const btnCierreMañana = document.getElementById('btn-cierre-mañana');
+      const btnCierreTarde = document.getElementById('btn-cierre-tarde');
+      const btnCierreDiaCompleto = document.getElementById('btn-cierre-dia-completo');
       const btnCierreMes = document.getElementById('btn-cierre-mes');
       const modalCierre = document.getElementById('modal-cierre');
       const btnConfirm = document.getElementById('btn-confirm');
@@ -2153,22 +2167,78 @@
       const modalTitulo = document.getElementById('modal-titulo');
       const modalMensaje = document.getElementById('modal-mensaje');
       const modalWarning = document.getElementById('modal-warning');
+      
+      // Indicadores de estado
+      const statusMañana = document.getElementById('cierre-mañana-status');
+      const statusTarde = document.getElementById('cierre-tarde-status');
+      const statusDiaCompleto = document.getElementById('cierre-dia-completo-status');
 
       let cierreEnCurso = null;
+      const tiposDescripcion = {
+        'mañana': { color: '#4CAF50', icono: '🌅', descripcion: 'Cierre de Mañana (06:00-14:00)' },
+        'tarde': { color: '#FF9800', icono: '🌤️', descripcion: 'Cierre de Tarde (14:00-22:00)' },
+        'dia-completo': { color: '#2196F3', icono: '📅', descripcion: 'Cierre del Día Completo' },
+        'mes': { color: '#9C27B0', icono: '📅', descripcion: 'Cierre del Mes' }
+      };
+
+      async function cargarEstadoCierres() {
+        try {
+          const res = await fetch('/api/ganancias/estado-cierres');
+          if (!res.ok) throw new Error('No se pudo cargar el estado');
+          const estado = await res.json();
+          
+          // Actualizar botones según el estado
+          if (estado.hizo_mañana) {
+            btnCierreMañana.disabled = true;
+            btnCierreMañana.style.opacity = '0.6';
+            statusMañana.style.display = 'inline';
+            btnCierreTarde.disabled = false;
+            btnCierreTarde.style.opacity = '1';
+            btnCierreTarde.dataset.estado = 'pending';
+          }
+          
+          if (estado.hizo_tarde) {
+            btnCierreTarde.disabled = true;
+            btnCierreTarde.style.opacity = '0.6';
+            statusTarde.style.display = 'inline';
+            btnCierreDiaCompleto.disabled = false;
+            btnCierreDiaCompleto.style.opacity = '1';
+            btnCierreDiaCompleto.dataset.estado = 'pending';
+          }
+          
+          if (estado.hizo_dia_completo) {
+            btnCierreDiaCompleto.disabled = true;
+            btnCierreDiaCompleto.style.opacity = '0.6';
+            statusDiaCompleto.style.display = 'inline';
+          }
+        } catch (err) {
+          console.error('Error al cargar estado de cierres:', err);
+        }
+      }
 
       function mostrarModal(tipo) {
         cierreEnCurso = tipo;
-        if (tipo === 'dia') {
-          modalTitulo.textContent = '🌅 Cierre del Día';
-          modalMensaje.textContent = 'Se generará una foto contable de las ventas de hoy. Los datos NO serán archivados (puedes repetir tantas veces como quieras).';
-          modalWarning.textContent = 'Es solo una fotografía. Los datos permanecen en el sistema.';
-          btnConfirm.style.background = '#4CAF50';
+        const desc = tiposDescripcion[tipo];
+        
+        if (tipo === 'mañana') {
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
+          modalMensaje.textContent = 'Se generará una foto contable de las ventas entre 06:00 y 14:00. Los datos NO serán archivados (puedes repetir tantas veces como quieras).';
+          modalWarning.textContent = 'Es solo una fotografía de la mañana. Los datos permanecen en el sistema.';
+        } else if (tipo === 'tarde') {
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
+          modalMensaje.textContent = 'Se generará una foto contable de las ventas entre 14:00 y 22:00. Los datos NO serán archivados (puedes repetir tantas veces como quieras).';
+          modalWarning.textContent = 'Es solo una fotografía de la tarde. Los datos permanecen en el sistema.';
+        } else if (tipo === 'dia-completo') {
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
+          modalMensaje.textContent = 'Se generará una foto contable de todas las ventas del día (06:00-22:00). Los datos NO serán archivados.';
+          modalWarning.textContent = 'Solo disponible después de completar mañana Y tarde.';
         } else {
-          modalTitulo.textContent = '📅 Cierre del Mes';
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
           modalMensaje.textContent = 'Se archivará PERMANENTEMENTE todas las ventas del mes actual. Esta acción NO se puede deshacer.';
           modalWarning.textContent = 'Una vez archivado, los datos de este mes se dejarán de contar para cálculos futuros.';
-          btnConfirm.style.background = '#FF9800';
         }
+        
+        btnConfirm.style.background = desc.color;
         modalCierre.style.display = 'flex';
         btnConfirm.focus();
       }
@@ -2192,7 +2262,6 @@
           'info': 'ℹ️',
           'warning': '⚠️'
         };
-        // Agregar spinner para procesamiento
         const spinner = tipo === 'info' ? '<span class="spinner"></span>' : '';
         cierreStatus.style.background = colors[tipo] + '20';
         cierreStatus.style.color = colors[tipo];
@@ -2204,11 +2273,12 @@
         cierreStatus.style.display = 'none';
       }
 
-      btnCierreDia.addEventListener('click', () => mostrarModal('dia'));
+      btnCierreMañana.addEventListener('click', () => mostrarModal('mañana'));
+      btnCierreTarde.addEventListener('click', () => mostrarModal('tarde'));
+      btnCierreDiaCompleto.addEventListener('click', () => mostrarModal('dia-completo'));
       btnCierreMes.addEventListener('click', () => mostrarModal('mes'));
       btnCancel.addEventListener('click', ocultarModal);
 
-      // Cerrar modal al hacer clic fuera
       modalCierre.addEventListener('click', (e) => {
         if (e.target === modalCierre) ocultarModal();
       });
@@ -2216,17 +2286,26 @@
       btnConfirm.addEventListener('click', async () => {
         if (!cierreEnCurso) return;
 
-        const endpoint = cierreEnCurso === 'dia' 
-          ? '/api/ganancias/cierre-dia' 
-          : '/api/ganancias/cierre-mes';
-        
+        let endpoint;
+        if (cierreEnCurso === 'mañana') {
+          endpoint = '/api/ganancias/cierre-mañana';
+        } else if (cierreEnCurso === 'tarde') {
+          endpoint = '/api/ganancias/cierre-tarde';
+        } else if (cierreEnCurso === 'dia-completo') {
+          endpoint = '/api/ganancias/cierre-dia-completo';
+        } else {
+          endpoint = '/api/ganancias/cierre-mes';
+        }
+
         ocultarModal();
         mostrarEstado('Procesando cierre…', 'info');
-        btnCierreDia.disabled = true;
+        btnCierreMañana.disabled = true;
+        btnCierreTarde.disabled = true;
+        btnCierreDiaCompleto.disabled = true;
         btnCierreMes.disabled = true;
 
         try {
-          const tipoTexto = cierreEnCurso === 'dia' ? 'Día' : 'Mes';
+          const desc = tiposDescripcion[cierreEnCurso];
           
           const response = await fetch(endpoint, {
             method: 'POST',
@@ -2236,17 +2315,13 @@
 
           if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.detail || `Error en cierre del ${tipoTexto}`);
+            throw new Error(errorData.detail || `Error en ${desc.descripcion}`);
           }
 
-          // Detectar si la respuesta es un archivo (Excel) o JSON
           const contentType = response.headers.get('content-type') || '';
           
           if (contentType.includes('application/vnd.openxmlformats') || contentType.includes('application/x-xlsx')) {
-            // Es un archivo Excel
             const blob = await response.blob();
-            
-            // Extraer nombre del archivo del header Content-Disposition
             let nombreArchivo = `Cierre_${cierreEnCurso}_${new Date().toISOString().split('T')[0]}.xlsx`;
             const contentDisposition = response.headers.get('content-disposition');
             if (contentDisposition) {
@@ -2256,7 +2331,6 @@
               }
             }
             
-            // Descargar archivo
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -2266,19 +2340,18 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            // Leer headers personalizados
-            const mensaje = response.headers.get('x-cierre-mensaje') || `Cierre del ${tipoTexto} completado`;
+            const mensaje = response.headers.get('x-cierre-mensaje') || `${desc.descripcion} completado`;
             mostrarEstado(`✅ ${mensaje}. Archivo: ${nombreArchivo}`, 'success');
           } else {
-            // Es JSON (sin ventas para cerrar)
             const data = await response.json();
-            const mensaje = data.mensaje || `Cierre del ${tipoTexto} completado sin ventas.`;
+            const mensaje = data.mensaje || `${desc.descripcion} completado sin ventas.`;
             mostrarEstado(`ℹ️ ${mensaje}`, 'info');
           }
 
-          // Refrescar datos después de cierre exitoso (con feedback visual)
+          // Recargar estado de cierres
           mostrarEstado('Actualizando datos…', 'info');
           setTimeout(() => {
+            cargarEstadoCierres();
             refrescarResumenMensual();
             refrescarResumenPeriodo();
             setTimeout(() => ocultarEstado(), 1200);
@@ -2287,11 +2360,19 @@
         } catch (err) {
           console.error('Error en cierre:', err);
           mostrarEstado(`Error: ${err.message}`, 'error');
-        } finally {
-          btnCierreDia.disabled = false;
+          
+          // Restaurar botones
+          btnCierreMañana.disabled = false;
+          btnCierreTarde.disabled = false;
+          btnCierreDiaCompleto.disabled = false;
           btnCierreMes.disabled = false;
         }
       });
+
+      // Cargar estado al iniciar
+      if (loggedIn) {
+        setTimeout(() => cargarEstadoCierres(), 500);
+      }
     })();
 
     bootstrap();
