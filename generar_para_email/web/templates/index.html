@@ -394,13 +394,15 @@
     const btnTicketCancelar = document.getElementById('btn-ticket-cancelar');
     const btnTicketNo = document.getElementById('btn-ticket-no');
     const btnTicketSi = document.getElementById('btn-ticket-si');
-    const cierreMesModalEl = document.getElementById('cierre-mes-modal');
-    const btnCierreMes = document.getElementById('btn-cerrar-mes');
-    const btnCierreCancelar = document.getElementById('btn-cierre-cancelar');
-    const btnCierreConfirmar = document.getElementById('btn-cierre-confirmar');
-    const cierreDiaModalEl = document.getElementById('cierre-dia-modal');
-    const btnCierreDiaCancelar = document.getElementById('btn-cierre-dia-cancelar');
-    const btnCierreDiaConfirmar = document.getElementById('btn-cierre-dia-confirmar');
+    // Elementos de cierre antiguo (reemplazados por nuevo sistema secuencial en FASE 2)
+    // Se comentan para no generar errores de null
+    // const cierreMesModalEl = document.getElementById('cierre-mes-modal');
+    // const btnCierreMes = document.getElementById('btn-cerrar-mes');
+    // const btnCierreCancelar = document.getElementById('btn-cierre-cancelar');
+    // const btnCierreConfirmar = document.getElementById('btn-cierre-confirmar');
+    // const cierreDiaModalEl = document.getElementById('cierre-dia-modal');
+    // const btnCierreDiaCancelar = document.getElementById('btn-cierre-dia-cancelar');
+    // const btnCierreDiaConfirmar = document.getElementById('btn-cierre-dia-confirmar');
     let resolverCierreDiaModal = null;
     let acumuladoDia = 0;
     let facturasDia = 0;
@@ -675,18 +677,18 @@
         else delete btnGenerar.dataset.tooltip;
       }
 
-      // btn-cerrar-dia
+      // btn-cerrar-dia (elemento antiguo - ahora es parte del sistema secuencial)
       const btnCierreDia = document.getElementById('btn-cerrar-dia');
-      if (!btnCierreDia.disabled || btnCierreDia.textContent === 'Cerrar día') {
+      if (btnCierreDia && (!btnCierreDia.disabled || btnCierreDia.textContent === 'Cerrar día')) {
         const ventasHoy = Number(document.getElementById('ventas-hoy')?.textContent || 0);
         btnCierreDia.disabled = ventasHoy === 0;
         if (ventasHoy === 0) btnCierreDia.dataset.tooltip = 'No hay ventas hoy para cerrar';
         else delete btnCierreDia.dataset.tooltip;
       }
 
-      // btn-cerrar-mes
+      // btn-cerrar-mes (elemento antiguo - mantenido para compatibilidad)
       const btnCierre = document.getElementById('btn-cerrar-mes');
-      if (!btnCierre.disabled || btnCierre.textContent === 'Cerrar mes') {
+      if (btnCierre && (!btnCierre.disabled || btnCierre.textContent === 'Cerrar mes')) {
         const sinVentas = facturasDia === 0 && acumuladoDia === 0;
         btnCierre.disabled = sinVentas;
         if (sinVentas) btnCierre.dataset.tooltip = 'No hay ventas activas este mes';
@@ -1472,10 +1474,8 @@
     btnTicketCancelar.addEventListener('click', () => cerrarModalTicket(null));
     btnTicketNo.addEventListener('click', () => cerrarModalTicket(false));
     btnTicketSi.addEventListener('click', () => cerrarModalTicket(true));
-    btnCierreCancelar.addEventListener('click', () => cerrarModalCierre(false));
-    btnCierreConfirmar.addEventListener('click', () => cerrarModalCierre(true));
-    btnCierreDiaCancelar.addEventListener('click', () => cerrarModalCierreDia(false));
-    btnCierreDiaConfirmar.addEventListener('click', () => cerrarModalCierreDia(true));
+    // Nota: Los elementos de cierre antiguo (btnCierreCancelar, etc.) fueron reemplazados por el nuevo sistema de cierres secuenciales
+    // y no son accesibles aquí. Permanecen las referencias a cierreMesModalEl para compatibilidad.
 
     ticketModalEl.addEventListener('click', (e) => {
       if (e.target === ticketModalEl) {
@@ -1483,26 +1483,14 @@
       }
     });
 
-    cierreMesModalEl.addEventListener('click', (e) => {
-      if (e.target === cierreMesModalEl) {
-        cerrarModalCierre(false);
-      }
-    });
-
-    cierreDiaModalEl.addEventListener('click', (e) => {
-      if (e.target === cierreDiaModalEl) cerrarModalCierreDia(false);
-    });
+    // Nota: Los modales de cierre antiguo (cierreMesModalEl, cierreDiaModalEl) fueron reemplazados
+    // por el nuevo sistema dinámico. Las referencias se mantienen para no romper compatibilidad si existen.
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && ticketModalEl.classList.contains('active')) {
         cerrarModalTicket(null);
       }
-      if (e.key === 'Escape' && cierreMesModalEl.classList.contains('active')) {
-        cerrarModalCierre(false);
-      }
-      if (e.key === 'Escape' && cierreDiaModalEl.classList.contains('active')) {
-        cerrarModalCierreDia(false);
-      }
+      // Nota: Escape para cierres antiguo fue reemplazado por el nuevo sistema
       if ((e.key === 'n' || e.key === 'N') && ticketModalEl.classList.contains('active')) {
         const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (!enInput) { e.preventDefault(); cerrarModalTicket(false); }
@@ -1767,6 +1755,11 @@
       _actualizarBotones();
     });
 
+    // NOTA: El antiguo event listener de btnCierreMes ('btn-cerrar-mes') ha sido reemplazado
+    // por el nuevo sistema de cierres secuenciales en el código FASE 2
+    // El manejo del cierre de mes ahora está en la sección "Cierres Contables"
+    // que comienza aproximadamente en línea 2145
+    /*
     btnCierreMes.addEventListener('click', async () => {
       errorEl.textContent = '';
       resultadoEl.textContent = '';
@@ -1824,6 +1817,7 @@
       });
       _actualizarBotones();
     });
+    */
 
     document.getElementById('btn-generar').addEventListener('click', async () => {
       resultadoEl.textContent = '';
@@ -2148,6 +2142,10 @@
       if (loggedIn) {
         restaurarDraft();
         tutorialManager.checkAutoStart();
+        // Cargar estado de cierres secuenciales al iniciar sesión
+        if (window.cargarEstadoCierres) {
+          setTimeout(() => window.cargarEstadoCierres(), 500);
+        }
       } else {
         addLinea();
         _actualizarBotonLogin();
@@ -2160,6 +2158,13 @@
       const btnCierreTarde = document.getElementById('btn-cierre-tarde');
       const btnCierreDiaCompleto = document.getElementById('btn-cierre-dia-completo');
       const btnCierreMes = document.getElementById('btn-cierre-mes');
+      
+      // Validar que todos los elementos existan antes de continuar
+      if (!btnCierreMañana || !btnCierreTarde || !btnCierreDiaCompleto || !btnCierreMes) {
+        console.warn('No todos los botones de cierre fueron encontrados. Algunos pueden ser null.');
+        return;
+      }
+
       const modalCierre = document.getElementById('modal-cierre');
       const btnConfirm = document.getElementById('btn-confirm');
       const btnCancel = document.getElementById('btn-cancel');
@@ -2168,7 +2173,7 @@
       const modalMensaje = document.getElementById('modal-mensaje');
       const modalWarning = document.getElementById('modal-warning');
       
-      // Indicadores de estado
+      // Indicadores de estado (son opcionales, pueden no existir)
       const statusMañana = document.getElementById('cierre-mañana-status');
       const statusTarde = document.getElementById('cierre-tarde-status');
       const statusDiaCompleto = document.getElementById('cierre-dia-completo-status');
@@ -2191,7 +2196,7 @@
           if (estado.hizo_mañana) {
             btnCierreMañana.disabled = true;
             btnCierreMañana.style.opacity = '0.6';
-            statusMañana.style.display = 'inline';
+            if (statusMañana) statusMañana.style.display = 'inline';
             btnCierreTarde.disabled = false;
             btnCierreTarde.style.opacity = '1';
             btnCierreTarde.dataset.estado = 'pending';
@@ -2200,7 +2205,7 @@
           if (estado.hizo_tarde) {
             btnCierreTarde.disabled = true;
             btnCierreTarde.style.opacity = '0.6';
-            statusTarde.style.display = 'inline';
+            if (statusTarde) statusTarde.style.display = 'inline';
             btnCierreDiaCompleto.disabled = false;
             btnCierreDiaCompleto.style.opacity = '1';
             btnCierreDiaCompleto.dataset.estado = 'pending';
@@ -2209,7 +2214,7 @@
           if (estado.hizo_dia_completo) {
             btnCierreDiaCompleto.disabled = true;
             btnCierreDiaCompleto.style.opacity = '0.6';
-            statusDiaCompleto.style.display = 'inline';
+            if (statusDiaCompleto) statusDiaCompleto.style.display = 'inline';
           }
         } catch (err) {
           console.error('Error al cargar estado de cierres:', err);
@@ -2369,10 +2374,8 @@
         }
       });
 
-      // Cargar estado al iniciar
-      if (loggedIn) {
-        setTimeout(() => cargarEstadoCierres(), 500);
-      }
+      // Cargar estado al iniciar (se llamará desde bootstrap cuando loggedIn sea true)
+      window.cargarEstadoCierres = cargarEstadoCierres;
     })();
 
     bootstrap();
