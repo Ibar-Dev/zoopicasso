@@ -131,7 +131,8 @@ def inicializar_db_ventas() -> None:
                 created_at TEXT NOT NULL,
                 total REAL NOT NULL,
                 cantidad_ventas INTEGER NOT NULL,
-                archivo_excel TEXT NOT NULL
+                archivo_excel TEXT NOT NULL,
+                tipo_cierre TEXT NOT NULL DEFAULT 'full_day'
             )
             """
         )
@@ -141,6 +142,11 @@ def inicializar_db_ventas() -> None:
             ON cierres_diarios (fecha)
             """
         )
+        # Migración: agregar columna tipo_cierre si no existe (para BDs existentes)
+        try:
+            conn.execute("ALTER TABLE cierres_diarios ADD COLUMN tipo_cierre TEXT DEFAULT 'full_day'")
+        except sqlite3.OperationalError:
+            pass  # Columna ya existe
 
 
 def registrar_ventas_factura(factura: Factura, usuario: str, pago: PagoInfo | None = None) -> None:
@@ -715,6 +721,153 @@ def registrar_cierre(
         )
 
 
+def resumen_ventas_mañana(fecha: str) -> dict:
+    """Resumen de ventas activas en MAÑANA (06:00-14:00) para una fecha (YYYY-MM-DD)."""
+    inicializar_db_ventas()
+    with _connect() as conn:
+        total_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+            """,
+            (fecha,),
+        ).fetchone()
+        cat_rows = conn.execute(
+            """
+            SELECT categoria, COALESCE(SUM(monto), 0) AS total
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+            GROUP BY categoria
+            ORDER BY categoria ASC
+            """,
+            (fecha,),
+        ).fetchall()
+    por_categoria = {row["categoria"]: round(float(row["total"]), 2) for row in cat_rows}
+    return {
+        "fecha": fecha,
+        "periodo": "mañana",
+        "total": round(float(total_row["total"]), 2),
+        "cantidad_ventas": int(total_row["cantidad"]),
+        "por_categoria": por_categoria,
+    }
+
+
+def resumen_ventas_tarde(fecha: str) -> dict:
+    """Resumen de ventas activas en TARDE (14:00-22:00) para una fecha (YYYY-MM-DD)."""
+    inicializar_db_ventas()
+    with _connect() as conn:
+        total_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+            """,
+            (fecha,),
+        ).fetchone()
+        cat_rows = conn.execute(
+            """
+            SELECT categoria, COALESCE(SUM(monto), 0) AS total
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
+              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+            GROUP BY categoria
+            ORDER BY categoria ASC
+            """,
+            (fecha,),
+        ).fetchall()
+    por_categoria = {row["categoria"]: round(float(row["total"]), 2) for row in cat_rows}
+    return {
+        "fecha": fecha,
+        "periodo": "tarde",
+        "total": round(float(total_row["total"]), 2),
+        "cantidad_ventas": int(total_row["cantidad"]),
+        "por_categoria": por_categoria,
+    }
+
+
+def obtener_cierres_hoy(fecha: str) -> dict:
+    """
+    Obtiene los cierres registrados para un día específico.
+    
+    Retorna diccionario con:
+    {
+        'fecha': 'YYYY-MM-DD',
+        'hizo_mañana': bool,
+        'hizo_tarde': bool,
+        'hizo_dia_completo': bool,
+        'cierres': [lista de registros con tipo_cierre]
+    }
+    """
+    inicializar_db_ventas()
+    with _connect() as conn:
+        cierres = conn.execute(
+            """
+            SELECT cierre_id, tipo_cierre, created_at, total, cantidad_ventas
+            FROM cierres_diarios
+            WHERE fecha = ?
+            ORDER BY created_at ASC
+            """,
+            (fecha,),
+        ).fetchall()
+    
+    hizo_mañana = any(row["tipo_cierre"] == "morning" for row in cierres)
+    hizo_tarde = any(row["tipo_cierre"] == "afternoon" for row in cierres)
+    hizo_dia = any(row["tipo_cierre"] == "full_day" for row in cierres)
+    
+    return {
+        "fecha": fecha,
+        "hizo_mañana": hizo_mañana,
+        "hizo_tarde": hizo_tarde,
+        "hizo_dia_completo": hizo_dia,
+        "cierres": [dict(row) for row in cierres],
+    }
+
+
+def puede_hacer_cierre(tipo_cierre: str, fecha: str) -> tuple[bool, str]:
+    """
+    Valida si se puede hacer un cierre del tipo especificado para la fecha dada.
+    
+    Retorna (puede_hacer: bool, motivo: str)
+    
+    Lógica:
+    - morning: siempre se puede hacer (si no fue hecho hoy)
+    - afternoon: solo si morning fue hecho
+    - full_day: solo si morning Y afternoon fueron hechos
+    """
+    estado = obtener_cierres_hoy(fecha)
+    
+    if tipo_cierre == "morning":
+        if estado["hizo_mañana"]:
+            return False, "Ya completaste el cierre de mañana hoy"
+        return True, ""
+    
+    elif tipo_cierre == "afternoon":
+        if not estado["hizo_mañana"]:
+            return False, "Primero debes hacer el cierre de mañana"
+        if estado["hizo_tarde"]:
+            return False, "Ya completaste el cierre de tarde hoy"
+        return True, ""
+    
+    elif tipo_cierre == "full_day":
+        if not estado["hizo_mañana"]:
+            return False, "Primero debes hacer el cierre de mañana"
+        if not estado["hizo_tarde"]:
+            return False, "Primero debes hacer el cierre de tarde"
+        if estado["hizo_dia_completo"]:
+            return False, "Ya completaste el cierre del día completo hoy"
+        return True, ""
+    
+    return False, f"Tipo de cierre inválido: {tipo_cierre}"
+
+
 def registrar_cierre_diario(
     cierre_id: str,
     fecha: str,
@@ -724,6 +877,7 @@ def registrar_cierre_diario(
     total: float,
     cantidad_ventas: int,
     archivo_excel: str,
+    tipo_cierre: str = "full_day",
 ) -> None:
     inicializar_db_ventas()
     with _connect() as conn:
@@ -731,8 +885,8 @@ def registrar_cierre_diario(
             """
             INSERT INTO cierres_diarios (
                 cierre_id, fecha, anio_mes, usuario, created_at,
-                total, cantidad_ventas, archivo_excel
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                total, cantidad_ventas, archivo_excel, tipo_cierre
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 cierre_id,
@@ -743,5 +897,6 @@ def registrar_cierre_diario(
                 float(total),
                 int(cantidad_ventas),
                 archivo_excel,
+                tipo_cierre,
             ),
         )

@@ -22,7 +22,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura, PagoInfo
-from src.monthly_closure import cerrar_mes, cerrar_dia, RUTA_CIERRES
+from src.monthly_closure import cerrar_mes, cerrar_dia, cerrar_mañana, cerrar_tarde, cerrar_día_completo, RUTA_CIERRES
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
 from src.ventas_store import (
@@ -519,6 +519,96 @@ def cierre_diario(payload: MonthlyClosurePayload, request: Request):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename=archivo.name,
         headers={
+            "x-cierre-fecha": meta["fecha"],
+            "x-cierre-ventas": str(meta["cantidad_ventas"]),
+            "x-cierre-total": str(meta["total"]),
+            "x-cierre-mensaje": meta["mensaje"],
+        },
+    )
+
+
+@app.get("/api/ganancias/estado-cierres")
+def estado_cierres(request: Request):
+    """Obtiene el estado de los cierres del día actual (qué tipos fueron completados)."""
+    from src.ventas_store import obtener_cierres_hoy
+    from datetime import datetime
+    
+    _requiere_login(request)
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    estado = obtener_cierres_hoy(fecha)
+    return JSONResponse(estado)
+
+
+@app.post("/api/ganancias/cierre-mañana")
+def cierre_mañana_endpoint(payload: MonthlyClosurePayload, request: Request):
+    """Realiza el cierre de mañana (06:00-14:00). Puede hacerse solo una vez por día."""
+    _requiere_login(request)
+    if not payload.confirmacion:
+        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar mañana")
+    usuario = str(request.session.get("usuario", "(desconocido)"))
+    meta, archivo = cerrar_mañana(usuario=usuario)
+    if not meta.get("ok"):
+        return JSONResponse(meta, status_code=400)
+    if archivo is None:
+        return JSONResponse(meta)
+    return FileResponse(
+        path=archivo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=archivo.name,
+        headers={
+            "x-cierre-tipo": "morning",
+            "x-cierre-fecha": meta["fecha"],
+            "x-cierre-ventas": str(meta["cantidad_ventas"]),
+            "x-cierre-total": str(meta["total"]),
+            "x-cierre-mensaje": meta["mensaje"],
+        },
+    )
+
+
+@app.post("/api/ganancias/cierre-tarde")
+def cierre_tarde_endpoint(payload: MonthlyClosurePayload, request: Request):
+    """Realiza el cierre de tarde (14:00-22:00). Requiere que mañana esté completado."""
+    _requiere_login(request)
+    if not payload.confirmacion:
+        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar tarde")
+    usuario = str(request.session.get("usuario", "(desconocido)"))
+    meta, archivo = cerrar_tarde(usuario=usuario)
+    if not meta.get("ok"):
+        return JSONResponse(meta, status_code=400)
+    if archivo is None:
+        return JSONResponse(meta)
+    return FileResponse(
+        path=archivo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=archivo.name,
+        headers={
+            "x-cierre-tipo": "afternoon",
+            "x-cierre-fecha": meta["fecha"],
+            "x-cierre-ventas": str(meta["cantidad_ventas"]),
+            "x-cierre-total": str(meta["total"]),
+            "x-cierre-mensaje": meta["mensaje"],
+        },
+    )
+
+
+@app.post("/api/ganancias/cierre-dia-completo")
+def cierre_dia_completo_endpoint(payload: MonthlyClosurePayload, request: Request):
+    """Realiza el cierre del día completo. Requiere que mañana Y tarde estén completados."""
+    _requiere_login(request)
+    if not payload.confirmacion:
+        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar día completo")
+    usuario = str(request.session.get("usuario", "(desconocido)"))
+    meta, archivo = cerrar_día_completo(usuario=usuario)
+    if not meta.get("ok"):
+        return JSONResponse(meta, status_code=400)
+    if archivo is None:
+        return JSONResponse(meta)
+    return FileResponse(
+        path=archivo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=archivo.name,
+        headers={
+            "x-cierre-tipo": "full_day",
             "x-cierre-fecha": meta["fecha"],
             "x-cierre-ventas": str(meta["cantidad_ventas"]),
             "x-cierre-total": str(meta["total"]),

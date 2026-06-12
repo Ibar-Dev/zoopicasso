@@ -8,9 +8,12 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 from src.ventas_store import (
     cerrar_mes_atomico,
+    puede_hacer_cierre,
     registrar_cierre_diario,
     resumen_ventas_activas,
     resumen_ventas_dia,
+    resumen_ventas_mañana,
+    resumen_ventas_tarde,
 )
 
 logger = logging.getLogger(__name__)
@@ -165,11 +168,19 @@ def cerrar_mes(usuario: str) -> tuple[dict, Path | None]:
     }, archivo
 
 
-def cerrar_dia(usuario: str) -> tuple[dict, Path | None]:
-    """Genera informe Excel del día y registra el cierre. No archiva ventas."""
-    fecha = datetime.now().strftime("%Y-%m-%d")
-    anio_mes = datetime.now().strftime("%Y-%m")
-    resumen = resumen_ventas_dia(fecha)
+def _cerrar_dia_generico(usuario: str, tipo_cierre: str, resumen: dict, fecha: str, anio_mes: str) -> tuple[dict, Path | None]:
+    """Función genérica para generar cierre y registrarlo. Valida secuencia."""
+    from src.ventas_store import puede_hacer_cierre
+    
+    puede, motivo = puede_hacer_cierre(tipo_cierre, fecha)
+    if not puede:
+        return {
+            "ok": False,
+            "fecha": fecha,
+            "cantidad_ventas": 0,
+            "total": 0.0,
+            "mensaje": motivo,
+        }, None
 
     if resumen["cantidad_ventas"] == 0:
         return {
@@ -177,11 +188,11 @@ def cerrar_dia(usuario: str) -> tuple[dict, Path | None]:
             "fecha": fecha,
             "cantidad_ventas": 0,
             "total": 0.0,
-            "mensaje": "No hay ventas para cerrar hoy.",
+            "mensaje": f"No hay ventas para cerrar en {resumen.get('periodo', tipo_cierre)}.",
         }, None
 
     archivo = _generar_excel_cierre_dia(fecha, resumen)
-    cierre_id = f"dia-{fecha}-{datetime.now(timezone.utc).strftime('%H%M%S%f')}"
+    cierre_id = f"{tipo_cierre}-{fecha}-{datetime.now(timezone.utc).strftime('%H%M%S%f')}"
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     registrar_cierre_diario(
@@ -193,15 +204,53 @@ def cerrar_dia(usuario: str) -> tuple[dict, Path | None]:
         total=float(resumen["total"]),
         cantidad_ventas=int(resumen["cantidad_ventas"]),
         archivo_excel=str(archivo),
+        tipo_cierre=tipo_cierre,
     )
     logger.info(
-        "Cierre diario. usuario=%s fecha=%s ventas=%d total=%.2f",
-        usuario, fecha, resumen["cantidad_ventas"], float(resumen["total"]),
+        "Cierre %s. usuario=%s fecha=%s ventas=%d total=%.2f",
+        tipo_cierre, usuario, fecha, resumen["cantidad_ventas"], float(resumen["total"]),
     )
     return {
         "ok": True,
         "fecha": fecha,
         "cantidad_ventas": int(resumen["cantidad_ventas"]),
         "total": float(resumen["total"]),
-        "mensaje": "Cierre diario completado correctamente.",
+        "tipo_cierre": tipo_cierre,
+        "mensaje": f"Cierre {tipo_cierre} completado correctamente.",
     }, archivo
+
+
+def cerrar_dia(usuario: str) -> tuple[dict, Path | None]:
+    """Genera informe Excel del día y registra el cierre. No archiva ventas. (Compatibilidad)"""
+    from src.ventas_store import resumen_ventas_dia
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    anio_mes = datetime.now().strftime("%Y-%m")
+    resumen = resumen_ventas_dia(fecha)
+    return _cerrar_dia_generico(usuario, "full_day", resumen, fecha, anio_mes)
+
+
+def cerrar_mañana(usuario: str) -> tuple[dict, Path | None]:
+    """Cierre de mañana (06:00-14:00). Valida que no haya sido hecho hoy."""
+    from src.ventas_store import resumen_ventas_mañana
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    anio_mes = datetime.now().strftime("%Y-%m")
+    resumen = resumen_ventas_mañana(fecha)
+    return _cerrar_dia_generico(usuario, "morning", resumen, fecha, anio_mes)
+
+
+def cerrar_tarde(usuario: str) -> tuple[dict, Path | None]:
+    """Cierre de tarde (14:00-22:00). Requiere que mañana esté hecho."""
+    from src.ventas_store import resumen_ventas_tarde
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    anio_mes = datetime.now().strftime("%Y-%m")
+    resumen = resumen_ventas_tarde(fecha)
+    return _cerrar_dia_generico(usuario, "afternoon", resumen, fecha, anio_mes)
+
+
+def cerrar_día_completo(usuario: str) -> tuple[dict, Path | None]:
+    """Cierre del día completo. Requiere que mañana y tarde estén hechos."""
+    from src.ventas_store import resumen_ventas_dia
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    anio_mes = datetime.now().strftime("%Y-%m")
+    resumen = resumen_ventas_dia(fecha)
+    return _cerrar_dia_generico(usuario, "full_day", resumen, fecha, anio_mes)
