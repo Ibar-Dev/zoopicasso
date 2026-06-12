@@ -220,6 +220,54 @@ def _cerrar_dia_generico(usuario: str, tipo_cierre: str, resumen: dict, fecha: s
     }, archivo
 
 
+def obtener_resumen_cierre_mañana(fecha: str) -> dict:
+    """Obtiene el resumen de ventas de mañana sin registrar nada.
+    
+    Usado para FASE 3: mostrar ganancia bruta antes de preguntar por exportación.
+    """
+    resumen = resumen_ventas_mañana(fecha)
+    return {
+        "ok": True,
+        "tipo_cierre": "morning",
+        "periodo": "Mañana (06:00-14:00)",
+        "dinero_bruto": float(resumen.get("total", 0)),
+        "cantidad_ventas": int(resumen.get("cantidad_ventas", 0)),
+        "por_categoria": resumen.get("por_categoria", {}),
+    }
+
+
+def obtener_resumen_cierre_tarde(fecha: str) -> dict:
+    """Obtiene el resumen de ventas de tarde sin registrar nada.
+    
+    Usado para FASE 3: mostrar ganancia bruta antes de preguntar por exportación.
+    """
+    resumen = resumen_ventas_tarde(fecha)
+    return {
+        "ok": True,
+        "tipo_cierre": "afternoon",
+        "periodo": "Tarde (14:00-22:00)",
+        "dinero_bruto": float(resumen.get("total", 0)),
+        "cantidad_ventas": int(resumen.get("cantidad_ventas", 0)),
+        "por_categoria": resumen.get("por_categoria", {}),
+    }
+
+
+def obtener_resumen_cierre_dia_completo(fecha: str) -> dict:
+    """Obtiene el resumen de ventas del día completo sin registrar nada.
+    
+    Usado para FASE 3: mostrar ganancia bruta antes de preguntar por exportación.
+    """
+    resumen = resumen_ventas_dia(fecha)
+    return {
+        "ok": True,
+        "tipo_cierre": "full_day",
+        "periodo": "Día Completo (06:00-22:00)",
+        "dinero_bruto": float(resumen.get("total", 0)),
+        "cantidad_ventas": int(resumen.get("cantidad_ventas", 0)),
+        "por_categoria": resumen.get("por_categoria", {}),
+    }
+
+
 def cerrar_dia(usuario: str) -> tuple[dict, Path | None]:
     """Genera informe Excel del día y registra el cierre. No archiva ventas. (Compatibilidad)"""
     from src.ventas_store import resumen_ventas_dia

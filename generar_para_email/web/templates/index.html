@@ -2312,10 +2312,11 @@
         try {
           const desc = tiposDescripcion[cierreEnCurso];
           
-          const response = await fetch(endpoint, {
+          // FASE 3: Primer paso - obtener dinero bruto (sin confirmación)
+          let response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ confirmacion: true })
+            body: JSON.stringify({ confirmacion: false })
           });
 
           if (!response.ok) {
@@ -2323,9 +2324,56 @@
             throw new Error(errorData.detail || `Error en ${desc.descripcion}`);
           }
 
+          const resumenData = await response.json();
+          
+          if (!resumenData.ok) {
+            throw new Error(resumenData.mensaje || 'Error al obtener datos del cierre');
+          }
+
+          // Mostrar dinero bruto
+          const dineroBruto = resumenData.dinero_bruto || 0;
+          const cantidad = resumenData.cantidad_ventas || 0;
+          const periodo = resumenData.periodo || desc.descripcion;
+          
+          mostrarEstado(
+            `${periodo}: €${dineroBruto.toFixed(2)} (${cantidad} ${cantidad === 1 ? 'venta' : 'ventas'})`,
+            'success'
+          );
+
+          // FASE 4: Preguntar si desea exportar a Excel
+          const exportar = await new Promise(resolve => {
+            const confirmExport = confirm(
+              `${periodo}\n\nGanancia bruta: €${dineroBruto.toFixed(2)}\nVentas: ${cantidad}\n\n¿Deseas exportar el reporte a Excel?`
+            );
+            resolve(confirmExport);
+          });
+
+          if (!exportar) {
+            mostrarEstado(`✅ ${periodo} mostrado. Exportación cancelada.`, 'info');
+            btnCierreMañana.disabled = false;
+            btnCierreTarde.disabled = false;
+            btnCierreDiaCompleto.disabled = false;
+            btnCierreMes.disabled = false;
+            return;
+          }
+
+          // FASE 4: Segundo paso - generar Excel con confirmación
+          mostrarEstado('Generando reporte Excel…', 'info');
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmacion: true })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Error al generar Excel`);
+          }
+
           const contentType = response.headers.get('content-type') || '';
           
           if (contentType.includes('application/vnd.openxmlformats') || contentType.includes('application/x-xlsx')) {
+            // Es un archivo Excel
             const blob = await response.blob();
             let nombreArchivo = `Cierre_${cierreEnCurso}_${new Date().toISOString().split('T')[0]}.xlsx`;
             const contentDisposition = response.headers.get('content-disposition');
@@ -2336,6 +2384,7 @@
               }
             }
             
+            // Descargar archivo
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -2345,11 +2394,12 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            const mensaje = response.headers.get('x-cierre-mensaje') || `${desc.descripcion} completado`;
+            const mensaje = response.headers.get('x-cierre-mensaje') || `${periodo} completado`;
             mostrarEstado(`✅ ${mensaje}. Archivo: ${nombreArchivo}`, 'success');
           } else {
+            // Es JSON (sin ventas)
             const data = await response.json();
-            const mensaje = data.mensaje || `${desc.descripcion} completado sin ventas.`;
+            const mensaje = data.mensaje || `${periodo} completado sin ventas.`;
             mostrarEstado(`ℹ️ ${mensaje}`, 'info');
           }
 
@@ -2365,8 +2415,6 @@
         } catch (err) {
           console.error('Error en cierre:', err);
           mostrarEstado(`Error: ${err.message}`, 'error');
-          
-          // Restaurar botones
           btnCierreMañana.disabled = false;
           btnCierreTarde.disabled = false;
           btnCierreDiaCompleto.disabled = false;

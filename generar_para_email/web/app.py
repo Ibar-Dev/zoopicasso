@@ -22,7 +22,11 @@ from starlette.middleware.sessions import SessionMiddleware
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura, PagoInfo
-from src.monthly_closure import cerrar_mes, cerrar_dia, cerrar_mañana, cerrar_tarde, cerrar_día_completo, RUTA_CIERRES
+from src.monthly_closure import (
+    cerrar_mes, cerrar_dia, cerrar_mañana, cerrar_tarde, cerrar_día_completo,
+    obtener_resumen_cierre_mañana, obtener_resumen_cierre_tarde, obtener_resumen_cierre_dia_completo,
+    RUTA_CIERRES
+)
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
 from src.ventas_store import (
@@ -541,11 +545,25 @@ def estado_cierres(request: Request):
 
 @app.post("/api/ganancias/cierre-mañana")
 def cierre_mañana_endpoint(payload: MonthlyClosurePayload, request: Request):
-    """Realiza el cierre de mañana (06:00-14:00). Puede hacerse solo una vez por día."""
+    """Realiza el cierre de mañana en dos pasos:
+    - confirmacion=false: devuelve dinero_bruto en JSON (FASE 3)
+    - confirmacion=true: genera Excel y registra (FASE 4)
+    """
+    from datetime import datetime
     _requiere_login(request)
-    if not payload.confirmacion:
-        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar mañana")
     usuario = str(request.session.get("usuario", "(desconocido)"))
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    
+    if not payload.confirmacion:
+        # FASE 3: Mostrar ganancia bruta sin registrar
+        try:
+            resumen = obtener_resumen_cierre_mañana(fecha)
+            return JSONResponse(resumen)
+        except Exception as e:
+            logger.error("Error al obtener resumen mañana: %s", e)
+            return JSONResponse({"ok": False, "mensaje": str(e)}, status_code=400)
+    
+    # FASE 4: Si confirmacion=true, generar Excel y registrar
     meta, archivo = cerrar_mañana(usuario=usuario)
     if not meta.get("ok"):
         return JSONResponse(meta, status_code=400)
@@ -567,11 +585,25 @@ def cierre_mañana_endpoint(payload: MonthlyClosurePayload, request: Request):
 
 @app.post("/api/ganancias/cierre-tarde")
 def cierre_tarde_endpoint(payload: MonthlyClosurePayload, request: Request):
-    """Realiza el cierre de tarde (14:00-22:00). Requiere que mañana esté completado."""
+    """Realiza el cierre de tarde en dos pasos:
+    - confirmacion=false: devuelve dinero_bruto en JSON (FASE 3)
+    - confirmacion=true: genera Excel y registra (FASE 4)
+    """
+    from datetime import datetime
     _requiere_login(request)
-    if not payload.confirmacion:
-        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar tarde")
     usuario = str(request.session.get("usuario", "(desconocido)"))
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    
+    if not payload.confirmacion:
+        # FASE 3: Mostrar ganancia bruta sin registrar
+        try:
+            resumen = obtener_resumen_cierre_tarde(fecha)
+            return JSONResponse(resumen)
+        except Exception as e:
+            logger.error("Error al obtener resumen tarde: %s", e)
+            return JSONResponse({"ok": False, "mensaje": str(e)}, status_code=400)
+    
+    # FASE 4: Si confirmacion=true, generar Excel y registrar
     meta, archivo = cerrar_tarde(usuario=usuario)
     if not meta.get("ok"):
         return JSONResponse(meta, status_code=400)
@@ -593,11 +625,25 @@ def cierre_tarde_endpoint(payload: MonthlyClosurePayload, request: Request):
 
 @app.post("/api/ganancias/cierre-dia-completo")
 def cierre_dia_completo_endpoint(payload: MonthlyClosurePayload, request: Request):
-    """Realiza el cierre del día completo. Requiere que mañana Y tarde estén completados."""
+    """Realiza el cierre del día completo en dos pasos:
+    - confirmacion=false: devuelve dinero_bruto en JSON (FASE 3)
+    - confirmacion=true: genera Excel y registra (FASE 4)
+    """
+    from datetime import datetime
     _requiere_login(request)
-    if not payload.confirmacion:
-        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar día completo")
     usuario = str(request.session.get("usuario", "(desconocido)"))
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    
+    if not payload.confirmacion:
+        # FASE 3: Mostrar ganancia bruta sin registrar
+        try:
+            resumen = obtener_resumen_cierre_dia_completo(fecha)
+            return JSONResponse(resumen)
+        except Exception as e:
+            logger.error("Error al obtener resumen día completo: %s", e)
+            return JSONResponse({"ok": False, "mensaje": str(e)}, status_code=400)
+    
+    # FASE 4: Si confirmacion=true, generar Excel y registrar
     meta, archivo = cerrar_día_completo(usuario=usuario)
     if not meta.get("ok"):
         return JSONResponse(meta, status_code=400)
