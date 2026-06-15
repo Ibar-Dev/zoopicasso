@@ -831,8 +831,6 @@ def siguiente_ticket(request: Request) -> JSONResponse:
       elif resp.status_code == 204:
           # Nada en cola, esperar 3 segundos
     """
-    _requiere_login(request)
-    
     if not cola_impresion:
         # Cola vacía - cliente debe reintentar más tarde
         return JSONResponse({"hay_ticket": False}, status_code=204)
