@@ -42,6 +42,7 @@ ANIMALES: dict[str, str] = {
     "5": "peces",
     "6": "reptiles",
     "7": "peluqueria",
+    "8": "animal",
 }
 
 
