@@ -49,6 +49,72 @@ Los cierres sirven para:
 
 ---
 
+## ¿POR QUÉ SOLO ARCHIVAMOS EN CIERRE MENSUAL?
+
+### La Razón: Necesitamos Consolidar Datos
+
+**Si archiváramos en cierres diarios, la lógica se rompería.**
+
+```
+Escenario problemático:
+├─ 14:00: Haces Cierre Mañana → Archiva facturas 6-14h ❌
+├─ 22:00: Intentas Cierre Tarde
+│         Pero... ¿qué datos archiva si los de mañana ya están archivados?
+└─ 23:00: Intentas Cierre Día Completo
+          Pero... ¿cómo consolida mañana + tarde si ambos están archivados?
+```
+
+### La Solución Correcta: Archivar Solo al Final del Mes
+
+```
+Proceso correcto:
+├─ Día 1-30: Todos los cierres (mañana, tarde, día) usan DATOS ACTIVOS
+│            Se generan Excel informativos, pero NO se archiva
+│            Los datos siguen "activos" para consolidaciones
+│
+├─ Día 30: Se hace CIERRE MENSUAL
+│          En ese momento, TODOS los datos del mes se archivan de una vez
+│          Los datos pasan de "activos" a "archivados"
+│
+└─ Día 1 (Mes siguiente): Sistema limpio, listo para nuevo mes
+```
+
+### Analogía: Control de Caja
+
+```
+🌅 Cierre de Mañana  → Como contar la caja al mediodía
+                       (Documentas cuánto hay, pero el dinero sigue en la caja)
+
+🌆 Cierre de Tarde   → Como contar la caja al anochecer
+                       (Documentas cuánto hay, pero el dinero sigue en la caja)
+
+📋 Cierre Mensual    → Como hacer el depósito al banco
+                       (AHORA sí, sacas todo de la caja = ARCHIVAS)
+                       (A partir de ahora, el dinero está en el banco = ARCHIVADO)
+```
+
+### ¿Dónde Quedan los Datos Mientras Tanto?
+
+**Buena noticia:** Los datos están completamente seguros.
+
+- 📁 **Ubicación:** Base de datos en disco del servidor
+- 🔒 **Seguridad:** Persistente, no se pierden aunque el servidor se reinicie
+- ✅ **Acceso:** Disponibles para todos los cierres hasta cierre mensual
+- 🌐 **Incluso si el servidor se cierra:** Los datos siguen en disco, se recuperan al reiniciar
+
+**Ejemplo real:**
+```
+Día 1-15: Generas facturas, sistema funciona
+Día 16: El servidor se cierra por inactividad
+        ¿Se pierden datos del 1-15? NO ✅
+Día 17: Vuelves a conectarte, el servidor se reinicia
+        ¿Aparecen datos del 1-15? SÍ, intactos ✅
+Día 30: Haces cierre mensual
+        Archiva TODAS las facturas, incluidas las del 1-15 ✅
+```
+
+---
+
 ## FLUJO VISUAL DE CIERRES
 
 ```
@@ -606,9 +672,10 @@ Si tienes preguntas o problemas:
 ## VERSIÓN DEL DOCUMENTO
 
 - **Fecha:** 15 de Junio, 2026
-- **Versión:** 1.0
+- **Versión:** 1.1 (Actualizado con explicación de archivado)
 - **Para:** Zoo Picasso
 - **Audiencia:** Operadores, Gerentes, Administradores
+- **Páginas:** 22
 
 ---
 
