@@ -380,6 +380,7 @@
   <script src="https://cdn.jsdelivr.net/npm/driver.js@2/dist/driver.js.iife.js"></script>
   <script src="/static/tutorial-pasos.js"></script>
   <script src="/static/tutorial.js"></script>
+  <script src="/static/shortcuts.js"></script>
 
   <script>
     const loginCard = document.getElementById('login-card');
@@ -1492,21 +1493,6 @@
       if (e.key === 'Escape' && ticketModalEl.classList.contains('active')) {
         cerrarModalTicket(null);
       }
-      // Nota: Escape para cierres antiguo fue reemplazado por el nuevo sistema
-      if ((e.key === 'n' || e.key === 'N') && ticketModalEl.classList.contains('active')) {
-        const enInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-        if (!enInput) { e.preventDefault(); cerrarModalTicket(false); }
-      }
-      // Alt+A = Añadir línea, Alt+D = Eliminar última línea, Alt+G = Generar factura (solo sin modales abiertos)
-      if (e.altKey && pagoModalEl.hidden && ticketModalEl.hidden && cierreMesModalEl.hidden && cierreDiaModalEl.hidden) {
-        if (e.code === 'KeyA') { e.preventDefault(); addLinea(); }
-        if (e.code === 'KeyD') {
-          e.preventDefault();
-          const filas = lineasEl.querySelectorAll('.fila');
-          if (filas.length) filas[filas.length - 1].querySelector('.del').click();
-        }
-        if (e.code === 'KeyG') { e.preventDefault(); document.getElementById('btn-generar').click(); }
-      }
     });
 
     // --- Modal método de pago ---
@@ -1614,36 +1600,6 @@
 
     pagoEfectivoEl.addEventListener('input', actualizarCambio);
     pagoEntregadoEl.addEventListener('input', actualizarCambio);
-
-    window.addEventListener('keydown', (e) => {
-      if (!pagoModalEl.classList.contains('active')) return;
-      if (e.key === 'Escape') { cerrarModalPago(null); return; }
-      const activeEl = document.activeElement;
-      const enInput = activeEl && (
-        activeEl.tagName === 'TEXTAREA' ||
-        activeEl.tagName === 'SELECT' ||
-        (activeEl.tagName === 'INPUT' && activeEl.type !== 'radio' && activeEl.type !== 'checkbox')
-      );
-      if (enInput) return;
-      const total = Number(totalEl.textContent.replace('€', '').trim());
-      if (e.key === 'e' || e.key === 'E') {
-        e.preventDefault();
-        pagoRadioEfectivo.checked = true; pagoRadioEfectivo.dispatchEvent(new Event('change', { bubbles: true }));
-        pagoEntregadoEl.focus();
-      } else if (e.key === 't' || e.key === 'T') {
-        e.preventDefault();
-        pagoRadioTarjeta.checked = true; pagoRadioTarjeta.dispatchEvent(new Event('change', { bubbles: true }));
-        pagoTarjetaEl.value = total.toFixed(2);
-        btnPagoConfirmar.focus();
-      } else if (e.key === 'm' || e.key === 'M') {
-        e.preventDefault();
-        pagoRadioMixto.checked = true; pagoRadioMixto.dispatchEvent(new Event('change', { bubbles: true }));
-        pagoEfectivoEl.focus();
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        btnPagoConfirmar.click();
-      }
-    });
 
     btnPagoCancelar.addEventListener('click', () => cerrarModalPago(null));
     pagoModalEl.addEventListener('click', (e) => {
@@ -2427,6 +2383,77 @@
       // Cargar estado al iniciar (se llamará desde bootstrap cuando loggedIn sea true)
       window.cargarEstadoCierres = cargarEstadoCierres;
     })();
+
+    // ===== Sistema Modular de Atajos de Teclado =====
+    // Vinculación de acciones concretas a handlers
+    const keyboardHandlers = {
+      // Formulario - Líneas
+      'addLine': () => addLinea(),
+      'deleteLine': () => {
+        const filas = lineasEl.querySelectorAll('.fila');
+        if (filas.length) filas[filas.length - 1].querySelector('.del').click();
+      },
+      'generateInvoice': () => {
+        document.getElementById('btn-generar').click();
+      },
+
+      // Modal de pago - Selección de método
+      'selectEffectivo': () => {
+        const radio = document.querySelector('input[name="metodo_pago"][value="efectivo"]');
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('pago-entregado').focus();
+        }
+      },
+      'selectTarjeta': () => {
+        const radio = document.querySelector('input[name="metodo_pago"][value="tarjeta"]');
+        const total = Number(totalEl.textContent.replace('€', '').trim());
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('pago-tarjeta').value = total.toFixed(2);
+          document.getElementById('btn-pago-confirmar').focus();
+        }
+      },
+      'selectMixto': () => {
+        const radio = document.querySelector('input[name="metodo_pago"][value="mixto"]');
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('pago-efectivo').focus();
+        }
+      },
+      'confirmPayment': () => {
+        document.getElementById('btn-pago-confirmar').click();
+      },
+      'cancelPayment': () => {
+        cerrarModalPago(null);
+      },
+
+      // Modal de ticket
+      'printTicket': () => {
+        document.getElementById('btn-ticket-si').click();
+      },
+      'skipPrinting': () => {
+        document.getElementById('btn-ticket-no').click();
+      },
+      'cancelTicket': () => {
+        cerrarModalTicket(null);
+      },
+
+      // Modal de cierre
+      'confirmClosure': () => {
+        document.getElementById('btn-confirm')?.click();
+      },
+      'cancelClosure': () => {
+        document.getElementById('btn-cancel')?.click();
+      }
+    };
+
+    // Inicializar el sistema de atajos
+    ActionExecutor.registerMultiple(keyboardHandlers);
+    KeyboardSystem.init();
 
     bootstrap();
   </script>
