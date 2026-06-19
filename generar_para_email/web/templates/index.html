@@ -142,11 +142,15 @@
         <span class="chuleta-item"><kbd>Alt</kbd>+<kbd>D</kbd> Eliminar última línea</span>
         <span class="chuleta-item"><kbd>Alt</kbd>+<kbd>G</kbd> Generar factura</span>
       </div>
-      <div style="display:flex;gap:0.5rem;margin-top:8px;align-items:center;">
+      <div style="display:flex;gap:0.5rem;margin-top:8px;align-items:center;flex-wrap:wrap;">
         <button id="btn-cerrar-dia" class="ghost" type="button">Cerrar día</button>
         <button id="btn-cerrar-mes" class="ghost" type="button">Cerrar mes</button>
-        <button id="btn-carpeta-cierres" class="ghost" type="button" title="Seleccionar carpeta donde se guardan los cierres mensuales (clic para cambiar)">📁 Seleccionar carpeta (Cierres mes)</button>
-        <button id="btn-carpeta-cierres-dia" class="ghost" type="button" title="Seleccionar carpeta donde se guardan los cierres diarios (clic para cambiar)">📁 Seleccionar carpeta (Cierres día)</button>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-top:8px;align-items:center;flex-wrap:wrap;font-size:0.9rem;">
+        <button id="btn-carpeta-cierre-mañana" class="ghost" type="button" title="Carpeta para Cierre de la Mañana">📁 Mañana</button>
+        <button id="btn-carpeta-cierre-tarde" class="ghost" type="button" title="Carpeta para Cierre de la Tarde">📁 Tarde</button>
+        <button id="btn-carpeta-cierre-dia-completo" class="ghost" type="button" title="Carpeta para Cierre del Día Completo">📁 Día</button>
+        <button id="btn-carpeta-cierres" class="ghost" type="button" title="Carpeta para Cierre del Mes">📁 Mes</button>
       </div>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
@@ -225,6 +229,19 @@
           <button id="btn-cierre-mes" type="button" style="padding:0.75rem;background:#9C27B0;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">📅 Cierre del Mes</button>
         </div>
         <div id="cierre-status" style="margin-top:0.75rem;padding:0.5rem;border-radius:4px;display:none;font-size:0.9rem;"></div>
+      </div>
+
+      <!-- Sección de Automatización -->
+      <div id="seccion-automatizacion" style="margin-top:1.5rem;padding:1rem;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+        <h3 style="margin-top:0;color:#1e293b;">🤖 Automatización de Cierres</h3>
+        <div id="estado-automatizacion" style="font-size:0.9rem;color:#475569;margin:0.5rem 0;">
+          <p style="margin:0.25rem 0;">Estado: <span id="auto-status-text" style="font-weight:bold;color:#22c55e;">✅ Activa</span></p>
+          <div id="proximos-cierres" style="margin-top:0.5rem;font-size:0.85rem;"></div>
+        </div>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button id="btn-pause-automation" type="button" style="padding:0.5rem 1rem;background:#ff9800;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;">⏸️ Pausar automatización</button>
+          <button id="btn-resume-automation" type="button" style="padding:0.5rem 1rem;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;display:none;">▶️ Reanudar automatización</button>
+        </div>
       </div>
 
       <!-- Modal de confirmación para cierres -->
@@ -1280,6 +1297,93 @@
       mostrarToast(`Guardado en: ${dirHandle.name}`);
     }
 
+    async function guardarCierreMañanaEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre de la mañana descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierre_mañana').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_mañana', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierreMañana(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
+    async function guardarCierreTardeEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre de la tarde descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierre_tarde').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_tarde', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierreTarde(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
+    async function guardarCierreDiaCompletoEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre del día completo descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierre_dia_completo').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_dia_completo', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierreDiaCompleto(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
     async function guardarBackupEnCarpeta(blob, nombre) {
       if (!window.showDirectoryPicker) {
         const url = URL.createObjectURL(blob);
@@ -1365,20 +1469,41 @@
       }
     });
 
-    const btnCarpetaCierres    = document.getElementById('btn-carpeta-cierres');
-    const btnCarpetaCierresDia = document.getElementById('btn-carpeta-cierres-dia');
-    const btnCarpetaBackup     = document.getElementById('btn-carpeta-backup');
+    const btnCarpetaCierres      = document.getElementById('btn-carpeta-cierres');
+    const btnCarpetaCierresDia   = document.getElementById('btn-carpeta-cierres-dia');
+    const btnCarpetaCierreMañana = document.getElementById('btn-carpeta-cierre-mañana');
+    const btnCarpetaCierreTarde  = document.getElementById('btn-carpeta-cierre-tarde');
+    const btnCarpetaCierreDiaCompleto = document.getElementById('btn-carpeta-cierre-dia-completo');
+    const btnCarpetaBackup       = document.getElementById('btn-carpeta-backup');
 
     function actualizarNombreCarpetaCierres(nombre) {
       btnCarpetaCierres.title = nombre
-        ? `Carpeta de cierres mensuales: ${nombre} (clic para cambiar)`
-        : 'Carpeta donde se guardan los cierres mensuales';
+        ? `Cierre del mes: ${nombre} (clic para cambiar)`
+        : 'Carpeta para cierres mensuales';
     }
 
     function actualizarNombreCarpetaCierresDia(nombre) {
       btnCarpetaCierresDia.title = nombre
-        ? `Carpeta de cierres diarios: ${nombre} (clic para cambiar)`
-        : 'Carpeta donde se guardan los cierres diarios';
+        ? `Cierres diarios: ${nombre} (clic para cambiar)`
+        : 'Carpeta para cierres diarios';
+    }
+
+    function actualizarNombreCarpetaCierreMañana(nombre) {
+      btnCarpetaCierreMañana.title = nombre
+        ? `Cierre de la mañana: ${nombre} (clic para cambiar)`
+        : 'Carpeta para cierre de la mañana';
+    }
+
+    function actualizarNombreCarpetaCierreTarde(nombre) {
+      btnCarpetaCierreTarde.title = nombre
+        ? `Cierre de la tarde: ${nombre} (clic para cambiar)`
+        : 'Carpeta para cierre de la tarde';
+    }
+
+    function actualizarNombreCarpetaCierreDiaCompleto(nombre) {
+      btnCarpetaCierreDiaCompleto.title = nombre
+        ? `Cierre del día completo: ${nombre} (clic para cambiar)`
+        : 'Carpeta para cierre del día completo';
     }
 
     function actualizarNombreCarpetaBackup(nombre) {
@@ -1394,6 +1519,18 @@
 
     idbGet('config', 'carpeta_cierres_dia').then(h => {
       if (h) actualizarNombreCarpetaCierresDia(h.name);
+    }).catch(() => {});
+
+    idbGet('config', 'carpeta_cierre_mañana').then(h => {
+      if (h) actualizarNombreCarpetaCierreMañana(h.name);
+    }).catch(() => {});
+
+    idbGet('config', 'carpeta_cierre_tarde').then(h => {
+      if (h) actualizarNombreCarpetaCierreTarde(h.name);
+    }).catch(() => {});
+
+    idbGet('config', 'carpeta_cierre_dia_completo').then(h => {
+      if (h) actualizarNombreCarpetaCierreDiaCompleto(h.name);
     }).catch(() => {});
 
     idbGet('config', 'carpeta_backup').then(h => {
@@ -1434,6 +1571,63 @@
       } catch (err) {
         if (err && err.name !== 'AbortError') {
           errorEl.textContent = 'No se pudo configurar la carpeta de cierres diarios.';
+        }
+      }
+    });
+
+    btnCarpetaCierreMañana.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_mañana', dirHandle);
+        actualizarNombreCarpetaCierreMañana(dirHandle.name);
+        resultadoEl.textContent = `Carpeta para cierre de la mañana configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta.';
+        }
+      }
+    });
+
+    btnCarpetaCierreTarde.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_tarde', dirHandle);
+        actualizarNombreCarpetaCierreTarde(dirHandle.name);
+        resultadoEl.textContent = `Carpeta para cierre de la tarde configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta.';
+        }
+      }
+    });
+
+    btnCarpetaCierreDiaCompleto.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_dia_completo', dirHandle);
+        actualizarNombreCarpetaCierreDiaCompleto(dirHandle.name);
+        resultadoEl.textContent = `Carpeta para cierre del día completo configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta.';
         }
       }
     });
@@ -2342,15 +2536,28 @@
               }
             }
             
-            // Descargar archivo
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = nombreArchivo;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            // Guardar archivo en la carpeta configurada
+            try {
+              if (cierreEnCurso === 'mañana') {
+                await guardarCierreMañanaEnCarpeta(blob, nombreArchivo);
+              } else if (cierreEnCurso === 'tarde') {
+                await guardarCierreTardeEnCarpeta(blob, nombreArchivo);
+              } else if (cierreEnCurso === 'dia-completo') {
+                await guardarCierreDiaCompletoEnCarpeta(blob, nombreArchivo);
+              } else if (cierreEnCurso === 'mes') {
+                await guardarCierreEnCarpeta(blob, nombreArchivo);
+              }
+            } catch (_) {
+              // Fallback: descarga automática
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = nombreArchivo;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
             
             const mensaje = response.headers.get('x-cierre-mensaje') || `${periodo} completado`;
             mostrarEstado(`✅ ${mensaje}. Archivo: ${nombreArchivo}`, 'success');
@@ -2454,6 +2661,135 @@
     // Inicializar el sistema de atajos
     ActionExecutor.registerMultiple(keyboardHandlers);
     KeyboardSystem.init();
+
+    // ===== Smart Keep-Alive para Render Free tier =====
+    const SmartKeepAliveClient = {
+      pingInterval: 10 * 60 * 1000,  // 10 minutos
+      timer: null,
+      lastActivityTime: Date.now(),
+      activityThreshold: 15 * 60 * 1000,  // 15 min sin actividad
+
+      start() {
+        // Detectar actividad del usuario
+        ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(eventType => {
+          document.addEventListener(eventType, () => {
+            this.lastActivityTime = Date.now();
+          }, true);
+        });
+
+        // Hacer ping cada 10 minutos
+        this.timer = setInterval(() => {
+          this.checkAndPing();
+        }, this.pingInterval);
+        
+        console.log('✅ Keep-alive iniciado: ping cada 10 min si inactividad > 15 min');
+      },
+
+      checkAndPing() {
+        const timeSinceActivity = Date.now() - this.lastActivityTime;
+        
+        if (timeSinceActivity > this.activityThreshold) {
+          // Usuario inactivo: hacer ping para evitar spin-down
+          fetch('/api/keep-alive', { 
+            method: 'GET',
+            credentials: 'same-origin'
+          }).then(() => {
+            console.log(`✓ Keep-alive ping: ${new Date().toLocaleTimeString()}`);
+          }).catch(error => {
+            console.warn('⚠️ Keep-alive ping falló:', error.message);
+          });
+        }
+      },
+
+      stop() {
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = null;
+        }
+      }
+    };
+
+    // Iniciar keep-alive
+    SmartKeepAliveClient.start();
+
+    // ===== Automatización de Cierres =====
+    const AutomationUI = {
+      statusEl: document.getElementById('auto-status-text'),
+      proximosEl: document.getElementById('proximos-cierres'),
+      pauseBtn: document.getElementById('btn-pause-automation'),
+      resumeBtn: document.getElementById('btn-resume-automation'),
+
+      async loadStatus() {
+        try {
+          const res = await fetch('/api/automation/status', { credentials: 'same-origin' });
+          if (!res.ok) return;
+          const data = await res.json();
+          this.updateUI(data);
+        } catch (e) {
+          console.warn('Error cargando estado de automatización:', e);
+        }
+      },
+
+      updateUI(data) {
+        const statusText = data.enabled ? '✅ Activa' : '⏸️ Pausada';
+        this.statusEl.textContent = statusText;
+        this.statusEl.style.color = data.enabled ? '#22c55e' : '#ff9800';
+
+        this.proximosEl.innerHTML = '';
+        if (data.jobs && data.jobs.length > 0) {
+          data.jobs.forEach(job => {
+            const nextRun = job.next_run ? new Date(job.next_run).toLocaleString('es-ES') : 'Próximamente';
+            this.proximosEl.innerHTML += `<p style="margin:0.25rem 0;"><strong>${job.name}:</strong> ${nextRun}</p>`;
+          });
+        }
+
+        this.pauseBtn.style.display = data.enabled ? 'block' : 'none';
+        this.resumeBtn.style.display = data.enabled ? 'none' : 'block';
+
+        if (data.last_error && Object.keys(data.last_error).length > 0) {
+          const errorMsg = Object.entries(data.last_error)
+            .map(([type, err]) => `${type}: ${err.error}`)
+            .join(', ');
+          console.warn('⚠️ Errores en automatización:', errorMsg);
+        }
+      },
+
+      async pause() {
+        try {
+          await fetch('/api/automation/pause', { 
+            method: 'POST', 
+            credentials: 'same-origin'
+          });
+          this.loadStatus();
+          mostrarToast('⏸️ Automatización pausada');
+        } catch (e) {
+          mostrarToast('Error al pausar automatización', 'error');
+        }
+      },
+
+      async resume() {
+        try {
+          await fetch('/api/automation/resume', { 
+            method: 'POST', 
+            credentials: 'same-origin'
+          });
+          this.loadStatus();
+          mostrarToast('▶️ Automatización reanudada');
+        } catch (e) {
+          mostrarToast('Error al reanudar automatización', 'error');
+        }
+      }
+    };
+
+    this.pauseBtn = document.getElementById('btn-pause-automation');
+    this.resumeBtn = document.getElementById('btn-resume-automation');
+    
+    AutomationUI.pauseBtn?.addEventListener('click', () => AutomationUI.pause());
+    AutomationUI.resumeBtn?.addEventListener('click', () => AutomationUI.resume());
+
+    // Cargar estado de automatización
+    AutomationUI.loadStatus();
+    setInterval(() => AutomationUI.loadStatus(), 60000); // Actualizar cada minuto
 
     bootstrap();
   </script>

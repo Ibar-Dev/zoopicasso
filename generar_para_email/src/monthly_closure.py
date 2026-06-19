@@ -1,5 +1,6 @@
 import logging
 import os
+import platform
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,11 +21,44 @@ logger = logging.getLogger(__name__)
 
 _BASE = Path(__file__).resolve().parent.parent
 
+def _obtener_carpeta_descargas() -> Path:
+    """
+    Detecta y retorna la carpeta de Descargas del sistema operativo.
+    
+    Soporta:
+    - Windows (español): C:\\Users\\{user}\\Descargas
+    - Windows (inglés): C:\\Users\\{user}\\Downloads
+    - Linux/Mac (español): $HOME/Descargas
+    - Linux/Mac (inglés): $HOME/Downloads
+    
+    Si ninguna carpeta existe, crea la carpeta "Descargas" en el home.
+    """
+    home = Path.home()
+    
+    # Intentar rutas en orden de preferencia
+    rutas_candidatas = [
+        home / "Descargas",        # Español
+        home / "Downloads",         # Inglés
+    ]
+    
+    # Retornar la primera que exista
+    for ruta in rutas_candidatas:
+        if ruta.exists() and ruta.is_dir():
+            logger.info("📁 Carpeta de descargas detectada: %s", ruta)
+            return ruta
+    
+    # Si ninguna existe, crear "Descargas" en el home
+    descargas = home / "Descargas"
+    descargas.mkdir(parents=True, exist_ok=True)
+    logger.info("📁 Carpeta de descargas creada: %s", descargas)
+    return descargas
+
 
 def _ruta_cierres_dir() -> Path:
     valor = os.getenv("CIERRES_DIR", "").strip()
     if not valor:
-        return (_BASE / "data" / "cierres").resolve()
+        # Por defecto, usar la carpeta de Descargas del sistema operativo
+        return _obtener_carpeta_descargas()
     ruta = Path(valor).expanduser()
     if not ruta.is_absolute():
         ruta = _BASE / ruta
@@ -36,7 +70,8 @@ RUTA_CIERRES = _ruta_cierres_dir()
 
 def _generar_excel_cierre(anio_mes: str, resumen: dict) -> Path:
     RUTA_CIERRES.mkdir(parents=True, exist_ok=True)
-    archivo = RUTA_CIERRES / f"cierre_mensual_{anio_mes.replace('-', '_')}.xlsx"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    archivo = RUTA_CIERRES / f"Cierre_del_mes_{anio_mes}_{timestamp}.xlsx"
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -80,9 +115,24 @@ def _generar_excel_cierre(anio_mes: str, resumen: dict) -> Path:
     return archivo
 
 
-def _generar_excel_cierre_dia(fecha: str, resumen: dict) -> Path:
+def _generar_excel_cierre_dia(fecha: str, resumen: dict, tipo_cierre: str = "full_day") -> Path:
+    """
+    Genera Excel de cierre diario con nombre descriptivo según el tipo.
+    
+    tipo_cierre puede ser: "morning", "afternoon", "full_day"
+    """
     RUTA_CIERRES.mkdir(parents=True, exist_ok=True)
-    archivo = RUTA_CIERRES / f"cierre_diario_{fecha.replace('-', '_')}.xlsx"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Nombres descriptivos según tipo de cierre
+    nombres_por_tipo = {
+        "morning": "Cierre_de_la_mañana",
+        "afternoon": "Cierre_de_la_tarde",
+        "full_day": "Cierre_del_dia_completo",
+    }
+    
+    nombre_tipo = nombres_por_tipo.get(tipo_cierre, "Cierre_diario")
+    archivo = RUTA_CIERRES / f"{nombre_tipo}_{fecha}_{timestamp}.xlsx"
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -191,7 +241,7 @@ def _cerrar_dia_generico(usuario: str, tipo_cierre: str, resumen: dict, fecha: s
             "mensaje": f"No hay ventas para cerrar en {resumen.get('periodo', tipo_cierre)}.",
         }, None
 
-    archivo = _generar_excel_cierre_dia(fecha, resumen)
+    archivo = _generar_excel_cierre_dia(fecha, resumen, tipo_cierre)
     cierre_id = f"{tipo_cierre}-{fecha}-{datetime.now(timezone.utc).strftime('%H%M%S%f')}"
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 

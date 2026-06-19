@@ -27,6 +27,7 @@ from src.monthly_closure import (
     obtener_resumen_cierre_mañana, obtener_resumen_cierre_tarde, obtener_resumen_cierre_dia_completo,
     RUTA_CIERRES
 )
+from web.scheduler import init_scheduler, stop_scheduler, get_automation_status, pause_automation, resume_automation, force_execution
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
 from src.ventas_store import (
@@ -266,6 +267,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 inicializar_db_ventas()
+init_scheduler()  # Inicializar scheduler de cierres automáticos
 
 
 def _anio_mes_actual() -> str:
@@ -307,6 +309,42 @@ def logout(request: Request) -> dict[str, bool]:
 @app.get("/api/session")
 def session_status(request: Request) -> dict[str, bool]:
     return {"logged_in": bool(request.session.get("logged_in"))}
+
+@app.get("/api/keep-alive")
+def keep_alive() -> JSONResponse:
+    """
+    Endpoint para prevenir spin-down de Render (Free tier).
+    Responde rápidamente para mantener la instancia activa.
+    No requiere autenticación - solo es un ping.
+    """
+    return JSONResponse({"status": "ok"}, status_code=200)
+
+@app.get("/api/automation/status")
+def automation_status(request: Request) -> JSONResponse:
+    """Obtiene el estado de los cierres automáticos."""
+    _requiere_login(request)
+    return JSONResponse(get_automation_status())
+
+@app.post("/api/automation/pause")
+def automation_pause(request: Request) -> JSONResponse:
+    """Pausa los cierres automáticos."""
+    _requiere_login(request)
+    pause_automation()
+    return JSONResponse({"status": "paused"})
+
+@app.post("/api/automation/resume")
+def automation_resume(request: Request) -> JSONResponse:
+    """Reanuda los cierres automáticos."""
+    _requiere_login(request)
+    resume_automation()
+    return JSONResponse({"status": "resumed"})
+
+@app.post("/api/automation/force/{cierre_type}")
+def automation_force(cierre_type: str, request: Request) -> JSONResponse:
+    """Ejecuta un cierre de forma inmediata (forzado)."""
+    _requiere_login(request)
+    result = force_execution(cierre_type)
+    return JSONResponse(result)
 
 @app.get("/api/precios_categorias")
 def get_precios_categorias(request: Request) -> dict:
