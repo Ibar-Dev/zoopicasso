@@ -3,15 +3,19 @@ name = "zoo-picasso"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
     "flet>=0.84.0",
     "openpyxl>=3.1.5",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
     "python-escpos>=3.1",
     "libusb-package>=1.0.26",
     "pyusb>=1.2.1",
     "jinja2>=3.1.6",
     "itsdangerous>=2.2.0",
+    "requests>=2.33.1",
+    "apscheduler>=3.10,<4.0",
 ]
 
 [dependency-groups]
