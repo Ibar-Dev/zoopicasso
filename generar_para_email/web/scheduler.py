@@ -9,9 +9,21 @@ Ejecuta automáticamente:
 """
 
 import logging
+from importlib import import_module
 from datetime import datetime
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
+from typing import Any
+
+try:
+    BackgroundScheduler = import_module(
+        "apscheduler.schedulers.background"
+    ).BackgroundScheduler
+    CronTrigger = import_module("apscheduler.triggers.cron").CronTrigger
+except ModuleNotFoundError as exc:
+    BackgroundScheduler = None
+    CronTrigger = None
+    APSCHEDULER_IMPORT_ERROR = exc
+else:
+    APSCHEDULER_IMPORT_ERROR = None
 
 from src.monthly_closure import (
     cerrar_mañana,
@@ -22,14 +34,20 @@ from src.monthly_closure import (
 
 logger = logging.getLogger(__name__)
 
+APSCHEDULER_AVAILABLE = APSCHEDULER_IMPORT_ERROR is None
+
 # Instancia global del scheduler
-scheduler = BackgroundScheduler()
+scheduler: Any | None = BackgroundScheduler() if APSCHEDULER_AVAILABLE else None
 
 # Estado global de automatización
 automation_state = {
-    "enabled": True,
+    "available": APSCHEDULER_AVAILABLE,
+    "enabled": APSCHEDULER_AVAILABLE,
     "last_execution": {},
     "last_error": {},
+    "reason_unavailable": str(APSCHEDULER_IMPORT_ERROR)
+    if APSCHEDULER_IMPORT_ERROR
+    else None,
 }
 
 
@@ -70,6 +88,13 @@ def _wrap_cierre(cierre_type: str, cierre_func):
 
 def init_scheduler():
     """Inicializa el scheduler con los cierres automáticos."""
+
+    if scheduler is None:
+        logger.warning(
+            "APScheduler no está instalado; cierres automáticos desactivados"
+        )
+        automation_state["enabled"] = False
+        return
 
     if scheduler.running:
         logger.warning("Scheduler ya está en ejecución")
@@ -130,13 +155,20 @@ def init_scheduler():
 
 def stop_scheduler():
     """Detiene el scheduler."""
-    if scheduler.running:
+    if scheduler and scheduler.running:
         scheduler.shutdown()
         logger.info("⏹️ Scheduler de cierres detenido")
 
 
 def pause_automation():
     """Pausa los cierres automáticos sin detener el scheduler."""
+    if scheduler is None:
+        automation_state["enabled"] = False
+        logger.warning(
+            "No se puede pausar la automatización porque APScheduler no está disponible"
+        )
+        return
+
     automation_state["enabled"] = False
     for job in scheduler.get_jobs():
         job.pause()
@@ -145,6 +177,13 @@ def pause_automation():
 
 def resume_automation():
     """Reanuda los cierres automáticos."""
+    if scheduler is None:
+        automation_state["enabled"] = False
+        logger.warning(
+            "No se puede reanudar la automatización porque APScheduler no está disponible"
+        )
+        return
+
     automation_state["enabled"] = True
     for job in scheduler.get_jobs():
         job.resume()
@@ -154,24 +193,27 @@ def resume_automation():
 def get_automation_status():
     """Retorna el estado actual de la automatización."""
     jobs = []
-    for job in scheduler.get_jobs():
-        jobs.append(
-            {
-                "id": job.id,
-                "name": job.name,
-                "trigger": str(job.trigger),
-                "next_run": job.next_run_time.isoformat()
-                if job.next_run_time
-                else None,
-            }
-        )
+    if scheduler is not None:
+        for job in scheduler.get_jobs():
+            jobs.append(
+                {
+                    "id": job.id,
+                    "name": job.name,
+                    "trigger": str(job.trigger),
+                    "next_run": job.next_run_time.isoformat()
+                    if job.next_run_time
+                    else None,
+                }
+            )
 
     return {
+        "available": automation_state["available"],
         "enabled": automation_state["enabled"],
-        "scheduler_running": scheduler.running,
+        "scheduler_running": bool(scheduler and scheduler.running),
         "jobs": jobs,
         "last_execution": automation_state["last_execution"],
         "last_error": automation_state["last_error"],
+        "reason_unavailable": automation_state["reason_unavailable"],
     }
 
 
