@@ -1613,6 +1613,25 @@
       }
     });
 
+    btnCarpetaCierreMañana.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_mañana', dirHandle);
+        actualizarNombreCarpetaCierreMañana(dirHandle.name);
+        resultadoEl.textContent = `Carpeta para cierre de la mañana configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta.';
+        }
+      }
+    });
+
     btnCarpetaBackup.addEventListener('click', async () => {
       if (!window.showDirectoryPicker) {
         backupEstadoEl.textContent = 'Tu navegador no soporta selección de carpeta.';
