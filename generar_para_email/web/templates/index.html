@@ -103,6 +103,13 @@
         <span id="draft-guardado" class="draft-saved-hint" hidden>✓ Borrador</span>
         <button id="btn-add" class="ghost" title="Atajo: Alt+A">+ Añadir línea</button>
       </div>
+      <div class="fila-header">
+        <div>Concepto</div>
+        <div>Precio</div>
+        <div>Cantidad</div>
+        <div>Total</div>
+        <div></div>
+      </div>
       <div id="lineas"></div>
 
       <div class="totales">
@@ -1470,7 +1477,6 @@
     });
 
     const btnCarpetaCierres      = document.getElementById('btn-carpeta-cierres');
-    const btnCarpetaCierresDia   = document.getElementById('btn-carpeta-cierres-dia');
     const btnCarpetaCierreMañana = document.getElementById('btn-carpeta-cierre-mañana');
     const btnCarpetaCierreTarde  = document.getElementById('btn-carpeta-cierre-tarde');
     const btnCarpetaCierreDiaCompleto = document.getElementById('btn-carpeta-cierre-dia-completo');
@@ -1480,12 +1486,6 @@
       btnCarpetaCierres.title = nombre
         ? `Cierre del mes: ${nombre} (clic para cambiar)`
         : 'Carpeta para cierres mensuales';
-    }
-
-    function actualizarNombreCarpetaCierresDia(nombre) {
-      btnCarpetaCierresDia.title = nombre
-        ? `Cierres diarios: ${nombre} (clic para cambiar)`
-        : 'Carpeta para cierres diarios';
     }
 
     function actualizarNombreCarpetaCierreMañana(nombre) {
@@ -1515,10 +1515,6 @@
     // Cargar nombres de carpetas al inicio
     idbGet('config', 'carpeta_cierres').then(h => {
       if (h) actualizarNombreCarpetaCierres(h.name);
-    }).catch(() => {});
-
-    idbGet('config', 'carpeta_cierres_dia').then(h => {
-      if (h) actualizarNombreCarpetaCierresDia(h.name);
     }).catch(() => {});
 
     idbGet('config', 'carpeta_cierre_mañana').then(h => {
@@ -1552,44 +1548,6 @@
       } catch (err) {
         if (err && err.name !== 'AbortError') {
           errorEl.textContent = 'No se pudo configurar la carpeta de cierres mensuales.';
-        }
-      }
-    });
-
-    btnCarpetaCierresDia.addEventListener('click', async () => {
-      resultadoEl.textContent = '';
-      errorEl.textContent = '';
-      if (!window.showDirectoryPicker) {
-        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los cierres se descargarán automáticamente.';
-        return;
-      }
-      try {
-        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        await idbSet('config', 'carpeta_cierres_dia', dirHandle);
-        actualizarNombreCarpetaCierresDia(dirHandle.name);
-        resultadoEl.textContent = `Carpeta de cierres diarios configurada: ${dirHandle.name}`;
-      } catch (err) {
-        if (err && err.name !== 'AbortError') {
-          errorEl.textContent = 'No se pudo configurar la carpeta de cierres diarios.';
-        }
-      }
-    });
-
-    btnCarpetaCierreMañana.addEventListener('click', async () => {
-      resultadoEl.textContent = '';
-      errorEl.textContent = '';
-      if (!window.showDirectoryPicker) {
-        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
-        return;
-      }
-      try {
-        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        await idbSet('config', 'carpeta_cierre_mañana', dirHandle);
-        actualizarNombreCarpetaCierreMañana(dirHandle.name);
-        resultadoEl.textContent = `Carpeta para cierre de la mañana configurada: ${dirHandle.name}`;
-      } catch (err) {
-        if (err && err.name !== 'AbortError') {
-          errorEl.textContent = 'No se pudo configurar la carpeta.';
         }
       }
     });

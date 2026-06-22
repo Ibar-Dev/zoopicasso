@@ -180,6 +180,21 @@ button.cta {
   margin-top: 1rem;
 }
 
+.fila-header {
+  display: grid;
+  grid-template-columns: 1.8fr 0.8fr 0.6fr 0.7fr auto;
+  gap: 0.45rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--accent);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .fila {
   margin-top: 0.6rem;
   display: grid;
@@ -191,6 +206,10 @@ button.cta {
 .fila .parcial {
   font-family: "IBM Plex Mono", monospace;
   text-align: right;
+  font-weight: 600;
+  background-color: rgba(201, 67, 21, 0.08);
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
 }
 
 .fila .del {
