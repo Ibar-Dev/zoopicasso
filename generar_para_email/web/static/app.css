@@ -180,7 +180,7 @@ button.cta {
   margin-top: 1rem;
 }
 
-.fila-header {
+.product-header {
   display: grid;
   grid-template-columns: 1.8fr 0.8fr 0.6fr 0.7fr 0.8fr 34px;
   gap: 0.45rem;

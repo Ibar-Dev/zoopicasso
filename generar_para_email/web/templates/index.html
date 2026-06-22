@@ -24,6 +24,28 @@
       padding: 0.75rem 1rem; font-size: 0.78rem; white-space: nowrap;
       box-shadow: 0 4px 20px rgba(0,0,0,0.45); pointer-events: none;
     }
+    .product-header {
+      display: grid !important;
+      grid-template-columns: 1.8fr 0.8fr 0.6fr 0.7fr 0.8fr 34px !important;
+      gap: 0.45rem !important;
+      align-items: center !important;
+      margin-bottom: 0.3rem !important;
+      padding-bottom: 0.4rem !important;
+      border-bottom: 2px solid var(--accent) !important;
+      font-weight: 600 !important;
+      font-size: 0.85rem !important;
+      color: var(--accent) !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+    }
+    .fila {
+      margin-top: 0.6rem !important;
+      display: grid !important;
+      grid-template-columns: 1.8fr 0.8fr 0.6fr 0.7fr 0.8fr 34px !important;
+      gap: 0.45rem !important;
+      align-items: center !important;
+    }
+    }
     #panel-leyenda strong { display: block; margin-bottom: 0.5rem; color: #fff; font-size: 0.83rem; }
     #panel-leyenda table { border-collapse: collapse; }
     #panel-leyenda td { padding: 0.1rem 0.35rem; vertical-align: top; }
@@ -103,7 +125,7 @@
         <span id="draft-guardado" class="draft-saved-hint" hidden>✓ Borrador</span>
         <button id="btn-add" class="ghost" title="Atajo: Alt+A">+ Añadir línea</button>
       </div>
-      <div class="fila-header">
+      <div class="product-header">
         <div>Concepto</div>
         <div>Precio</div>
         <div>Cantidad</div>
