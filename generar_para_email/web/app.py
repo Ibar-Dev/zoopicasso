@@ -40,6 +40,7 @@ from src.ventas_store import (
     resumen_ventas_activas_por_periodo,
     resumen_ventas_dia,
     resumen_ventas_dia_por_periodo,
+    resumen_ventas_dia_completo,
 )
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
 
@@ -409,21 +410,23 @@ def get_ganancias_resumen(request: Request) -> dict:
 @app.get("/api/ganancias/resumen-periodo")
 def get_ganancias_resumen_periodo(request: Request) -> dict:
     """
-    Obtiene resumen de ventas por período (mañana/tarde) para mes actual y hoy.
+    Obtiene resumen de ventas por período (mañana/tarde/día completo) para mes actual y hoy.
     
-    Períodos: Mañana (6-14h) y Tarde (14-22h) en UTC.
+    Períodos: Mañana (6-14h), Tarde (14-22h) y Día Completo (6-22h) en hora local.
     
     Returns:
         {
             "ok": True,
             "resumen_mes": {...mañana..., ...tarde...},
-            "resumen_hoy": {...mañana..., ...tarde...}
+            "resumen_hoy": {...mañana..., ...tarde..., ...dia_completo...}
         }
     """
     _requiere_login(request)
     anio_mes = _anio_mes_actual()
     resumen_mes = resumen_ventas_activas_por_periodo(anio_mes)
     resumen_hoy = resumen_ventas_dia_por_periodo(date.today().isoformat())
+    resumen_hoy["dia_completo"] = resumen_ventas_dia_completo(date.today().isoformat())
+    
     return {
         "ok": True,
         "resumen_mes": resumen_mes,
@@ -434,7 +437,7 @@ def get_ganancias_resumen_periodo(request: Request) -> dict:
 @app.get("/api/ganancias/resumen-periodo-fecha")
 def get_ganancias_resumen_periodo_fecha(request: Request, fecha: str = "") -> dict:
     """
-    Obtiene resumen de ventas por período (mañana/tarde) para una fecha específica.
+    Obtiene resumen de ventas por período (mañana/tarde/día completo) para una fecha específica.
     
     Args:
         fecha: Formato YYYY-MM-DD (ej: 2026-06-11). Si no se proporciona, usa hoy.
@@ -446,14 +449,18 @@ def get_ganancias_resumen_periodo_fecha(request: Request, fecha: str = "") -> di
                 "fecha": "2026-06-11",
                 "total": 150.00,
                 "mañana": {total, cantidad, por_categoria},
-                "tarde": {total, cantidad, por_categoria}
+                "tarde": {total, cantidad, por_categoria},
+                "dia_completo": {total, cantidad, por_categoria}
             }
         }
     """
     _requiere_login(request)
     if not fecha:
         fecha = date.today().isoformat()
+    
     resumen = resumen_ventas_dia_por_periodo(fecha)
+    resumen["dia_completo"] = resumen_ventas_dia_completo(fecha)
+    
     return {
         "ok": True,
         "resumen": resumen,

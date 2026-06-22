@@ -206,11 +206,11 @@
       <button id="btn-guardar-precios" class="cta" style="margin-top:8px;">Guardar precios categorías</button>
 
       <div class="lineas-head" style="margin-top:1rem;">
-        <h3>Ventas por período (mañana/tarde)</h3>
+        <h3>Ventas por período (mañana/tarde/día completo)</h3>
         <button id="btn-toggle-periodo" class="ghost" type="button" style="font-size:0.9rem;">Mostrar</button>
       </div>
       <div id="periodo-breakdown" hidden>
-        <div id="periodo-contenido" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.5rem;">
+        <div id="periodo-contenido" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:0.5rem;">
           <div id="periodo-manana" style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">
             <h4 style="margin-top:0;color:#1e293b;">🌅 Mañana (6-14h)</h4>
             <div style="font-size:0.95rem;color:#475569;">
@@ -235,6 +235,17 @@
             <div style="margin-top:0.5rem;font-size:0.85rem;color:#64748b;">
               <strong>Por categoría:</strong>
               <div id="tarde-categorias" style="margin-top:0.25rem;"></div>
+            </div>
+          </div>
+          <div id="periodo-dia-completo" style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">
+            <h4 style="margin-top:0;color:#1e293b;">📅 Día Completo (6-22h)</h4>
+            <div style="font-size:0.95rem;color:#475569;">
+              <p style="margin:0.25rem 0;"><strong>Total:</strong> <span id="dia-completo-total">0.00</span> €</p>
+              <p style="margin:0.25rem 0;"><strong>Ventas:</strong> <span id="dia-completo-cantidad">0</span></p>
+            </div>
+            <div style="margin-top:0.5rem;font-size:0.85rem;color:#64748b;">
+              <strong>Por categoría:</strong>
+              <div id="dia-completo-categorias" style="margin-top:0.25rem;"></div>
             </div>
           </div>
         </div>
@@ -655,6 +666,7 @@
       try {
         const data = await request('/api/ganancias/resumen-periodo');
         const resumenMes = data.resumen_mes || { anio_mes: '', total: 0, mañana: {}, tarde: {} };
+        const resumenHoy = data.resumen_hoy || { fecha: '', total: 0, mañana: {}, tarde: {}, dia_completo: {} };
         
         // Mostrar datos de mañana
         document.getElementById('manana-total').textContent = (resumenMes.mañana?.total || 0).toFixed(2);
@@ -691,6 +703,24 @@
             p.style.fontSize = '0.85rem';
             p.textContent = `${cat}: ${total.toFixed(2)} €`;
             tardeCategoriasDiv.appendChild(p);
+          });
+        }
+        
+        // Mostrar datos de día completo (de HOY)
+        const diaCompletoData = resumenHoy.dia_completo || { total: 0, cantidad_ventas: 0, por_categoria: {} };
+        document.getElementById('dia-completo-total').textContent = (diaCompletoData.total || 0).toFixed(2);
+        document.getElementById('dia-completo-cantidad').textContent = String(diaCompletoData.cantidad_ventas || 0);
+        
+        // Mostrar categorías de día completo
+        const diaCompletoCategoriasDiv = document.getElementById('dia-completo-categorias');
+        diaCompletoCategoriasDiv.innerHTML = '';
+        if (diaCompletoData.por_categoria) {
+          Object.entries(diaCompletoData.por_categoria).forEach(([cat, total]) => {
+            const p = document.createElement('p');
+            p.style.margin = '0.1rem 0';
+            p.style.fontSize = '0.85rem';
+            p.textContent = `${cat}: ${total.toFixed(2)} €`;
+            diaCompletoCategoriasDiv.appendChild(p);
           });
         }
       } catch (_) {

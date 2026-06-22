@@ -801,6 +801,46 @@ def resumen_ventas_tarde(fecha: str) -> dict:
     }
 
 
+def resumen_ventas_dia_completo(fecha: str) -> dict:
+    """Resumen de ventas activas en DÍA COMPLETO (06:00-22:00) para una fecha (YYYY-MM-DD).
+    
+    NOTA: Las horas se convierten a hora local usando datetime(..., 'localtime')
+    ya que created_at se almacena en UTC.
+    """
+    inicializar_db_ventas()
+    with _connect() as conn:
+        total_row = conn.execute(
+            """
+            SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
+            """,
+            (fecha,),
+        ).fetchone()
+        cat_rows = conn.execute(
+            """
+            SELECT categoria, COALESCE(SUM(monto), 0) AS total
+            FROM ventas
+            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
+            GROUP BY categoria
+            ORDER BY categoria ASC
+            """,
+            (fecha,),
+        ).fetchall()
+    por_categoria = {row["categoria"]: round(float(row["total"]), 2) for row in cat_rows}
+    return {
+        "fecha": fecha,
+        "periodo": "dia_completo",
+        "total": round(float(total_row["total"]), 2),
+        "cantidad_ventas": int(total_row["cantidad"]),
+        "por_categoria": por_categoria,
+    }
+
+
 def obtener_cierres_hoy(fecha: str) -> dict:
     """
     Obtiene los cierres registrados para un día específico.
