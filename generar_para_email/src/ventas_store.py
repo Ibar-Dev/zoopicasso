@@ -722,7 +722,11 @@ def registrar_cierre(
 
 
 def resumen_ventas_mañana(fecha: str) -> dict:
-    """Resumen de ventas activas en MAÑANA (06:00-14:00) para una fecha (YYYY-MM-DD)."""
+    """Resumen de ventas activas en MAÑANA (06:00-14:00) para una fecha (YYYY-MM-DD).
+    
+    NOTA: Las horas se convierten a hora local usando datetime(..., 'localtime')
+    ya que created_at se almacena en UTC.
+    """
     inicializar_db_ventas()
     with _connect() as conn:
         total_row = conn.execute(
@@ -730,8 +734,8 @@ def resumen_ventas_mañana(fecha: str) -> dict:
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
             WHERE estado = 'active' AND DATE(fecha_venta) = ?
-              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
-              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 14
             """,
             (fecha,),
         ).fetchone()
@@ -740,8 +744,8 @@ def resumen_ventas_mañana(fecha: str) -> dict:
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
             WHERE estado = 'active' AND DATE(fecha_venta) = ?
-              AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
-              AND CAST(strftime('%H', created_at) AS INTEGER) < 14
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 14
             GROUP BY categoria
             ORDER BY categoria ASC
             """,
@@ -758,7 +762,11 @@ def resumen_ventas_mañana(fecha: str) -> dict:
 
 
 def resumen_ventas_tarde(fecha: str) -> dict:
-    """Resumen de ventas activas en TARDE (14:00-22:00) para una fecha (YYYY-MM-DD)."""
+    """Resumen de ventas activas en TARDE (14:00-22:00) para una fecha (YYYY-MM-DD).
+    
+    NOTA: Las horas se convierten a hora local usando datetime(..., 'localtime')
+    ya que created_at se almacena en UTC.
+    """
     inicializar_db_ventas()
     with _connect() as conn:
         total_row = conn.execute(
@@ -766,8 +774,8 @@ def resumen_ventas_tarde(fecha: str) -> dict:
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
             WHERE estado = 'active' AND DATE(fecha_venta) = ?
-              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
-              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 14
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
             """,
             (fecha,),
         ).fetchone()
@@ -776,8 +784,8 @@ def resumen_ventas_tarde(fecha: str) -> dict:
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
             WHERE estado = 'active' AND DATE(fecha_venta) = ?
-              AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
-              AND CAST(strftime('%H', created_at) AS INTEGER) < 22
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 14
+              AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
             GROUP BY categoria
             ORDER BY categoria ASC
             """,

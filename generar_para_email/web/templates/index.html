@@ -2373,6 +2373,9 @@
         }
       }
 
+      // Auto-refresh del estado de cierres cada 30 segundos
+      setInterval(cargarEstadoCierres, 30000);
+
       function mostrarModal(tipo) {
         cierreEnCurso = tipo;
         const desc = tiposDescripcion[tipo];

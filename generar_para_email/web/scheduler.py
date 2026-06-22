@@ -8,9 +8,11 @@ Ejecuta automáticamente:
 - Cierre de mes: 22:00 último día del mes
 """
 
+import json
 import logging
 from importlib import import_module
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 try:
@@ -36,6 +38,11 @@ logger = logging.getLogger(__name__)
 
 APSCHEDULER_AVAILABLE = APSCHEDULER_IMPORT_ERROR is None
 
+# Rutas para persistencia del estado
+_BASE = Path(__file__).resolve().parent.parent
+DATA_DIR = _BASE / "data"
+AUTOMATION_STATE_FILE = DATA_DIR / "automation_state.json"
+
 # Instancia global del scheduler
 scheduler: Any | None = BackgroundScheduler() if APSCHEDULER_AVAILABLE else None
 
@@ -49,6 +56,29 @@ automation_state = {
     if APSCHEDULER_IMPORT_ERROR
     else None,
 }
+
+
+def _load_automation_state_from_file() -> bool | None:
+    """Carga el estado persisti desde archivo. Retorna None si archivo no existe."""
+    if not AUTOMATION_STATE_FILE.exists():
+        return None
+    try:
+        with open(AUTOMATION_STATE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("enabled", APSCHEDULER_AVAILABLE)
+    except Exception as e:
+        logger.warning(f"No se pudo cargar estado de automatización: {e}")
+        return None
+
+
+def _save_automation_state_to_file(enabled: bool) -> None:
+    """Guarda el estado de automatización en archivo."""
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with open(AUTOMATION_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"enabled": enabled, "timestamp": datetime.now().isoformat()}, f, indent=2)
+    except Exception as e:
+        logger.error(f"No se pudo guardar estado de automatización: {e}")
 
 
 def _wrap_cierre(cierre_type: str, cierre_func):
@@ -147,6 +177,16 @@ def init_scheduler():
 
         scheduler.start()
         logger.info("✅ Scheduler de cierres automáticos iniciado")
+        
+        # Cargar estado de automatización desde archivo (si fue pausado antes)
+        saved_state = _load_automation_state_from_file()
+        if saved_state is not None:
+            automation_state["enabled"] = saved_state
+            if not saved_state:
+                logger.info("⏸️ Restituyendo estado pausado de automatización")
+                pause_automation()
+            else:
+                logger.info("▶️ Automatización reanudada desde estado guardado")
 
     except Exception as e:
         logger.error(f"❌ Error al inicializar scheduler: {e}")
@@ -164,12 +204,14 @@ def pause_automation():
     """Pausa los cierres automáticos sin detener el scheduler."""
     if scheduler is None:
         automation_state["enabled"] = False
+        _save_automation_state_to_file(False)
         logger.warning(
             "No se puede pausar la automatización porque APScheduler no está disponible"
         )
         return
 
     automation_state["enabled"] = False
+    _save_automation_state_to_file(False)
     for job in scheduler.get_jobs():
         job.pause()
     logger.warning("⏸️ Cierres automáticos pausados")
@@ -179,12 +221,14 @@ def resume_automation():
     """Reanuda los cierres automáticos."""
     if scheduler is None:
         automation_state["enabled"] = False
+        _save_automation_state_to_file(False)
         logger.warning(
             "No se puede reanudar la automatización porque APScheduler no está disponible"
         )
         return
 
     automation_state["enabled"] = True
+    _save_automation_state_to_file(True)
     for job in scheduler.get_jobs():
         job.resume()
     logger.warning("▶️ Cierres automáticos reanudados")
