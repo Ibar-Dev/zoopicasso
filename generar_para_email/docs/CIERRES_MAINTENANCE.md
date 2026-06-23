@@ -2,6 +2,216 @@
 
 ---
 
+## 🔄 Keep-Alive System (v2.0 - Opción C)
+
+### Overview
+
+El sistema Keep-Alive mantiene el servidor activo enviando pings automáticos cada 5 minutos. Esto previene el "spin-down" de Render Free tier (que desconecta servidores inactivos).
+
+**Configuración Opción C** (implementada 2026-06-23):
+- **Intervalo**: 5 minutos (300 segundos)
+- **Modo**: Incondicional (siempre, sin verificación de actividad)
+- **Endpoint**: `/api/keep-alive` (GET, sin autenticación)
+- **Ubicación del módulo**: `web/static/keep-alive.js`
+
+### Architecture
+
+```
+Frontend (index.html)
+    ↓
+    ├─ <script src="/static/keep-alive.js"></script>  [Carga módulo]
+    ├─ KeepAliveManager.start()                        [Inicia cada 5 min]
+    └─ fetch('/api/keep-alive')                        [GET request]
+         ↓
+Backend (app.py)
+    ↓
+    @app.get("/api/keep-alive")
+    ├─ Sin autenticación requerida
+    ├─ Responde rápido: {"status": "ok"}
+    └─ Propósito: Solo confirmar que server está activo
+```
+
+### Module: KeepAliveManager
+
+**Archivo**: `web/static/keep-alive.js` (180+ líneas)
+
+**Métodos públicos**:
+
+```javascript
+// Inicia el keep-alive (se ejecuta automáticamente)
+KeepAliveManager.start()
+
+// Detiene el keep-alive
+KeepAliveManager.stop()
+
+// Obtiene estado actual
+KeepAliveManager.getStatus()
+// Retorna:
+// {
+//   active: true,
+//   pingsSent: 42,
+//   failureCount: 0,
+//   lastError: null,
+//   lastPing: "2026-06-23T14:32:15.123Z",
+//   interval: 300000,
+//   intervalSeconds: 300,
+//   uptime: "3h 30m"
+// }
+
+// Fuerza un ping inmediato (para testing)
+KeepAliveManager.forcePing()
+
+// Cambia intervalo en minutos
+KeepAliveManager.setInterval(3)  // Cada 3 minutos
+
+// Información detallada para debugging
+KeepAliveManager.getDebugInfo()
+```
+
+### Monitoring en Browser Console
+
+**Ver status actual**:
+```javascript
+KeepAliveManager.getStatus()
+```
+
+**Expected output cada 5 minutos**:
+```
+[14:32:15] ✓ Keep-alive ping #1 (OK)
+[14:37:15] ✓ Keep-alive ping #2 (OK)
+[14:42:15] ✓ Keep-alive ping #3 (OK)
+```
+
+**Si falla** (con retry logic):
+```
+[14:47:15] ⚠️ Keep-alive ping #4 falló: Network error
+[14:52:15] ✓ Keep-alive ping #5 (OK)  [se recupera automáticamente]
+```
+
+### Cambios vs Versión Anterior
+
+| Aspecto | Anterior (v1.0) | Actual (v2.0 Opción C) |
+|---------|---|---|
+| **Intervalo** | 10 minutos | 5 minutos (2x más frecuente) |
+| **Condición** | Solo si inactivo 15+ min | Incondicional (siempre) |
+| **Verificación de actividad** | Sí (mousedown, keydown, etc.) | No (más simple y confiable) |
+| **Confiabilidad** | Media | Alta |
+| **Consumo de recursos** | Muy bajo | Muy bajo (sin cambios) |
+| **Módulo separado** | Inline en HTML | Sí (`keep-alive.js`) |
+| **Logging** | Mínimo | Completo con timestamps |
+
+### Testing Keep-Alive
+
+**Test 1: Verificar que está activo**
+```javascript
+// En consola:
+KeepAliveManager.getStatus()
+// Debe mostrar: active: true
+```
+
+**Test 2: Monitorear pings en consola**
+```
+1. Abrir DevTools (F12)
+2. Ir a Console
+3. Esperar 5 minutos
+4. Deberías ver:
+   "[HH:MM:SS] ✓ Keep-alive ping #1 (OK)"
+   "[HH:MM:SS] ✓ Keep-alive ping #2 (OK)"
+```
+
+**Test 3: Forzar ping inmediato (sin esperar 5 min)**
+```javascript
+// En consola:
+KeepAliveManager.forcePing()
+// Debe hacer ping ahora mismo y mostrar log
+```
+
+**Test 4: Detener y reiniciar**
+```javascript
+// Detener:
+KeepAliveManager.stop()
+// Consola: "⏸️ Keep-alive Manager detenido"
+
+// Reiniciar:
+KeepAliveManager.start()
+// Consola: "✅ Keep-alive Manager iniciado..."
+```
+
+**Test 5: Simular fallo de red (debugging)**
+```
+1. Abrir DevTools → Network
+2. Desactivar conexión (Offline mode)
+3. KeepAliveManager intenta ping → falla
+4. Consola muestra: "❌ Keep-alive ping falló"
+5. Activar conexión de nuevo
+6. Próximo ping debe tener éxito
+```
+
+### Pre-Deployment Checklist para Keep-Alive
+
+- [ ] Módulo `keep-alive.js` existe en `web/static/`
+- [ ] `<script src="/static/keep-alive.js"></script>` en HEAD de index.html
+- [ ] `KeepAliveManager.start()` se ejecuta sin errores
+- [ ] Logs aparecen en consola cada 5 minutos
+- [ ] Endpoint `/api/keep-alive` en app.py responde con 200 OK
+- [ ] No hay errores de CORS o autenticación
+- [ ] Console.log muestra: "Keep-alive Manager iniciado"
+- [ ] Contador de pings incrementa cada 5 minutos
+
+### Configuration
+
+Si necesitas cambiar intervalo después de deployment:
+
+**Cambiar a 3 minutos**:
+```javascript
+KeepAliveManager.setInterval(3)
+```
+
+**Cambiar a 10 minutos**:
+```javascript
+KeepAliveManager.setInterval(10)
+```
+
+**Nota**: El cambio es temporal (solo para esa sesión). Para cambio permanente, edita `web/static/keep-alive.js`:
+```javascript
+pingInterval: 5 * 60 * 1000,  // Cambiar 5 a tu valor deseado
+```
+
+### Troubleshooting Keep-Alive
+
+**Problema**: "Keep-alive ja está activo"
+```
+Solución: El módulo se cargó dos veces.
+Revisar que solo hay un KeepAliveManager.start() en index.html
+```
+
+**Problema**: Pings no aparecen en consola
+```
+Solución: 
+1. Verificar que consola está abierta (F12)
+2. Esperar 5 minutos
+3. Revisar que DevTools no esté filtrado
+```
+
+**Problema**: Pings fallan (❌ status)
+```
+Solución:
+1. Verificar conexión de red
+2. Verificar que /api/keep-alive está disponible
+3. Revisar logs del servidor (app.log)
+4. Después de arreglar: KeepAliveManager.forcePing() para probar
+```
+
+**Problema**: "Intervalo de keep-alive actualizado" pero no funciona
+```
+Solución:
+1. El cambio es solo para esa sesión
+2. Para cambio permanente, editar keep-alive.js
+3. O usar: KeepAliveManager.stop() + KeepAliveManager.start()
+```
+
+---
+
 ## ✅ Pre-Deployment Checklist
 
 ### Before Merging Changes to `main`:

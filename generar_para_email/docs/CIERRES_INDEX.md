@@ -72,6 +72,10 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 **Purpose**: Maintenance procedures, testing, and troubleshooting
 
 **What's Inside**:
+- 🔄 **NEW (v2.0)**: Keep-Alive System documentation (Opción C)
+  - Configuration, monitoring, testing, troubleshooting
+  - Browser console commands for debugging
+  - Pre-deployment checklist for keep-alive
 - ✅ Pre-deployment checklist (24 items)
 - 🧪 11 manual test cases **(Updated: +4 new error feedback tests)**
 - 🤖 Unit test examples
@@ -87,8 +91,10 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 - You want to add features or modify behavior
 - You're writing tests
 - You're setting up monitoring
+- **NEW**: You need to maintain the keep-alive system
 
 **Key Sections**:
+- 🔄 Keep-Alive System (Opción C: 5-min unconditional pings)
 - Pre-Deployment Checklist
 - **NEW**: Test 8-11 (Error feedback & persistence)
 - Manual Test Cases (1-11)
@@ -162,10 +168,12 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 
 ### "I need to deploy changes"
 1. Follow: **CIERRES_MAINTENANCE.md** → "Pre-Deployment Checklist"
-2. Run: All 11 test cases (including new error feedback tests)
-3. Verify: Error handling works, UI shows errors properly
-4. Verify: Health checks run every 30 minutes
-5. Deploy with confidence ✅
+2. Follow: **CIERRES_MAINTENANCE.md** → "Pre-Deployment Checklist para Keep-Alive"
+3. Run: All 11 test cases (including new error feedback tests)
+4. Verify: Error handling works, UI shows errors properly
+5. Verify: Health checks run every 30 minutes
+6. Verify: Keep-alive pings appear in console every 5 minutes
+7. Deploy with confidence ✅
 
 ### "I'm a user and something is broken"
 1. Read: **MANUAL_CIERRES_CLIENTA.md** → "Automatización" + "Cuando hay errores"
@@ -173,6 +181,13 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 3. Check: Route status panel for path issues (❌)
 4. Try: Pause/Resume automation
 5. Contact: Development team with error message from UI
+
+### "I need to maintain the keep-alive system"
+1. Read: **CIERRES_MAINTENANCE.md** → "Keep-Alive System (v2.0 - Opción C)"
+2. Monitor: Browser console (`KeepAliveManager.getStatus()`)
+3. Test: Pre-deployment checklist items for keep-alive
+4. Troubleshoot: Use testing procedures (Test 1-5)
+5. Debug: Use `KeepAliveManager.getDebugInfo()` if issues occur
 
 ### "I'm setting up automatic closures on network folders"
 1. Read: **CIERRES_AUTOMÁTICOS_RUTAS_CLIENTE.md** (complete guide)

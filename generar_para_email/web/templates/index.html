@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/app.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@2/dist/driver.css" />
+  <!-- Keep-Alive Module (Opción C: Ping cada 5 minutos, incondicional) -->
+  <script src="/static/keep-alive.js"></script>
   <style>
     #leyenda-atajos { position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; }
     #btn-leyenda {
@@ -2719,55 +2721,11 @@
     ActionExecutor.registerMultiple(keyboardHandlers);
     KeyboardSystem.init();
 
-    // ===== Smart Keep-Alive para Render Free tier =====
-    const SmartKeepAliveClient = {
-      pingInterval: 10 * 60 * 1000,  // 10 minutos
-      timer: null,
-      lastActivityTime: Date.now(),
-      activityThreshold: 15 * 60 * 1000,  // 15 min sin actividad
-
-      start() {
-        // Detectar actividad del usuario
-        ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(eventType => {
-          document.addEventListener(eventType, () => {
-            this.lastActivityTime = Date.now();
-          }, true);
-        });
-
-        // Hacer ping cada 10 minutos
-        this.timer = setInterval(() => {
-          this.checkAndPing();
-        }, this.pingInterval);
-        
-        console.log('✅ Keep-alive iniciado: ping cada 10 min si inactividad > 15 min');
-      },
-
-      checkAndPing() {
-        const timeSinceActivity = Date.now() - this.lastActivityTime;
-        
-        if (timeSinceActivity > this.activityThreshold) {
-          // Usuario inactivo: hacer ping para evitar spin-down
-          fetch('/api/keep-alive', { 
-            method: 'GET',
-            credentials: 'same-origin'
-          }).then(() => {
-            console.log(`✓ Keep-alive ping: ${new Date().toLocaleTimeString()}`);
-          }).catch(error => {
-            console.warn('⚠️ Keep-alive ping falló:', error.message);
-          });
-        }
-      },
-
-      stop() {
-        if (this.timer) {
-          clearInterval(this.timer);
-          this.timer = null;
-        }
-      }
-    };
-
-    // Iniciar keep-alive
-    SmartKeepAliveClient.start();
+    // ===== Keep-Alive Manager (Opción C: Ping cada 5 minutos, incondicional) =====
+    // Módulo cargado desde: web/static/keep-alive.js
+    // Características: Pings automáticos cada 5 minutos sin verificar actividad
+    // Objetivo: Prevenir spin-down del servidor (Render Free tier)
+    KeepAliveManager.start();
 
     // ===== Automatización de Cierres =====
     const AutomationUI = {

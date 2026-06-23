@@ -56,7 +56,44 @@ The **Cierres** (Closures) module is responsible for daily financial closing rep
 
 ---
 
-## 📂 Critical File Locations
+## � Keep-Alive System (Server Heartbeat)
+
+The application includes a **Keep-Alive Manager** to prevent server spin-down on Render Free tier.
+
+**How it works**:
+```
+Every 5 minutes (unconditional):
+┌─────────────────────────────────┐
+│ Browser (KeepAliveManager)      │
+│ - Checks interval (5 min)       │
+│ - Sends GET /api/keep-alive     │
+└─────────────────────────────────┘
+              ↓
+┌─────────────────────────────────┐
+│ Server (@app.get("/api/keep..."))│
+│ - Receives request              │
+│ - Returns {"status": "ok"}      │
+│ - Server stays active           │
+└─────────────────────────────────┘
+```
+
+**Configuration (Opción C)**:
+- Interval: 5 minutes (300 seconds)
+- Mode: Unconditional (always, no activity verification)
+- Endpoint: `/api/keep-alive` (no authentication required)
+- Module: `web/static/keep-alive.js`
+- Status: Available in browser console via `KeepAliveManager.getStatus()`
+
+**Files involved**:
+- `web/static/keep-alive.js` - Client-side module (180+ lines)
+- `web/templates/index.html` - Loader script tag + initialization
+- `web/app.py` - `/api/keep-alive` endpoint (line 323)
+
+**For detailed information**: See [CIERRES_MAINTENANCE.md](CIERRES_MAINTENANCE.md#-keep-alive-system-v20---opción-c)
+
+---
+
+## �📂 Critical File Locations
 
 ### Core Modules
 
