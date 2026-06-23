@@ -453,6 +453,8 @@
   <script src="/static/tutorial-pasos.js"></script>
   <script src="/static/tutorial.js"></script>
   <script src="/static/shortcuts.js"></script>
+  <!-- FASE 2: Sistema de Tooltips no-intrusivo -->
+  <script src="/static/help-system.js"></script>
 
   <script>
     const loginCard = document.getElementById('login-card');
@@ -1505,7 +1507,8 @@
         await refrescarEstadoBackup();
         await refrescarListaAjustes();
         restaurarDraft();
-        tutorialManager.checkAutoStart();
+        // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
+        // El usuario puede iniciar el tutorial haciendo click en el botón "?" del header
       } catch (e) {
         error.textContent = e.message;
       }
@@ -2337,7 +2340,8 @@
       }
       if (loggedIn) {
         restaurarDraft();
-        tutorialManager.checkAutoStart();
+        // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
+        // El usuario puede iniciar el tutorial haciendo click en el botón "?" del header
         // Cargar estado de cierres secuenciales al iniciar sesión
         if (window.cargarEstadoCierres) {
           setTimeout(() => window.cargarEstadoCierres(), 500);
