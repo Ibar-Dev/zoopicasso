@@ -350,6 +350,214 @@ If `automation_state.json` becomes corrupted:
 
 ---
 
+## 🔴 CRITICAL BUG FIXED: Missing UI Error Feedback & Defensive Backend Check
+
+### Files Modified
+- `generar_para_email/web/templates/index.html` - Lines 2776, 2799, 2854
+- `generar_para_email/web/scheduler.py` - Line 87
+
+### Problem Description
+
+**Issue 1: Errors Were Silent (Frontend)**
+- API errors silenced with `if (!res.ok) return;` - no user feedback
+- Errors only logged to console - users didn't know what went wrong
+- Automation failures invisible - appeared to "work" but actually failed
+- Error state existed in backend but wasn't displayed
+
+**Issue 2: No Defensive Programming (Backend)**
+- `_wrap_cierre()` relied only on APScheduler's `job.pause()`
+- No code-level check to prevent execution if automation paused
+- Edge case: If APScheduler malfunctioned, would execute anyway
+- No defensive fallback
+
+**User Impact**:
+- Confusing: Automation appeared to run but failed silently
+- No actionable information about what went wrong
+- False confidence: Users thought automation worked when it didn't
+- Unreliable automation system that users couldn't debug
+
+### Root Cause Analysis
+
+**Frontend Code (Before)**:
+```javascript
+async loadStatus() {
+  const res = await fetch('/api/automation/status');
+  if (!res.ok) return;  // ❌ Silences all HTTP errors
+  const data = await res.json();
+  this.updateUI(data);
+}
+
+updateUI(data) {
+  // ❌ Never checks for errors in data
+  // ❌ Never displays last_error field
+  const statusText = data.enabled ? '✅ Activa' : '⏸️ Pausada';
+  this.statusEl.textContent = statusText;
+}
+```
+
+**Backend Code (Before)**:
+```python
+def _wrap_cierre(cierre_type: str, cierre_func):
+    def wrapper():
+        # ❌ No check if automation is paused
+        try:
+            logger.info(f"[AUTOMÁTICO] Iniciando cierre de {cierre_type}...")
+            meta, archivo = cierre_func(usuario="SISTEMA")
+        except Exception as e:
+            # Errors caught but only logged
+```
+
+### Solution Implemented
+
+**Frontend: Visual Error Feedback**
+
+**1. loadStatus() - Better error handling (Line ~2776)**:
+```javascript
+async loadStatus() {
+  try {
+    const res = await fetch('/api/automation/status');
+    if (!res.ok) {
+      this.statusEl.textContent = '❌ Error conectando';
+      this.statusEl.style.color = '#ef4444';
+      this.proximosEl.innerHTML = '⚠️ No se puede conectar con servidor';
+      return;  // ✅ Show error to user
+    }
+    const data = await res.json();
+    this.updateUI(data);
+  } catch (e) {
+    this.statusEl.textContent = '❌ Error de red';
+    this.proximosEl.innerHTML = `⚠️ Error: ${e.message}`;
+  }
+}
+```
+
+**2. updateUI() - Display errors when they exist (Line ~2799)**:
+```javascript
+updateUI(data) {
+  // ✅ Check if there are active errors
+  const tieneErrores = data.last_error && Object.keys(data.last_error).length > 0;
+  
+  if (tieneErrores) {
+    this.statusEl.textContent = '⚠️ Con errores';  // Red status
+    this.statusEl.style.color = '#ef4444';
+    
+    // ✅ Display error details
+    let html = '<strong style="color:#e74c3c;">❌ Errores detectados:</strong><br>';
+    for (const [tipo, err] of Object.entries(data.last_error)) {
+      html += `<small style="color:#d32f2f;">${tipo}: ${err.error}</small><br>`;
+    }
+    this.proximosEl.innerHTML = html;
+    return;  // Don't show schedule if errors exist
+  }
+  
+  // ✅ Normal display if no errors
+  const statusText = data.enabled ? '✅ Activa' : '⏸️ Pausada';
+  this.statusEl.textContent = statusText;
+  this.statusEl.style.color = data.enabled ? '#22c55e' : '#ff9800';
+}
+```
+
+**3. pause() & resume() - Validate API response (Line ~2854)**:
+```javascript
+async pause() {
+  try {
+    const res = await fetch('/api/automation/pause', { method: 'POST' });
+    if (!res.ok) {
+      // ✅ Show error with status code
+      mostrarToast(`Error: ${res.status} ${res.statusText}`, 'error');
+      console.error(`Pause error: ${res.status}`);
+      return;  // ✅ Don't proceed if error
+    }
+    this.loadStatus();
+    mostrarToast('⏸️ Automatización pausada');
+  } catch (e) {
+    // ✅ Show network errors
+    mostrarToast('Error de red al pausar automatización', 'error');
+  }
+}
+```
+
+**Backend: Defensive Programming Check**
+
+**_wrap_cierre() - Code-level pause validation (Line ~87)**:
+```python
+def _wrap_cierre(cierre_type: str, cierre_func):
+    """Wraps a closure function to add logging and error handling."""
+
+    def wrapper():
+        # ✅ Defensive check: Don't execute if automation is paused
+        if not automation_state["enabled"]:
+            logger.debug(f"⏸️ Cierre de {cierre_type} saltado (automatización pausada)")
+            return  # Exit without executing
+        
+        # ✅ Only proceed if automation is actually enabled
+        try:
+            logger.info(f"[AUTOMÁTICO] Iniciando cierre de {cierre_type}...")
+            meta, archivo = cierre_func(usuario="SISTEMA")
+```
+
+**Why this matters:**
+- Provides defense-in-depth: UI pause + APScheduler.pause() + code-level check
+- Even if APScheduler fails, code-level check prevents execution
+- Logging shows "saltado" (skipped) for debugging
+- Follows defensive programming principles
+
+### Impact Assessment
+- **Severity**: 🔴 CRITICAL
+- **Affected Components**:
+  - UI automation status panel
+  - Pause/resume functionality
+  - Error visibility
+  - Backend reliability
+- **User Impact**: SIGNIFICANT - Users now see what's happening
+- **System Reliability**: IMPROVED - Defensive check added
+
+### Changes Summary
+
+**Lines Added**: ~50 lines  
+**Files Modified**: 2 (index.html, scheduler.py)  
+**Breaking Changes**: None (backward compatible)  
+**Database Changes**: None  
+
+### Verification Steps
+
+**1. Test error display**:
+```javascript
+// In browser console, simulate network error
+AutomationUI.statusEl.textContent = '❌ Error conectando';
+AutomationUI.proximosEl.innerHTML = '⚠️ No se puede conectar con servidor';
+// ✓ Should show red "Error conectando" message
+```
+
+**2. Test pause state**:
+```python
+# Check that pause saves state
+from web.scheduler import pause_automation
+pause_automation()
+
+# Read file
+import json
+with open('data/automation_state.json') as f:
+    data = json.load(f)
+assert data['enabled'] is False  # ✓ Should be False
+```
+
+**3. Test defensive check**:
+```python
+# Manually test _wrap_cierre
+from web.scheduler import automation_state, _wrap_cierre
+automation_state["enabled"] = False
+
+# Create wrapper
+cierre_wrapper = _wrap_cierre("test", lambda: ({}, None))
+
+# This should return immediately without executing
+cierre_wrapper()
+# Check logs: should show "⏸️ Cierre de test saltado"
+```
+
+---
+
 ## ✅ VERIFIED AS WORKING (No Changes Needed)
 
 ### Button State Logic for "Tarde" Enable

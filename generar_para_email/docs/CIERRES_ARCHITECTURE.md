@@ -267,6 +267,158 @@ scheduler.add_job(
 - Respects pause state
 - Logs all results
 
+**Defensive Programming**:
+- Code-level check in `_wrap_cierre()`: `if not automation_state["enabled"]: return`
+- Prevents execution even if APScheduler fails
+- Logging shows "⏸️ Cierre de {type} saltado (automatización pausada)"
+
+---
+
+## 🔄 UI ↔ Backend Synchronization
+
+### Error Feedback Architecture
+
+The system now provides **complete visibility** of automation status and errors:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    FRONTEND (index.html)                     │
+│                                                              │
+│  AutomationUI Object                                         │
+│  ├─ loadStatus() [Line ~2776]                                │
+│  │  └─ Fetches /api/automation/status every 60 seconds       │
+│  │     ├─ On HTTP error: Shows "❌ Error conectando"         │
+│  │     ├─ On network error: Shows "❌ Error de red"          │
+│  │     └─ On success: Calls updateUI()                       │
+│  │                                                            │
+│  ├─ updateUI(data) [Line ~2799]                              │
+│  │  ├─ If data.last_error exists: Displays errors in RED    │
+│  │  │  └─ Shows list of failed closure types with messages  │
+│  │  ├─ Else if enabled=true: "✅ Activa" (GREEN)            │
+│  │  └─ Else: "⏸️ Pausada" (ORANGE)                           │
+│  │                                                            │
+│  ├─ pause() [Line ~2854]                                     │
+│  │  ├─ POST /api/automation/pause                            │
+│  │  ├─ ✅ Validates response.ok before proceeding           │
+│  │  └─ Shows error toast if HTTP error                       │
+│  │                                                            │
+│  └─ resume() [Line ~2873]                                    │
+│     ├─ POST /api/automation/resume                           │
+│     ├─ ✅ Validates response.ok before proceeding           │
+│     └─ Shows error toast if HTTP error                       │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+                            ↑
+                    POST/GET requests
+                            ↓
+┌──────────────────────────────────────────────────────────────┐
+│                     API (app.py)                             │
+│                                                              │
+│  Endpoints                                                   │
+│  ├─ GET /api/automation/status                               │
+│  │  └─ Returns: {"enabled", "jobs", "last_error"}            │
+│  │                                                            │
+│  ├─ POST /api/automation/pause                               │
+│  │  ├─ Calls: pause_automation()                             │
+│  │  └─ Saves state to file                                   │
+│  │                                                            │
+│  ├─ POST /api/automation/resume                              │
+│  │  ├─ Calls: resume_automation()                            │
+│  │  └─ Saves state to file                                   │
+│  │                                                            │
+│  └─ GET /api/rutas/estado (NEW)                              │
+│     └─ Returns health status of 4 route directories          │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+                            ↑
+                 Python function calls
+                            ↓
+┌──────────────────────────────────────────────────────────────┐
+│                   BACKEND (scheduler.py)                     │
+│                                                              │
+│  Automation State                                            │
+│  ├─ automation_state dict (in-memory)                        │
+│  │  ├─ "enabled": bool (true=running, false=paused)         │
+│  │  ├─ "jobs": list (next scheduled times)                   │
+│  │  ├─ "last_execution": dict (last successful run)          │
+│  │  └─ "last_error": dict (last failed run with errors)      │
+│  │                                                            │
+│  └─ data/automation_state.json (persisted)                   │
+│     └─ Saves pause/resume state across app restarts          │
+│                                                              │
+│  Cron Jobs (APScheduler)                                     │
+│  ├─ 14:00: _wrap_cierre("mañana", cerrar_mañana)             │
+│  │  ├─ ✅ Defensive check: if not enabled: return           │
+│  │  ├─ Try: Execute cerrar_mañana(usuario="SISTEMA")        │
+│  │  └─ Except: Save error to automation_state["last_error"] │
+│  │                                                            │
+│  ├─ 22:00: _wrap_cierre("tarde", cerrar_tarde)               │
+│  ├─ 22:05: _wrap_cierre("día_completo", cerrar_dia)          │
+│  └─ 22:00 (last day): _wrap_cierre("mes", cerrar_mes)        │
+│                                                              │
+│  Health Check (every 30 minutes)                             │
+│  ├─ Validates all 4 route directories exist                  │
+│  ├─ Writes result to data/routes_health_check.json           │
+│  └─ Returns status via GET /api/rutas/estado                 │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Error Lifecycle Example
+
+```
+Scenario: Network folder becomes unreachable during automatic closure
+
+1️⃣ BACKEND (22:00 automatic execution)
+   ├─ APScheduler triggers _wrap_cierre("tarde", cerrar_tarde)
+   ├─ Defensive check: automation_state["enabled"] = True ✅
+   ├─ Calls: cerrar_tarde(usuario="SISTEMA")
+   ├─ Tries to write to: \\DESKTOP-4UE66NT\C$\Documentos\...
+   └─ ❌ EXCEPTION: Network path not reachable
+       └─ Caught in _wrap_cierre()
+       └─ Saved to: automation_state["last_error"]["tarde"] = "Network path not reachable"
+       └─ Logged: "❌ Error en cierre de tarde: Network path not reachable"
+
+2️⃣ NEXT UI POLL (within 60 seconds)
+   ├─ Browser polls: GET /api/automation/status
+   ├─ Backend returns: {"enabled": true, "last_error": {"tarde": "Network..."}}
+   ├─ updateUI() detects: tieneErrores = true
+   └─ Updates UI:
+       ├─ statusEl.textContent = "⚠️ Con errores"
+       ├─ statusEl.style.color = "#ef4444" (RED)
+       └─ proximosEl.innerHTML = "❌ Errores detectados:\n"
+                                 "tarde: Network path not reachable\n"
+                                 "🕒 23:05:12"
+
+3️⃣ USER SEES (in real-time)
+   ├─ Red "⚠️ Con errores" indicator
+   ├─ List of failed closure types with error messages
+   ├─ Timestamp of when error occurred
+   └─ Can now take action: check network, restart server, etc.
+
+4️⃣ AFTER FIX
+   ├─ User restarts app or fixes network path
+   ├─ Next automatic closure succeeds
+   ├─ automation_state["last_error"]["tarde"] is cleared
+   ├─ UI updates to green "✅ Activa"
+   └─ User knows system is back to normal
+```
+
+### Polling Intervals
+
+| Component | Interval | Purpose | File/Location |
+|-----------|----------|---------|---|
+| **UI Status Refresh** | 60 seconds | Load automation status, display errors | index.html:~2381 |
+| **Button State Refresh** | 30 seconds | Check if closure prerequisites met | index.html:~2375 |
+| **Health Check** | 30 minutes | Validate route directories exist | scheduler.py:~156 |
+| **Manual API Call** | On demand | User-triggered pause/resume/closure | index.html:~2854 |
+
+**Rationale**:
+- 60s status: Good balance between UI responsiveness and server load
+- 30s buttons: Faster feedback for user actions
+- 30m health: Frequent enough to catch issues, not too chatty
+- On-demand: Critical operations get immediate confirmation
+
 ---
 
 ## 🔑 Key Functions Reference

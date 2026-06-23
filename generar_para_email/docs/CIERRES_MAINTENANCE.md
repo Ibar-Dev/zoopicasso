@@ -283,6 +283,168 @@ assert tarde['total'] == 20.00
 
 ---
 
+### Test 8: UI Error Feedback (NEW - 2026-06-23)
+
+**Purpose**: Verify error visibility in automation panel
+
+**Setup**:
+1. Ensure automation is running (green "✅ Activa")
+2. Prepare a scenario that will cause closure to fail:
+   - Option A: Disconnect network folder (for network path error)
+   - Option B: Modify database permissions (for database error)
+   - Option C: Manually inject error in backend for testing
+
+**Manual Error Injection** (for testing without real failures):
+```python
+# In web/scheduler.py, temporarily modify _wrap_cierre
+def _wrap_cierre(cierre_type: str, cierre_func):
+    def wrapper():
+        if not automation_state["enabled"]:
+            logger.debug(f"⏸️ Cierre de {cierre_type} saltado")
+            return
+        try:
+            # Inject test error
+            raise Exception("TEST ERROR: Network path unreachable")
+        except Exception as e:
+            automation_state["last_error"][cierre_type] = {
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+            logger.error(f"❌ Error en cierre de {cierre_type}: {e}")
+```
+
+**Steps**:
+1. Trigger the failing closure (manual or automatic)
+2. Check browser console for any errors
+3. Within 60 seconds, observe UI automation panel
+4. Verify error displays in red
+
+**Expected UI Changes**:
+- Status text: "⏸️ Pausada" → "⚠️ Con errores" (RED)
+- Error message shows: "❌ Errores detectados:\n tarde: TEST ERROR: Network..."
+- Timestamp shows when error occurred
+- Buttons remain interactive (can try pause/resume)
+
+**Expected Result**: ✅ Errors visible in red, user informed
+
+**Browser Inspector** (to verify):
+```javascript
+// In browser DevTools console:
+document.querySelector('[id*="automation-status"]').innerText
+// Should show: "⚠️ Con errores"
+
+document.querySelector('[id*="automation-proximos"]').innerText
+// Should show: "❌ Errores detectados:\ntarde: TEST ERROR..."
+```
+
+---
+
+### Test 9: Automation Pause State Persistence (Extended)
+
+**Purpose**: Verify pause state survives app restart with error preservation
+
+**Steps**:
+1. Start application with errors in last_error (from Test 8)
+2. Pause automation via UI
+3. Verify file `data/automation_state.json` contains `"enabled": false`
+4. Check that errors are still visible in UI
+5. Stop application completely
+6. Restart application
+7. Observe errors still displayed (should NOT auto-clear on restart)
+8. Resume automation
+9. Verify errors persist until next automatic closure
+
+**Expected Result**: ✅ Pause state persisted, errors preserved through restart
+
+**Verification**:
+```bash
+# 1. Check pause state file
+cat generar_para_email/data/automation_state.json
+# Should show: {"enabled": false, "timestamp": "..."}
+
+# 2. Check that last_error is still tracked
+# (This is in-memory, not persisted, so clears on restart)
+# After restart, errors should be gone from last_error dict
+# Until next failure occurs
+```
+
+---
+
+### Test 10: Defensive Backend Check
+
+**Purpose**: Verify backend defensive check prevents execution when paused
+
+**Setup**:
+1. Ensure logging is enabled to DEBUG level
+2. Enable automatic closure at a specific time (or manually trigger)
+
+**Steps**:
+1. Open `generar_para_email/logs/app.log` and tail it
+2. Pause automation (pause() function)
+3. Wait for next scheduled closure time (or force trigger)
+4. Check logs for message: "⏸️ Cierre de {type} saltado (automatización pausada)"
+5. Verify closure did NOT execute (no "Iniciando cierre" log)
+6. Resume automation
+7. Wait for next closure, verify it now shows "Iniciando cierre"
+
+**Expected Result**: ✅ Defensive check logged, closure skipped while paused
+
+**Log Analysis**:
+```bash
+# When paused, should see:
+grep "saltado" generar_para_email/logs/app.log
+# Output: ⏸️ Cierre de tarde saltado (automatización pausada)
+
+# When resuming, should NOT see "Iniciando cierre" until next scheduled time
+grep "Iniciando cierre" generar_para_email/logs/app.log | tail -1
+```
+
+---
+
+### Test 11: Error Clearing After Fix
+
+**Purpose**: Verify errors are cleared when closure succeeds after failure
+
+**Scenario**:
+1. Closure fails (shows error in UI) - from Test 8
+2. UI shows "⚠️ Con errores" in red
+3. Fix the underlying issue (reconnect network, restore permissions, etc.)
+4. Next automatic closure succeeds
+5. Observe UI updates
+
+**Steps**:
+1. Verify error is showing: Status = "⚠️ Con errores", Color = RED
+2. Fix the network/permission issue
+3. Manually trigger next closure OR wait for scheduler
+4. Monitor network tab in browser DevTools
+5. Observe GET /api/automation/status response
+6. Within 60 seconds, UI should update
+
+**Expected UI Changes**:
+- Status text: "⚠️ Con errores" → "✅ Activa" (GREEN)
+- Message area clears, shows next scheduled times instead
+- last_error dict in API response is now empty
+
+**Expected Result**: ✅ Error clears, UI reflects success
+
+**Network Tab Check**:
+```json
+// GET /api/automation/status response after fix:
+{
+  "enabled": true,
+  "jobs": [
+    {"name": "Mañana", "next_run": "2026-06-24T14:00:00"},
+    ...
+  ],
+  "last_execution": {
+    "tarde": {"ok": true, "timestamp": "2026-06-23T22:00:15"}
+  },
+  "last_error": {}  // ← Should be empty after success
+}
+```
+
+---
+
 ## 🤖 Automated Testing (Unit Tests)
 
 ### File: `tests/test_cierres_timezone.py`

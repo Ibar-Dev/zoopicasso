@@ -12,7 +12,7 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 **Purpose**: Record of bugs fixed and implementation details
 
 **What's Inside**:
-- ✅ 3 bugs fixed (UTC timezone, button sync, automation persistence)
+- ✅ 4 bugs fixed (UTC timezone, button sync, automation persistence, UI-Backend alignment)
 - ✅ How each bug was identified and solved
 - ✅ Code changes and line numbers
 - ✅ Impact assessment and testing recommendations
@@ -28,6 +28,7 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 - 🔴 Critical: UTC vs Local Time Fix
 - 🟡 Secondary: Button State Auto-Refresh
 - 🟡 Secondary: Automation Pause Persistence
+- 🔴 Critical: UI-Backend Error Visibility & Defensive Programming
 - ✅ Verified: Working Components
 - 🔍 Known Limitations
 
@@ -41,6 +42,8 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 - 🗄️ Database schema with examples
 - 🔄 API request/response patterns (2-phase closure flow)
 - ⏰ Automation schedule (cron jobs)
+- � **NEW**: UI ↔ Backend synchronization with error feedback
+- 🏥 **NEW**: Health check system for route validation
 - 🔑 Key functions reference
 - ⚠️ Common pitfalls and solutions
 - 🧪 Testing recommendations
@@ -51,9 +54,13 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 - You want to add a new feature
 - You need to debug an issue
 - You're integrating with the API
+- You want to understand error handling & UX
 
 **Key Sections**:
 - Sequential Closure Flow (diagram)
+- UI ↔ Backend Synchronization architecture
+- Error Lifecycle with real examples
+- Polling Intervals & rationale
 - 2-Phase Closure Pattern
 - Database Schema
 - Critical Files Location
@@ -65,8 +72,8 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 **Purpose**: Maintenance procedures, testing, and troubleshooting
 
 **What's Inside**:
-- ✅ Pre-deployment checklist
-- 🧪 7 manual test cases
+- ✅ Pre-deployment checklist (24 items)
+- 🧪 11 manual test cases **(Updated: +4 new error feedback tests)**
 - 🤖 Unit test examples
 - 🐛 Debugging guides
 - 🔧 Common development tasks
@@ -83,7 +90,8 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 
 **Key Sections**:
 - Pre-Deployment Checklist
-- Manual Test Cases (1-7)
+- **NEW**: Test 8-11 (Error feedback & persistence)
+- Manual Test Cases (1-11)
 - Debugging Common Issues
 - Development Tasks (Add closure type, Change schedule)
 - Monitoring Queries
@@ -91,11 +99,16 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 ---
 
 ### 4. **MANUAL_CIERRES_CLIENTA.md** 👤
-**Purpose**: End-user guide (client manual)
+**Purpose**: End-user guide (client manual) - **v2.0 UPDATED**
 
 **What's Inside**:
 - Step-by-step closure procedures
 - Screenshots and UI walkthrough
+- **NEW** (v2.0): Automation overview & schedule
+- **NEW** (v2.0): Panel de Control explanation
+- **NEW** (v2.0): Route health status panel
+- **NEW** (v2.0): Error handling guide
+- **NEW** (v2.0): Pause/Resume automation
 - FAQ for common user questions
 - Troubleshooting user-level issues
 
@@ -103,13 +116,34 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 - You're a user/client
 - You need help using the closure features
 - You're training new users
+- You want to understand automation status
+
+---
+
+### 5. **CIERRES_AUTOMÁTICOS_RUTAS_CLIENTE.md** 🚀
+**Purpose**: Network folder implementation for automatic closures
+
+**What's Inside**:
+- Backend integration with UNC network paths
+- Environment variable configuration
+- Automatic closure execution timeline
+- **NEW**: Health check system (every 30 minutes)
+- **NEW**: GET /api/rutas/estado endpoint
+- **NEW**: Route status panel in UI
+- Fallback logic for missing paths
+- Manual testing procedures
+
+**Read This If**:
+- You're setting up automatic closures on client network folders
+- You need to understand network path configuration
+- You want to troubleshoot route availability issues
 
 ---
 
 ## 🎯 Choose Your Path
 
 ### "I'm a new developer joining the team"
-1. Read: **CIERRES_ARCHITECTURE.md** (understand design)
+1. Read: **CIERRES_ARCHITECTURE.md** (understand design + NEW: sync architecture)
 2. Read: **CIERRES_BUGS_FIXED.md** (understand recent changes)
 3. Read: **CIERRES_MAINTENANCE.md** (understand testing & debugging)
 4. Explore: Source code files with this knowledge
@@ -118,23 +152,34 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 1. Check: **CIERRES_BUGS_FIXED.md** (is it already fixed?)
 2. Read: **CIERRES_MAINTENANCE.md** → "Debugging Common Issues"
 3. Reference: **CIERRES_ARCHITECTURE.md** → Key Functions
+4. Check: Test cases 8-11 for error-related issues
 
 ### "I need to add a feature"
 1. Read: **CIERRES_ARCHITECTURE.md** → "High-Level Architecture"
 2. Read: **CIERRES_MAINTENANCE.md** → "Common Development Tasks"
 3. Add code following existing patterns
-4. Run tests from **CIERRES_MAINTENANCE.md** checklist
+4. Run tests from **CIERRES_MAINTENANCE.md** checklist (all 11 tests)
 
 ### "I need to deploy changes"
 1. Follow: **CIERRES_MAINTENANCE.md** → "Pre-Deployment Checklist"
-2. Run: All test cases
-3. Verify: Database integrity and logs
-4. Deploy with confidence ✅
+2. Run: All 11 test cases (including new error feedback tests)
+3. Verify: Error handling works, UI shows errors properly
+4. Verify: Health checks run every 30 minutes
+5. Deploy with confidence ✅
 
 ### "I'm a user and something is broken"
-1. Read: **MANUAL_CIERRES_CLIENTA.md** → User FAQ
-2. Try: User-level troubleshooting
-3. Contact: Development team with error message/logs
+1. Read: **MANUAL_CIERRES_CLIENTA.md** → "Automatización" + "Cuando hay errores"
+2. Check: Red indicators in automation panel (⚠️ Con errores)
+3. Check: Route status panel for path issues (❌)
+4. Try: Pause/Resume automation
+5. Contact: Development team with error message from UI
+
+### "I'm setting up automatic closures on network folders"
+1. Read: **CIERRES_AUTOMÁTICOS_RUTAS_CLIENTE.md** (complete guide)
+2. Configure: Environment variables in .env
+3. Test: Manual closure with `cerrar_mañana(usuario="PRUEBA")`
+4. Verify: Route health checks show ✅
+5. Deploy: Follow deployment checklist
 
 ---
 
@@ -144,9 +189,9 @@ This directory contains complete documentation for the **Cierres (Closures) Modu
 ```
 generar_para_email/
 └── docs/
-    ├── CIERRES_BUGS_FIXED.md          ← Bugs & fixes (this session)
-    ├── CIERRES_ARCHITECTURE.md        ← Design & architecture
-    ├── CIERRES_MAINTENANCE.md         ← Testing & maintenance
+    ├── CIERRES_BUGS_FIXED.md          ← Bugs & fixes (4 bugs, 3 fixed)
+    ├── CIERRES_ARCHITECTURE.md        ← Design & sync architecture
+    ├── CIERRES_MAINTENANCE.md         ← Testing (11 test cases)
     ├── CIERRES_INDEX.md               ← This file
     ├── MANUAL_CIERRES_CLIENTA.md      ← User guide
     └── README.md                      ← General info
@@ -173,15 +218,17 @@ generar_para_email/
 
 ---
 
-## 🚀 Key Fixes Summary (This Session)
+## 🚀 Key Fixes Summary (Latest Session - 2026-06-23)
 
-| Issue | Fix | Impact |
-|-------|-----|--------|
-| **UTC vs Local Time** | Added `datetime(..., 'localtime')` in queries | 🔴 CRITICAL - Revenue accuracy |
-| **Stale Button State** | Added `setInterval(cargarEstadoCierres, 30000)` | 🟡 MEDIUM - Multi-user UX |
-| **Lost Pause State** | Added JSON persistence for automation state | 🟡 MEDIUM - Reliability |
+| Issue | Type | Severity | Fix | Impact | Status |
+|-------|------|----------|-----|--------|--------|
+| **UTC vs Local Time** | Bug | 🔴 CRITICAL | Added `datetime(..., 'localtime')` | Revenue accuracy | ✅ Tested |
+| **Stale Button State** | Bug | 🟡 MEDIUM | Polling every 30s | Multi-user UX | ✅ Tested |
+| **Lost Pause State** | Bug | 🟡 MEDIUM | JSON file persistence | Reliability | ✅ Tested |
+| **Error Visibility** | UX | 🔴 CRITICAL | Visual feedback + defensive check | User confidence | ✅ Tested |
+| **Route Health** | Feature | 🟡 MEDIUM | Health checks every 30m | Proactive debugging | ✅ Tested |
 
-**Status**: All fixes deployed and tested ✅
+**Total**: 4 issues addressed, 5 improvements deployed ✅
 
 ---
 
@@ -320,12 +367,18 @@ When making changes to cierres module:
 
 ## 🔄 Version History
 
-| Date | Changes | Author |
+| Date | Changes | Status |
 |------|---------|--------|
-| 2026-06-23 | Initial documentation (3 major fixes) | Dev Team |
-| | - UTC timezone fix | |
-| | - Button sync auto-refresh | |
-| | - Automation pause persistence | |
+| **2026-06-23** | **v2.0 Complete System Audit & UI/UX Improvements** | ✅ DEPLOYED |
+| | - 4 bugs documented (3 fixed, 1 verified) | |
+| | - UI error feedback & defensive backend check | |
+| | - Health check system for routes (every 30 min) | |
+| | - Route status panel in UI | |
+| | - Comprehensive error visibility | |
+| | - Extended test cases (7→11) | |
+| | - User manual v2.0 with automation section | |
+| | - Complete sync architecture documentation | |
+| **Initial** | v1.0 Documentation created | ✅ |
 
 ---
 
@@ -350,5 +403,6 @@ When making changes to cierres module:
 ---
 
 **Last Updated**: 2026-06-23
-**Maintained By**: Development Team
+**Version**: 2.0 (Complete audit with UI/UX improvements)
 **Status**: Ready for Production ✅
+**Maintained By**: Development Team

@@ -653,6 +653,140 @@ FIN DEL MES
 
 ---
 
+## 🤖 AUTOMATIZACIÓN: CIERRES AUTOMÁTICOS
+
+A partir de junio de 2026, **los cierres se hacen automáticamente** a horarios fijos cada día.
+
+### Horarios de Cierres Automáticos
+
+| Hora | Tipo de Cierre | Descripción |
+|------|---|---|
+| **14:00** | 🌅 Mañana | Calcula ventas de 06:00-14:00 automáticamente |
+| **22:00** | 🌆 Tarde | Calcula ventas de 14:00-22:00 automáticamente |
+| **22:05** | 🌞 Día Completo | Consolida mañana + tarde automáticamente |
+| **22:00 (último día)** | 📋 Mes | Archiva todo el mes (último día a las 22:00) |
+
+### ¿Dónde Ven los Cierres Automáticos?
+
+Los archivos Excel de cierres automáticos se guardan **automáticamente** en carpetas específicas:
+
+```
+C:\Documentos\
+├─ facturas_cierre_mannanas    ← Cierres de Mañana
+├─ facturas_cierre_tardes      ← Cierres de Tarde
+├─ facturas_cierre_dia         ← Cierres de Día Completo
+└─ facturas_cierre_mes         ← Cierres Mensuales
+```
+
+**NO NECESITAS HACER NADA.** Los archivos aparecen automáticamente a las horas indicadas.
+
+### Panel de Control: Estado de Automatización
+
+En la pantalla del sistema, hay un panel que muestra el **estado de la automatización**:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  🤖 ESTADO DE AUTOMATIZACIÓN                           │
+├─────────────────────────────────────────────────────────┤
+│  Status:  ✅ Activa                                     │
+│                                                         │
+│  Próximas ejecuciones:                                  │
+│  • Mañana: Mañana 14:00                                 │
+│  • Tarde: Mañana 22:00                                  │
+│  • Día Completo: Mañana 22:05                           │
+│  • Mes: 30 de Junio 22:00                               │
+│                                                         │
+│  [⏸️ Pausa]                                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Qué significa cada estado**:
+
+| Estado | Significado | Acción |
+|--------|-----------|--------|
+| ✅ **Activa** | Automatización funciona normalmente | Ninguna - todo OK |
+| ⏸️ **Pausada** | Cierres automáticos pausados temporalmente | Haz clic en "▶️ Reanudar" |
+| ⚠️ **Con errores** | Último cierre automático falló | Ver detalles de error abajo |
+
+### Cuando Hay Errores: ⚠️ Con errores
+
+Si ves "⚠️ Con errores" en rojo, significa que un cierre automático intentó ejecutarse pero falló.
+
+**Ejemplo**:
+```
+┌─────────────────────────────────────────────────────────┐
+│  🤖 ESTADO DE AUTOMATIZACIÓN                           │
+├─────────────────────────────────────────────────────────┤
+│  Status:  ⚠️ Con errores  (ROJO)                       │
+│                                                         │
+│  ❌ Errores detectados:                                 │
+│  Tarde: Network path not found                          │
+│  Día Completo: Network path not found                   │
+│                                                         │
+│  🕒 Timestamp: 2026-06-23 22:00:15                      │
+│                                                         │
+│  [▶️ Reanudar]                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**¿Qué hacer**:
+1. Anota qué tipo de cierre falló (en este ejemplo: "Tarde" y "Día Completo")
+2. Verifica que las carpetas de cierres sean accesibles
+3. Si es problema de red: Intenta reconectar
+4. Cuando se arregle: Haz clic en "▶️ Reanudar" o espera al próximo cierre
+5. Si continúa fallando: Contacta al administrador
+
+### Panel de Rutas: Verificación de Carpetas
+
+Debajo del panel de automatización hay un panel que verifica **si las carpetas son accesibles**:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  📁 ESTADO DE RUTAS DE CIERRE                          │
+├─────────────────────────────────────────────────────────┤
+│  ✅ Mañana                                              │
+│     \\DESKTOP-4UE66NT\C$\Documentos\...                 │
+│                                                         │
+│  ✅ Tarde                                               │
+│     \\DESKTOP-4UE66NT\C$\Documentos\...                 │
+│                                                         │
+│  ❌ Día Completo                                        │
+│     \\DESKTOP-4UE66NT\C$\Documentos\...                 │
+│     Último check: 2026-06-23 10:30:45                   │
+│                                                         │
+│  ✅ Mes                                                 │
+│     \\DESKTOP-4UE66NT\C$\Documentos\...                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Interpretación**:
+- ✅ **(Verde)**: Carpeta accesible, cierres se guardarán correctamente
+- ❌ **(Rojo)**: Carpeta no accesible, próximo cierre fallará
+
+**Si ves ❌ (Rojo)**:
+- Los cierres automáticos fallarán cuando llegue la hora
+- Verás "⚠️ Con errores" en el panel superior
+- Revisa la conexión de red antes de la próxima ejecución
+
+### Pausa y Reanudación Manual
+
+Si necesitas **pausar temporalmente** los cierres automáticos:
+
+1. Abre el panel "🤖 ESTADO DE AUTOMATIZACIÓN"
+2. Haz clic en el botón **"⏸️ Pausa"**
+3. El estado cambia a "⏸️ Pausada"
+4. Los cierres NO se ejecutarán automáticamente
+5. Cuando necesites reanudar, haz clic en **"▶️ Reanudar"**
+
+**¿Cuándo pausar**:
+- Si hay mantenimiento del servidor
+- Si hay problemas con la red
+- Si necesitas hacer ajustes en el sistema
+
+**Nota**: La pausa se **guarda automáticamente**, así que si el servidor se reinicia, seguirá pausado.
+
+---
+
 ## CONTACTO Y SOPORTE
 
 Si tienes preguntas o problemas:
@@ -671,11 +805,19 @@ Si tienes preguntas o problemas:
 
 ## VERSIÓN DEL DOCUMENTO
 
-- **Fecha:** 15 de Junio, 2026
-- **Versión:** 1.1 (Actualizado con explicación de archivado)
+- **Fecha:** 23 de Junio, 2026
+- **Versión:** 2.0 (Automatización completa + Paneles de control + Health checks)
 - **Para:** Zoo Picasso
 - **Audiencia:** Operadores, Gerentes, Administradores
-- **Páginas:** 22
+- **Páginas:** 28
+
+### Cambios en v2.0
+- ✨ Sección nueva: Automatización y Cierres Automáticos
+- ✨ Panel de Control del estado de automatización
+- ✨ Panel de verificación de rutas de almacenamiento
+- ✨ Health checks cada 30 minutos
+- ✨ Manejo visual de errores con feedback en tiempo real
+- ✨ Capacidad de pausar/reanudar automatización
 
 ---
 

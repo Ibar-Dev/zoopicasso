@@ -219,7 +219,220 @@ metadata, archivo = cerrar_mañana(usuario="PRUEBA")
 
 ---
 
-## ✅ Checklist de Implementación
+## 🏥 Estado de Rutas - Health Checks (NEW - 2026-06-23)
+
+### Sistema de Validación Automática
+
+El sistema ahora verifica **cada 30 minutos** que todas las carpetas de cierres sean accesibles:
+
+```
+┌─────────────────────────────────────────────┐
+│   Cada 30 minutos (automático)              │
+│                                             │
+│   APScheduler cron job:                     │
+│   ├─ Intenta acceder a cada carpeta:        │
+│   │  ├─ ✅ o ❌ CIERRE_MANANA_DIR          │
+│   │  ├─ ✅ o ❌ CIERRE_TARDE_DIR           │
+│   │  ├─ ✅ o ❌ CIERRE_DIA_COMPLETO_DIR    │
+│   │  └─ ✅ o ❌ CIERRE_MES_DIR             │
+│   │                                         │
+│   └─ Guarda resultado en:                   │
+│      data/routes_health_check.json          │
+│                                             │
+└─────────────────────────────────────────────┘
+        ↓ Disponible para UI
+┌─────────────────────────────────────────────┐
+│   GET /api/rutas/estado (NEW endpoint)      │
+│                                             │
+│   Retorna:                                  │
+│   {                                         │
+│     "routes": [                             │
+│       {                                     │
+│         "name": "Mañana",                   │
+│         "path": "\\DESKTOP-4UE66NT\...",   │
+│         "status": "✅" | "❌",               │
+│         "last_check": "2026-06-23T10:30:45" │
+│       },                                    │
+│       ...                                   │
+│     ]                                       │
+│   }                                         │
+│                                             │
+└─────────────────────────────────────────────┘
+        ↓ Consumido por UI
+┌─────────────────────────────────────────────┐
+│   UI Panel: "📁 Estado de Rutas de Cierre"  │
+│                                             │
+│   Muestra:                                  │
+│   ✅ Mañana: \\DESKTOP-4UE66NT\...         │
+│   ✅ Tarde: \\DESKTOP-4UE66NT\...          │
+│   ❌ Día Completo: \\DESKTOP-4UE66NT\...   │
+│   ✅ Mes: \\DESKTOP-4UE66NT\...            │
+│                                             │
+│   Se actualiza cada 60 segundos             │
+│   (automático via polling)                  │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+### Endpoint GET /api/rutas/estado
+
+**Ubicación**: `web/app.py` - Nueva ruta
+
+**Parámetros**: Ninguno
+
+**Response Status**: 200 OK (siempre)
+
+**Response Body**:
+```json
+{
+  "routes": [
+    {
+      "name": "Mañana (06:00-14:00)",
+      "path": "\\DESKTOP-4UE66NT\\C$\\Documentos\\facturas_cierre_mannanas",
+      "status": "✅",
+      "last_check": "2026-06-23T10:30:45.123456"
+    },
+    {
+      "name": "Tarde (14:00-22:00)",
+      "path": "\\DESKTOP-4UE66NT\\C$\\Documentos\\facturas_cierre_tardes",
+      "status": "✅",
+      "last_check": "2026-06-23T10:30:45.123456"
+    },
+    {
+      "name": "Día Completo (06:00-22:00)",
+      "path": "\\DESKTOP-4UE66NT\\C$\\Documentos\\facturas_cierre_dia",
+      "status": "❌",
+      "last_check": "2026-06-23T10:30:45.123456"
+    },
+    {
+      "name": "Mes (Archivo mensual)",
+      "path": "\\DESKTOP-4UE66NT\\C$\\Documentos\\facturas_cierre_mes",
+      "status": "✅",
+      "last_check": "2026-06-23T10:30:45.123456"
+    }
+  ]
+}
+```
+
+### Función de Health Check
+
+**Ubicación**: `web/scheduler.py` - `_validar_salud_rutas()`
+
+**Ejecuta cada 30 minutos**:
+- Intenta crear directorio temporal en cada ruta
+- Escribe un archivo pequeño (0 bytes) en cada carpeta
+- Elimina archivos temporales
+- Guarda resultado en `data/routes_health_check.json`
+
+**Archivo de caché**: `data/routes_health_check.json`
+```json
+{
+  "timestamp": "2026-06-23T10:30:45.123456",
+  "next_check": "2026-06-23T11:00:45.123456",
+  "routes": {
+    "manana": {"ok": true, "error": null},
+    "tarde": {"ok": true, "error": null},
+    "dia_completo": {"ok": false, "error": "Network path not found"},
+    "mes": {"ok": true, "error": null}
+  }
+}
+```
+
+### Panel UI: Estado de Rutas
+
+**Ubicación**: `web/templates/index.html` - Sección "📁 Estado de Rutas de Cierre"
+
+**Actualización**: Cada 60 segundos (via polling)
+
+**Muestra**:
+```
+📁 Estado de Rutas de Cierre
+─────────────────────────────────────────
+✅ Mañana
+   \\DESKTOP-4UE66NT\C$\Documentos\...
+   
+✅ Tarde
+   \\DESKTOP-4UE66NT\C$\Documentos\...
+
+❌ Día Completo
+   \\DESKTOP-4UE66NT\C$\Documentos\...
+   Error: Network path not found
+   Último check: 2026-06-23 10:30:45
+   
+✅ Mes
+   \\DESKTOP-4UE66NT\C$\Documentos\...
+```
+
+**Interpretación de Status**:
+- ✅ (Verde): Ruta accesible y writable
+- ❌ (Rojo): Ruta no accesible o sin permisos de escritura
+- ⏳ (Naranja): Verificando... (estado temporal mientras se hace health check)
+
+### Cuándo No Funciona
+
+**Si una ruta muestra ❌ al momento de ejecutar un cierre automático**:
+
+1. **Antes de ejecutar**: Health check detectó problema → Usuario ve ❌ en panel
+2. **Durante ejecución automática**: Se intenta crear Excel, falla con error
+3. **Después de ejecutar**: Error aparece en "⚠️ Con errores"
+
+**Flujo de diagnóstico**:
+```
+Usuario ve ❌ en panel (en cualquier momento)
+  ↓
+Usuario sabe que próximo cierre fallará
+  ↓
+Usuario puede:
+  ├─ Verificar conexión a red
+  ├─ Verificar permisos de carpeta
+  ├─ Hacer ping a \\DESKTOP-4UE66NT
+  └─ Restaurar acceso antes de hora de cierre
+  ↓
+Si se fija antes de 14:00: Mañana se ejecutará correctamente ✅
+Si no se fija: Cierre fallará y verá error en rojo
+```
+
+### Comparación: Validación Temprana vs Tardía
+
+**❌ Antes (sin Health Checks)**:
+```
+14:00 - Hora de cierre automático
+  ├─ Intenta generar Excel
+  ├─ Intenta escribir a \\DESKTOP-4UE66NT\...
+  └─ ❌ FALLA: Network unreachable
+  └─ Usuario descubre error en "⚠️ Con errores"
+  └─ Cierre perdido, sin tiempo de reaccionar
+```
+
+**✅ Ahora (con Health Checks)**:
+```
+13:30 - 10 minutos antes de cierre
+  ├─ Health check automático (cada 30 min)
+  ├─ Detecta: \\DESKTOP-4UE66NT\... no accesible
+  └─ ❌ Status visible en UI panel
+
+13:45 - Usuario ve panel
+  ├─ Observa ❌ en "Día Completo"
+  ├─ Tiempo para reaccionar
+  └─ Verifica conexión, restaura permisos
+
+14:00 - Cierre automático
+  └─ ✅ Éxito (porque se arregló a tiempo)
+```
+
+### Archivos Relacionados
+
+| Archivo | Propósito |
+|---------|-----------|
+| `web/scheduler.py` | Función `_validar_salud_rutas()`, job scheduling |
+| `web/app.py` | Endpoint `GET /api/rutas/estado` |
+| `web/templates/index.html` | UI Panel "📁 Estado de Rutas" |
+| `data/routes_health_check.json` | Cache de último health check |
+| `.env` | Variables `CIERRE_*_DIR` |
+
+---
+
+## ✅ Checklist Final de Implementación
 
 - [x] Crear funciones de rutas específicas
 - [x] Agregar constantes RUTA_CIERRE_*
