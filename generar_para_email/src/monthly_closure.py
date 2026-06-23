@@ -55,6 +55,7 @@ def _obtener_carpeta_descargas() -> Path:
 
 
 def _ruta_cierres_dir() -> Path:
+    """Ruta general para guardar cierres (fallback por defecto)."""
     valor = os.getenv("CIERRES_DIR", "").strip()
     if not valor:
         # Por defecto, usar la carpeta de Descargas del sistema operativo
@@ -65,13 +66,64 @@ def _ruta_cierres_dir() -> Path:
     return ruta.resolve()
 
 
+def _ruta_cierre_manana_dir() -> Path:
+    """Ruta para guardar cierres de mañana (automáticos). Fallback: CIERRES_DIR."""
+    valor = os.getenv("CIERRE_MANANA_DIR", "").strip()
+    if not valor:
+        return _ruta_cierres_dir()
+    ruta = Path(valor).expanduser()
+    if not ruta.is_absolute():
+        ruta = _BASE / ruta
+    return ruta.resolve()
+
+
+def _ruta_cierre_tarde_dir() -> Path:
+    """Ruta para guardar cierres de tarde (automáticos). Fallback: CIERRES_DIR."""
+    valor = os.getenv("CIERRE_TARDE_DIR", "").strip()
+    if not valor:
+        return _ruta_cierres_dir()
+    ruta = Path(valor).expanduser()
+    if not ruta.is_absolute():
+        ruta = _BASE / ruta
+    return ruta.resolve()
+
+
+def _ruta_cierre_dia_completo_dir() -> Path:
+    """Ruta para guardar cierres de día completo (automáticos). Fallback: CIERRES_DIR."""
+    valor = os.getenv("CIERRE_DIA_COMPLETO_DIR", "").strip()
+    if not valor:
+        return _ruta_cierres_dir()
+    ruta = Path(valor).expanduser()
+    if not ruta.is_absolute():
+        ruta = _BASE / ruta
+    return ruta.resolve()
+
+
+def _ruta_cierre_mes_dir() -> Path:
+    """Ruta para guardar cierres del mes (automáticos). Fallback: CIERRES_DIR."""
+    valor = os.getenv("CIERRE_MES_DIR", "").strip()
+    if not valor:
+        return _ruta_cierres_dir()
+    ruta = Path(valor).expanduser()
+    if not ruta.is_absolute():
+        ruta = _BASE / ruta
+    return ruta.resolve()
+
+
 RUTA_CIERRES = _ruta_cierres_dir()
+RUTA_CIERRE_MANANA = _ruta_cierre_manana_dir()
+RUTA_CIERRE_TARDE = _ruta_cierre_tarde_dir()
+RUTA_CIERRE_DIA_COMPLETO = _ruta_cierre_dia_completo_dir()
+RUTA_CIERRE_MES = _ruta_cierre_mes_dir()
 
 
-def _generar_excel_cierre(anio_mes: str, resumen: dict) -> Path:
-    RUTA_CIERRES.mkdir(parents=True, exist_ok=True)
+def _generar_excel_cierre(anio_mes: str, resumen: dict, ruta_destino: Path | None = None) -> Path:
+    """Genera Excel de cierre mensual con opción de ruta personalizada."""
+    if ruta_destino is None:
+        ruta_destino = RUTA_CIERRES
+    ruta_destino.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    archivo = RUTA_CIERRES / f"Cierre_del_mes_{anio_mes}_{timestamp}.xlsx"
+    archivo = ruta_destino / f"Cierre_del_mes_{anio_mes}_{timestamp}.xlsx"
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -115,13 +167,16 @@ def _generar_excel_cierre(anio_mes: str, resumen: dict) -> Path:
     return archivo
 
 
-def _generar_excel_cierre_dia(fecha: str, resumen: dict, tipo_cierre: str = "full_day") -> Path:
+def _generar_excel_cierre_dia(fecha: str, resumen: dict, tipo_cierre: str = "full_day", ruta_destino: Path | None = None) -> Path:
     """
     Genera Excel de cierre diario con nombre descriptivo según el tipo.
     
     tipo_cierre puede ser: "morning", "afternoon", "full_day"
+    ruta_destino: ruta donde guardar el archivo (opcional, usa RUTA_CIERRES por defecto)
     """
-    RUTA_CIERRES.mkdir(parents=True, exist_ok=True)
+    if ruta_destino is None:
+        ruta_destino = RUTA_CIERRES
+    ruta_destino.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Nombres descriptivos según tipo de cierre
@@ -132,7 +187,7 @@ def _generar_excel_cierre_dia(fecha: str, resumen: dict, tipo_cierre: str = "ful
     }
     
     nombre_tipo = nombres_por_tipo.get(tipo_cierre, "Cierre_diario")
-    archivo = RUTA_CIERRES / f"{nombre_tipo}_{fecha}_{timestamp}.xlsx"
+    archivo = ruta_destino / f"{nombre_tipo}_{fecha}_{timestamp}.xlsx"
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -193,7 +248,7 @@ def cerrar_mes(usuario: str) -> tuple[dict, Path | None]:
             "mensaje": "No hay ventas activas para cerrar en este mes.",
         }, None
 
-    archivo = _generar_excel_cierre(anio_mes, resumen)
+    archivo = _generar_excel_cierre(anio_mes, resumen, RUTA_CIERRE_MES)
     cierre_id = f"{anio_mes}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
     archived_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -218,8 +273,11 @@ def cerrar_mes(usuario: str) -> tuple[dict, Path | None]:
     }, archivo
 
 
-def _cerrar_dia_generico(usuario: str, tipo_cierre: str, resumen: dict, fecha: str, anio_mes: str) -> tuple[dict, Path | None]:
-    """Función genérica para generar cierre y registrarlo. Valida secuencia."""
+def _cerrar_dia_generico(usuario: str, tipo_cierre: str, resumen: dict, fecha: str, anio_mes: str, ruta_destino: Path | None = None) -> tuple[dict, Path | None]:
+    """Función genérica para generar cierre y registrarlo. Valida secuencia.
+    
+    ruta_destino: ruta donde guardar el archivo (opcional, usa RUTA_CIERRES por defecto)
+    """
     from src.ventas_store import puede_hacer_cierre
     
     puede, motivo = puede_hacer_cierre(tipo_cierre, fecha)
@@ -241,7 +299,7 @@ def _cerrar_dia_generico(usuario: str, tipo_cierre: str, resumen: dict, fecha: s
             "mensaje": f"No hay ventas para cerrar en {resumen.get('periodo', tipo_cierre)}.",
         }, None
 
-    archivo = _generar_excel_cierre_dia(fecha, resumen, tipo_cierre)
+    archivo = _generar_excel_cierre_dia(fecha, resumen, tipo_cierre, ruta_destino)
     cierre_id = f"{tipo_cierre}-{fecha}-{datetime.now(timezone.utc).strftime('%H%M%S%f')}"
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -319,36 +377,48 @@ def obtener_resumen_cierre_dia_completo(fecha: str) -> dict:
 
 
 def cerrar_dia(usuario: str) -> tuple[dict, Path | None]:
-    """Genera informe Excel del día y registra el cierre. No archiva ventas. (Compatibilidad)"""
+    """Genera informe Excel del día y registra el cierre. No archiva ventas. (Compatibilidad)
+    
+    Guarda en RUTA_CIERRE_DIA_COMPLETO si está configurada.
+    """
     from src.ventas_store import resumen_ventas_dia
     fecha = datetime.now().strftime("%Y-%m-%d")
     anio_mes = datetime.now().strftime("%Y-%m")
     resumen = resumen_ventas_dia(fecha)
-    return _cerrar_dia_generico(usuario, "full_day", resumen, fecha, anio_mes)
+    return _cerrar_dia_generico(usuario, "full_day", resumen, fecha, anio_mes, RUTA_CIERRE_DIA_COMPLETO)
 
 
 def cerrar_mañana(usuario: str) -> tuple[dict, Path | None]:
-    """Cierre de mañana (06:00-14:00). Valida que no haya sido hecho hoy."""
+    """Cierre de mañana (06:00-14:00). Valida que no haya sido hecho hoy.
+    
+    Guarda en RUTA_CIERRE_MANANA si está configurada (automático).
+    """
     from src.ventas_store import resumen_ventas_mañana
     fecha = datetime.now().strftime("%Y-%m-%d")
     anio_mes = datetime.now().strftime("%Y-%m")
     resumen = resumen_ventas_mañana(fecha)
-    return _cerrar_dia_generico(usuario, "morning", resumen, fecha, anio_mes)
+    return _cerrar_dia_generico(usuario, "morning", resumen, fecha, anio_mes, RUTA_CIERRE_MANANA)
 
 
 def cerrar_tarde(usuario: str) -> tuple[dict, Path | None]:
-    """Cierre de tarde (14:00-22:00). Requiere que mañana esté hecho."""
+    """Cierre de tarde (14:00-22:00). Requiere que mañana esté hecho.
+    
+    Guarda en RUTA_CIERRE_TARDE si está configurada (automático).
+    """
     from src.ventas_store import resumen_ventas_tarde
     fecha = datetime.now().strftime("%Y-%m-%d")
     anio_mes = datetime.now().strftime("%Y-%m")
     resumen = resumen_ventas_tarde(fecha)
-    return _cerrar_dia_generico(usuario, "afternoon", resumen, fecha, anio_mes)
+    return _cerrar_dia_generico(usuario, "afternoon", resumen, fecha, anio_mes, RUTA_CIERRE_TARDE)
 
 
 def cerrar_día_completo(usuario: str) -> tuple[dict, Path | None]:
-    """Cierre del día completo. Requiere que mañana y tarde estén hechos."""
+    """Cierre del día completo. Requiere que mañana y tarde estén hechos.
+    
+    Guarda en RUTA_CIERRE_DIA_COMPLETO si está configurada (automático).
+    """
     from src.ventas_store import resumen_ventas_dia
     fecha = datetime.now().strftime("%Y-%m-%d")
     anio_mes = datetime.now().strftime("%Y-%m")
     resumen = resumen_ventas_dia(fecha)
-    return _cerrar_dia_generico(usuario, "full_day", resumen, fecha, anio_mes)
+    return _cerrar_dia_generico(usuario, "full_day", resumen, fecha, anio_mes, RUTA_CIERRE_DIA_COMPLETO)
