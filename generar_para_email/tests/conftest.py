@@ -83,3 +83,48 @@ def sample_factura_data():
             },
         ],
     }
+
+
+# ============================================================================
+# PLAYWRIGHT E2E TEST FIXTURES
+# ============================================================================
+
+import pytest
+import asyncio
+from playwright.async_api import async_playwright, Page, Browser
+
+
+@pytest.fixture(scope="session")
+async def browser():
+    """Fixture que proporciona un navegador Chromium para la sesión"""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        yield browser
+        await browser.close()
+
+
+@pytest.fixture
+async def page(browser: Browser) -> Page:
+    """Fixture que proporciona una página nueva para cada test"""
+    context = await browser.new_context()
+    page = await context.new_page()
+    yield page
+    await context.close()
+
+
+@pytest.fixture
+def base_url() -> str:
+    """URL base de la aplicación"""
+    return "http://localhost:8000"
+
+
+@pytest.fixture
+def db_path() -> Path:
+    """Ruta de la BD SQLite"""
+    return Path(__file__).parent.parent / "data" / "ventas.db"
+
+
+@pytest.fixture
+def facturas_dir() -> Path:
+    """Directorio de facturas"""
+    return Path(__file__).parent.parent / "facturas"
