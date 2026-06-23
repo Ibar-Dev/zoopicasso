@@ -27,7 +27,7 @@ from src.monthly_closure import (
     obtener_resumen_cierre_mañana, obtener_resumen_cierre_tarde, obtener_resumen_cierre_dia_completo,
     RUTA_CIERRES
 )
-from web.scheduler import init_scheduler, stop_scheduler, get_automation_status, pause_automation, resume_automation, force_execution
+from web.scheduler import init_scheduler, stop_scheduler, get_automation_status, pause_automation, resume_automation, force_execution, get_routes_health
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
 from src.ventas_store import (
@@ -347,6 +347,17 @@ def automation_force(cierre_type: str, request: Request) -> JSONResponse:
     result = force_execution(cierre_type)
     return JSONResponse(result)
 
+@app.get("/api/rutas/estado")
+def rutas_estado(request: Request) -> JSONResponse:
+    """Obtiene el estado de salud de las rutas de cierre.
+    
+    Valida que todas las carpetas de cierre sean accesibles.
+    Retorna información sobre cada tipo de cierre (mañana, tarde, día_completo, mes).
+    """
+    _requiere_login(request)
+    health = get_routes_health()
+    return JSONResponse(health)
+
 @app.get("/api/precios_categorias")
 def get_precios_categorias(request: Request) -> dict:
     _requiere_login(request)
@@ -624,6 +635,7 @@ def cierre_mañana_endpoint(payload: MonthlyClosurePayload, request: Request):
             "x-cierre-ventas": str(meta["cantidad_ventas"]),
             "x-cierre-total": str(meta["total"]),
             "x-cierre-mensaje": meta["mensaje"],
+            "x-cierre-ruta": str(archivo),
         },
     )
 
@@ -664,6 +676,7 @@ def cierre_tarde_endpoint(payload: MonthlyClosurePayload, request: Request):
             "x-cierre-ventas": str(meta["cantidad_ventas"]),
             "x-cierre-total": str(meta["total"]),
             "x-cierre-mensaje": meta["mensaje"],
+            "x-cierre-ruta": str(archivo),
         },
     )
 
@@ -704,6 +717,7 @@ def cierre_dia_completo_endpoint(payload: MonthlyClosurePayload, request: Reques
             "x-cierre-ventas": str(meta["cantidad_ventas"]),
             "x-cierre-total": str(meta["total"]),
             "x-cierre-mensaje": meta["mensaje"],
+            "x-cierre-ruta": str(archivo),
         },
     )
 

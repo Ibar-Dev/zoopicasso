@@ -85,6 +85,11 @@ def _wrap_cierre(cierre_type: str, cierre_func):
     """Envuelve una función de cierre para agregar logging y manejo de errores."""
 
     def wrapper():
+        # ✅ Verificación defensiva: si automatización está pausada, no ejecutar
+        if not automation_state["enabled"]:
+            logger.debug(f"⏸️ Cierre de {cierre_type} saltado (automatización pausada)")
+            return
+        
         try:
             logger.info(f"[AUTOMÁTICO] Iniciando cierre de {cierre_type}...")
             meta, archivo = cierre_func(usuario="SISTEMA")
@@ -114,6 +119,72 @@ def _wrap_cierre(cierre_type: str, cierre_func):
             return {"status": "error", "type": cierre_type, "error": error_msg}
 
     return wrapper
+
+
+# Archivo para guardar estado de salud de rutas
+ROUTES_HEALTH_FILE = DATA_DIR / "routes_health_check.json"
+
+
+def _validar_salud_rutas():
+    """Valida que todas las rutas de cierre sean accesibles.
+    
+    Se ejecuta periódicamente y guarda resultado en routes_health_check.json
+    """
+    from src.monthly_closure import (
+        validar_y_crear_ruta,
+        RUTA_CIERRE_MANANA,
+        RUTA_CIERRE_TARDE,
+        RUTA_CIERRE_DIA_COMPLETO,
+        RUTA_CIERRE_MES,
+    )
+    
+    rutas_a_validar = {
+        "mañana": RUTA_CIERRE_MANANA,
+        "tarde": RUTA_CIERRE_TARDE,
+        "día_completo": RUTA_CIERRE_DIA_COMPLETO,
+        "mes": RUTA_CIERRE_MES,
+    }
+    
+    health_status = {
+        "timestamp": datetime.now().isoformat(),
+        "routes": {},
+    }
+    
+    all_ok = True
+    for tipo_cierre, ruta in rutas_a_validar.items():
+        try:
+            éxito, msg_usuario, msg_log = validar_y_crear_ruta(ruta)
+            health_status["routes"][tipo_cierre] = {
+                "ruta": str(ruta),
+                "ok": éxito,
+                "mensaje": msg_usuario,
+                "timestamp": datetime.now().isoformat(),
+            }
+            if not éxito:
+                all_ok = False
+                logger.warning(f"⚠️ Problema con ruta de {tipo_cierre}: {msg_usuario}")
+        except Exception as e:
+            health_status["routes"][tipo_cierre] = {
+                "ruta": str(ruta),
+                "ok": False,
+                "mensaje": f"Error validando: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            }
+            all_ok = False
+            logger.error(f"❌ Error validando ruta de {tipo_cierre}: {e}")
+    
+    health_status["all_ok"] = all_ok
+    
+    # Guardar resultado
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with open(ROUTES_HEALTH_FILE, "w", encoding="utf-8") as f:
+            json.dump(health_status, f, indent=2)
+        logger.debug(f"✓ Health check de rutas guardado: {ROUTES_HEALTH_FILE}")
+    except Exception as e:
+        logger.error(f"❌ No se pudo guardar health check: {e}")
+    
+    return health_status
 
 
 def init_scheduler():
@@ -174,6 +245,18 @@ def init_scheduler():
             max_instances=1,
         )
         logger.info("📅 Programado: Cierre del mes a las 22:00 (último día)")
+
+        # Health check de rutas: cada 30 minutos
+        from apscheduler.triggers.interval import IntervalTrigger
+        scheduler.add_job(
+            _validar_salud_rutas,
+            trigger=IntervalTrigger(minutes=30),
+            id="health_check_rutas",
+            name="Validación de rutas de cierre",
+            replace_existing=True,
+            max_instances=1,
+        )
+        logger.info("📅 Programado: Health check de rutas cada 30 minutos")
 
         scheduler.start()
         logger.info("✅ Scheduler de cierres automáticos iniciado")
@@ -274,3 +357,22 @@ def force_execution(cierre_type: str):
         return {"status": "error", "error": f"Tipo de cierre inválido: {cierre_type}"}
 
     return _wrap_cierre(cierre_type, cierre_functions[cierre_type])()
+
+
+def get_routes_health():
+    """Retorna el estado de salud de las rutas de cierre.
+    
+    Lee el archivo generado por el health check periódico.
+    """
+    if not ROUTES_HEALTH_FILE.exists():
+        # Si no existe el archivo, ejecutar health check ahora
+        logger.info("Health check no generado aún, ejecutando ahora...")
+        return _validar_salud_rutas()
+    
+    try:
+        with open(ROUTES_HEALTH_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error leyendo health check: {e}")
+        # Si hay error, ejecutar nuevamente
+        return _validar_salud_rutas()

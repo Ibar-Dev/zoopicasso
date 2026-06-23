@@ -285,6 +285,18 @@
         </div>
       </div>
 
+      <!-- Sección de Estado de Rutas de Cierre -->
+      <div id="seccion-rutas" style="margin-top:1.5rem;padding:1rem;background:#f0f7ff;border-radius:8px;border:1px solid #b3d9ff;">
+        <h3 style="margin-top:0;color:#1e3a8a;">📁 Estado de Rutas de Cierre</h3>
+        <div id="estado-rutas" style="font-size:0.9rem;color:#334155;margin:0.5rem 0;">
+          <div id="rutas-loading" style="text-align:center;padding:1rem;">⏳ Cargando estado de rutas...</div>
+          <div id="rutas-content" style="display:none;"></div>
+        </div>
+        <div style="margin-top:0.75rem;">
+          <button id="btn-refresh-rutas" type="button" style="padding:0.5rem 1rem;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;">🔄 Actualizar estado</button>
+        </div>
+      </div>
+
       <!-- Modal de confirmación para cierres -->
       <div id="modal-cierre" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
         <div style="background:white;padding:2rem;border-radius:8px;max-width:400px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
@@ -2438,7 +2450,7 @@
         cierreEnCurso = null;
       }
 
-      function mostrarEstado(mensaje, tipo = 'info') {
+      function mostrarEstado(mensaje, tipo = 'info', esHtml = false) {
         cierreStatus.style.display = 'block';
         const colors = {
           'success': '#4CAF50',
@@ -2456,7 +2468,12 @@
         cierreStatus.style.background = colors[tipo] + '20';
         cierreStatus.style.color = colors[tipo];
         cierreStatus.style.borderLeft = `4px solid ${colors[tipo]}`;
-        cierreStatus.innerHTML = `<strong>${spinner}${icon[tipo]} ${mensaje}</strong>`;
+        
+        if (esHtml) {
+          cierreStatus.innerHTML = `<strong>${spinner}${icon[tipo]}</strong> <div>${mensaje}</div>`;
+        } else {
+          cierreStatus.innerHTML = `<strong>${spinner}${icon[tipo]} ${mensaje}</strong>`;
+        }
       }
 
       function ocultarEstado() {
@@ -2593,7 +2610,14 @@
             }
             
             const mensaje = response.headers.get('x-cierre-mensaje') || `${periodo} completado`;
-            mostrarEstado(`✅ ${mensaje}. Archivo: ${nombreArchivo}`, 'success');
+            const rutaExacta = response.headers.get('x-cierre-ruta') || '';
+            let mensajeCompleto = `✅ ${mensaje}. Archivo: ${nombreArchivo}`;
+            
+            if (rutaExacta) {
+              mensajeCompleto += `<br><small style="color:#666;word-break:break-all;font-family:monospace;">📁 Ruta: ${rutaExacta}</small>`;
+            }
+            
+            mostrarEstado(mensajeCompleto, 'success', true);
           } else {
             // Es JSON (sin ventas)
             const data = await response.json();
@@ -2755,20 +2779,60 @@
       async loadStatus() {
         try {
           const res = await fetch('/api/automation/status', { credentials: 'same-origin' });
-          if (!res.ok) return;
+          if (!res.ok) {
+            console.error(`Error API: ${res.status} ${res.statusText}`);
+            this.statusEl.textContent = '❌ Error conectando';
+            this.statusEl.style.color = '#ef4444';
+            this.proximosEl.innerHTML = '<span style="color:#e74c3c;font-size:0.85rem;">⚠️ No se puede conectar con el servidor de automatización</span>';
+            return;
+          }
           const data = await res.json();
           this.updateUI(data);
         } catch (e) {
-          console.warn('Error cargando estado de automatización:', e);
+          console.error('Error de red cargando estado de automatización:', e);
+          this.statusEl.textContent = '❌ Error de red';
+          this.statusEl.style.color = '#ef4444';
+          this.proximosEl.innerHTML = '<span style="color:#e74c3c;font-size:0.85rem;">⚠️ Problema de conexión. Reintentando...</span>';
         }
       },
 
       updateUI(data) {
-        const statusText = data.enabled ? '✅ Activa' : '⏸️ Pausada';
-        this.statusEl.textContent = statusText;
-        this.statusEl.style.color = data.enabled ? '#22c55e' : '#ff9800';
+        // Verificar si hay errores activos en cierres automáticos
+        const tieneErrores = data.last_error && Object.keys(data.last_error).length > 0;
+        
+        // Si hay errores, mostrar en rojo; si no, mostrar estado normal
+        if (tieneErrores) {
+          this.statusEl.textContent = '⚠️ Con errores';
+          this.statusEl.style.color = '#ef4444';
+        } else {
+          const statusText = data.enabled ? '✅ Activa' : '⏸️ Pausada';
+          this.statusEl.textContent = statusText;
+          this.statusEl.style.color = data.enabled ? '#22c55e' : '#ff9800';
+        }
+        
+        this.pauseBtn.style.display = data.enabled ? 'block' : 'none';
+        this.resumeBtn.style.display = data.enabled ? 'none' : 'block';
 
         this.proximosEl.innerHTML = '';
+        
+        // Mostrar errores si existen
+        if (tieneErrores) {
+          let html = '<strong style="color:#e74c3c;">❌ Errores detectados:</strong><br>';
+          let ultimoTimestamp = null;
+          for (const [tipo, err] of Object.entries(data.last_error)) {
+            html += `<small style="color:#d32f2f;">${tipo}: ${err.error}</small><br>`;
+            if (err.timestamp && (!ultimoTimestamp || new Date(err.timestamp) > new Date(ultimoTimestamp))) {
+              ultimoTimestamp = err.timestamp;
+            }
+          }
+          if (ultimoTimestamp) {
+            html += `<small style="color:#999;">🕒 ${new Date(ultimoTimestamp).toLocaleTimeString()}</small>`;
+          }
+          this.proximosEl.innerHTML = html;
+          return;  // No mostrar más si hay errores
+        }
+        
+        // Próximas ejecuciones
         if (data.jobs && data.jobs.length > 0) {
           data.jobs.forEach(job => {
             const nextRun = job.next_run ? new Date(job.next_run).toLocaleString('es-ES') : 'Próximamente';
@@ -2789,27 +2853,39 @@
 
       async pause() {
         try {
-          await fetch('/api/automation/pause', { 
+          const res = await fetch('/api/automation/pause', { 
             method: 'POST', 
             credentials: 'same-origin'
           });
+          if (!res.ok) {
+            mostrarToast(`Error: ${res.status} ${res.statusText}`, 'error');
+            console.error(`Pause error: ${res.status}`);
+            return;
+          }
           this.loadStatus();
           mostrarToast('⏸️ Automatización pausada');
         } catch (e) {
-          mostrarToast('Error al pausar automatización', 'error');
+          console.error('Error al pausar:', e);
+          mostrarToast('Error de red al pausar automatización', 'error');
         }
       },
 
       async resume() {
         try {
-          await fetch('/api/automation/resume', { 
+          const res = await fetch('/api/automation/resume', { 
             method: 'POST', 
             credentials: 'same-origin'
           });
+          if (!res.ok) {
+            mostrarToast(`Error: ${res.status} ${res.statusText}`, 'error');
+            console.error(`Resume error: ${res.status}`);
+            return;
+          }
           this.loadStatus();
           mostrarToast('▶️ Automatización reanudada');
         } catch (e) {
-          mostrarToast('Error al reanudar automatización', 'error');
+          console.error('Error al reanudar:', e);
+          mostrarToast('Error de red al reanudar automatización', 'error');
         }
       }
     };
@@ -2819,6 +2895,77 @@
     
     AutomationUI.pauseBtn?.addEventListener('click', () => AutomationUI.pause());
     AutomationUI.resumeBtn?.addEventListener('click', () => AutomationUI.resume());
+
+    // ===== Estado de Rutas de Cierre =====
+    const RoutesHealthUI = {
+      loadingEl: document.getElementById('rutas-loading'),
+      contentEl: document.getElementById('rutas-content'),
+      refreshBtn: document.getElementById('btn-refresh-rutas'),
+
+      async loadStatus() {
+        try {
+          const res = await fetch('/api/rutas/estado', { credentials: 'same-origin' });
+          if (!res.ok) return;
+          const data = await res.json();
+          this.updateUI(data);
+        } catch (e) {
+          console.error('Error cargando estado de rutas:', e);
+          this.loadingEl.innerHTML = '❌ Error cargando estado de rutas';
+        }
+      },
+
+      updateUI(data) {
+        this.loadingEl.style.display = 'none';
+        this.contentEl.style.display = 'block';
+        
+        let html = '';
+        
+        if (!data.routes) {
+          this.contentEl.innerHTML = '<p style="color:#e74c3c;">No se pudo obtener estado de rutas</p>';
+          return;
+        }
+
+        // Resumen general
+        const tiposOk = Object.values(data.routes).filter(r => r.ok).length;
+        const totalTipos = Object.keys(data.routes).length;
+        
+        const statusIcon = data.all_ok ? '✅' : '⚠️';
+        const statusColor = data.all_ok ? '#22c55e' : '#f59e0b';
+        
+        html += `<div style="margin-bottom:0.75rem;padding:0.5rem;background:${statusColor}22;border-left:4px solid ${statusColor};border-radius:4px;">`;
+        html += `<strong>${statusIcon} ${tiposOk}/${totalTipos} carpetas accesibles</strong>`;
+        html += `</div>`;
+
+        // Detalles por tipo
+        for (const [tipo, info] of Object.entries(data.routes)) {
+          const icon = info.ok ? '✅' : '❌';
+          const color = info.ok ? '#22c55e' : '#e74c3c';
+          const bgColor = info.ok ? '#f0fdf422' : '#fef0f022';
+          
+          html += `<div style="margin:0.5rem 0;padding:0.5rem;background:${bgColor};border-left:4px solid ${color};border-radius:4px;font-size:0.85rem;">`;
+          html += `<strong style="color:${color}">${icon} ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}</strong><br>`;
+          html += `<span style="color:#666;word-break:break-all;font-family:monospace;font-size:0.8rem;">${info.ruta}</span><br>`;
+          html += `<span style="color:#888;font-size:0.8rem;">${info.mensaje}</span>`;
+          html += `</div>`;
+        }
+
+        html += `<div style="margin-top:0.5rem;font-size:0.8rem;color:#888;">`;
+        html += `🕒 Actualizado: ${new Date(data.timestamp).toLocaleTimeString()}`;
+        html += `</div>`;
+
+        this.contentEl.innerHTML = html;
+      }
+    };
+
+    RoutesHealthUI.refreshBtn?.addEventListener('click', () => {
+      RoutesHealthUI.loadingEl.style.display = 'block';
+      RoutesHealthUI.contentEl.style.display = 'none';
+      RoutesHealthUI.loadStatus();
+    });
+
+    // Cargar estado de rutas
+    RoutesHealthUI.loadStatus();
+    setInterval(() => RoutesHealthUI.loadStatus(), 60000); // Actualizar cada minuto
 
     // Cargar estado de automatización
     AutomationUI.loadStatus();

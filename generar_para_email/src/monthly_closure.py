@@ -110,6 +110,75 @@ def _ruta_cierre_mes_dir() -> Path:
     return ruta.resolve()
 
 
+def validar_y_crear_ruta(ruta: Path | str) -> tuple[bool, str, str]:
+    """Valida si la ruta es accesible y crea si es necesario.
+    
+    Retorna: (éxito, mensaje_usuario, mensaje_log)
+    
+    Casos:
+    - (True, "Carpeta lista", "..."): existe y es accesible
+    - (True, "Carpeta creada", "..."): se creó nueva carpeta
+    - (False, "Error: ...", "..."): no se puede acceder/crear
+    """
+    if isinstance(ruta, str):
+        ruta = Path(ruta)
+    
+    try:
+        # Si la ruta ya existe
+        if ruta.exists():
+            if not ruta.is_dir():
+                msg_err = f"La ruta existe pero no es un directorio: {ruta}"
+                logger.error(msg_err)
+                return False, f"❌ Error: No es una carpeta", msg_err
+            
+            # Verificar permisos de escritura intentando crear un archivo temporal
+            try:
+                test_file = ruta / ".zioo_test_write_permission"
+                test_file.touch()
+                test_file.unlink()
+                msg_ok = f"Carpeta lista y accesible: {ruta}"
+                logger.info("✅ %s", msg_ok)
+                return True, "✅ Carpeta lista", msg_ok
+            except PermissionError as e:
+                msg_err = f"Sin permisos de escritura en: {ruta} - {str(e)}"
+                logger.error(msg_err)
+                return False, f"❌ Error: Sin permisos", msg_err
+        
+        # La ruta no existe - intentar crearla
+        try:
+            ruta.mkdir(parents=True, exist_ok=True)
+            
+            # Verificar que se creó correctamente
+            if not ruta.exists() or not ruta.is_dir():
+                msg_err = f"Carpeta no se creó correctamente: {ruta}"
+                logger.error(msg_err)
+                return False, f"❌ Error: No se pudo crear", msg_err
+            
+            # Verificar permisos
+            try:
+                test_file = ruta / ".zioo_test_write_permission"
+                test_file.touch()
+                test_file.unlink()
+            except PermissionError as e:
+                msg_err = f"Carpeta creada pero sin permisos: {ruta} - {str(e)}"
+                logger.error(msg_err)
+                return False, f"❌ Error: Sin permisos", msg_err
+            
+            msg_ok = f"Carpeta creada exitosamente: {ruta}"
+            logger.warning("⚠️  %s", msg_ok)
+            return True, "✅ Carpeta creada", msg_ok
+            
+        except OSError as e:
+            msg_err = f"No se pudo crear carpeta: {ruta} - {str(e)}"
+            logger.error(msg_err)
+            return False, f"❌ Error: {str(e)}", msg_err
+            
+    except Exception as e:
+        msg_err = f"Error inesperado validando ruta: {ruta} - {str(e)}"
+        logger.error(msg_err)
+        return False, f"❌ Error: {str(e)}", msg_err
+
+
 RUTA_CIERRES = _ruta_cierres_dir()
 RUTA_CIERRE_MANANA = _ruta_cierre_manana_dir()
 RUTA_CIERRE_TARDE = _ruta_cierre_tarde_dir()
