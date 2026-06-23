@@ -284,7 +284,7 @@ def stop_scheduler():
 
 
 def pause_automation():
-    """Pausa los cierres automáticos sin detener el scheduler."""
+    """Pausa los cierres automáticos. Usa automation_state[enabled]=False como control."""
     if scheduler is None:
         automation_state["enabled"] = False
         _save_automation_state_to_file(False)
@@ -295,13 +295,11 @@ def pause_automation():
 
     automation_state["enabled"] = False
     _save_automation_state_to_file(False)
-    for job in scheduler.get_jobs():
-        job.pause()
-    logger.warning("⏸️ Cierres automáticos pausados")
+    logger.warning("⏸️ Cierres automáticos pausados (jobs ejecutarán pero retornarán sin acción)")
 
 
 def resume_automation():
-    """Reanuda los cierres automáticos."""
+    """Reanuda los cierres automáticos. Usa automation_state[enabled]=True como control."""
     if scheduler is None:
         automation_state["enabled"] = False
         _save_automation_state_to_file(False)
@@ -312,9 +310,7 @@ def resume_automation():
 
     automation_state["enabled"] = True
     _save_automation_state_to_file(True)
-    for job in scheduler.get_jobs():
-        job.resume()
-    logger.warning("▶️ Cierres automáticos reanudados")
+    logger.warning("▶️ Cierres automáticos reanudados (jobs ejecutarán sus acciones)")
 
 
 def get_automation_status():
