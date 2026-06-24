@@ -185,19 +185,29 @@ class ColaPersistente:
     def __init__(self, ruta: Path | str = "data/cola_impresion.json"):
         self.ruta = Path(ruta) if isinstance(ruta, str) else ruta
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
-        self._datos: list[str] = self._cargar()  # Lista de strings base64
+        # Ahora almacenamos list[dict] en lugar de list[str] para incluir metadatos
+        self._datos: list[dict] = self._cargar()
     
-    def _cargar(self) -> list[str]:
-        """Carga cola desde disco JSON. Retorna lista vacía si no existe."""
+    def _cargar(self) -> list[dict]:
+        """Carga cola desde disco JSON. Realiza migración automática de strings a dicts."""
         if self.ruta.exists():
             try:
                 with open(self.ruta, "r", encoding="utf-8") as f:
                     contenido = json.load(f)
+                    tickets_base = []
                     if isinstance(contenido, dict) and "tickets" in contenido:
-                        return contenido["tickets"]
+                        tickets_base = contenido["tickets"]
                     elif isinstance(contenido, list):
-                        return contenido
-                    return []
+                        tickets_base = contenido
+                    
+                    # MIGRACIÓN: Convertir items antiguos (strings) al formato nuevo (dicts)
+                    cola_migrada = []
+                    for item in tickets_base:
+                        if isinstance(item, str):
+                            cola_migrada.append({"ticket": item, "archivo_xlsx": None})
+                        else:
+                            cola_migrada.append(item)
+                    return cola_migrada
             except Exception as e:
                 logger.error("Error al cargar cola desde %s: %s", self.ruta, e)
                 return []
@@ -211,30 +221,34 @@ class ColaPersistente:
         except Exception as e:
             logger.error("Error al guardar cola en %s: %s", self.ruta, e)
     
-    def append(self, item: bytes) -> None:
+    def append(self, item: bytes, archivo_nombre: Optional[str] = None) -> None:
         """
-        Añade ticket a la cola y persiste.
+        Añade ticket y metadatos a la cola y persiste.
         
         Args:
             item: bytes en formato ESC/POS
+            archivo_nombre: Nombre del archivo .xlsx asociado (opcional)
         """
         ticket_b64 = base64.b64encode(item).decode("ascii")
-        self._datos.append(ticket_b64)
+        self._datos.append({
+            "ticket": ticket_b64,
+            "archivo_xlsx": archivo_nombre
+        })
         self._guardar()
     
-    def pop(self, index: int = 0) -> bytes:
+    def pop(self, index: int = 0) -> dict:
         """
-        Retira ticket de la cola y persiste.
+        Retira item de la cola y lo devuelve como diccionario.
         
         Args:
             index: Índice a remover (default: 0 = FIFO)
         
         Returns:
-            bytes: Datos ESC/POS decodificados
+            dict: {"ticket": "base64...", "archivo_xlsx": "nombre.xlsx" | None}
         """
-        ticket_b64 = self._datos.pop(index)
+        item = self._datos.pop(index)
         self._guardar()
-        return base64.b64decode(ticket_b64)
+        return item
     
     def __len__(self) -> int:
         """Cantidad de tickets en cola."""
@@ -830,7 +844,7 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     if payload.imprimir_ticket:
         try:
             ticket = generar_ticket_escpos(factura, ancho=42, pago=pago)
-            cola_impresion.append(ticket)
+            cola_impresion.append(ticket, archivo_nombre=ruta.name)
             ticket_impreso = True
             ticket_estado = "Ticket encolado para impresión."
             logger.info(
@@ -895,15 +909,19 @@ def siguiente_ticket(request: Request) -> JSONResponse:
         return JSONResponse({"hay_ticket": False}, status_code=204)
     
     # Despacha ticket (FIFO)
-    ticket = cola_impresion.pop(0)
+    item = cola_impresion.pop(0)
+    ticket_b64 = item["ticket"]
+    archivo_xlsx = item["archivo_xlsx"]
+    
     logger.info(
-        "Ticket despachado (%d bytes, quedan %d en cola)",
-        len(ticket),
+        "Ticket despachado (archivo: %s, quedan %d en cola)",
+        archivo_xlsx,
         len(cola_impresion),
     )
     return JSONResponse({
         "hay_ticket": True,
-        "ticket_b64": base64.b64encode(ticket).decode("ascii"),
+        "ticket_b64": ticket_b64,
+        "archivo_xlsx": archivo_xlsx
     })
 
 @app.get("/api/descargar/{nombre_archivo}")
