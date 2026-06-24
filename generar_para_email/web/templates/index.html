@@ -107,7 +107,10 @@
           <p id="estado">Completa los datos y genera el Excel.</p>
         </div>
         <div class="header-actions">
-          <button id="btn-carpeta" class="ghost" type="button" title="Cambiar carpeta de destino">📁 Carpeta</button>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+            <button id="btn-carpeta" class="ghost" type="button" title="Cambiar carpeta de destino">📁 Carpeta</button>
+            <span id="nombre-carpeta-local" style="font-size:0.7rem; color:#64748b; margin-right:5px;"></span>
+          </div>
           <button id="btn-tutorial" class="ghost" type="button" title="Guía de la aplicación" aria-label="Abrir guía">?</button>
           <button id="btn-logout" class="ghost">Salir</button>
         </div>
@@ -176,6 +179,17 @@
       </div>
       <p id="resultado" class="ok"></p>
       <p id="error" class="error"></p>
+
+      <div id="info-config-servidor" style="margin-top:2rem; padding:0.75rem; border-top:1px solid #e2e8f0; font-size:0.8rem; color:#64748b;">
+        <details>
+          <summary style="cursor:pointer; color:#94a3b8; font-weight:500;">⚙️ Configuración del sistema</summary>
+          <div style="margin-top:0.5rem; display:grid; gap:4px;">
+            <p style="margin:0;"><strong>Excel Auditoría (Servidor):</strong> <code id="info-auditoria" style="word-break:break-all; background:#f1f5f9; padding:1px 4px; border-radius:3px;">...</code></p>
+            <p style="margin:0;"><strong>Facturas (Servidor):</strong> <code id="info-facturas" style="word-break:break-all; background:#f1f5f9; padding:1px 4px; border-radius:3px;">...</code></p>
+            <p style="margin:0; border-top:1px dashed #cbd5e1; padding-top:4px; margin-top:4px;"><strong>Facturas (Tu ordenador):</strong> <span id="info-local-actual">No seleccionada</span></p>
+          </div>
+        </details>
+      </div>
 
       <div class="lineas-head">
         <h3>Ventas del día por categoría</h3>
@@ -1457,7 +1471,27 @@
       toggleView(false);
     });
 
-    document.getElementById('btn-carpeta').addEventListener('click', async () => {
+    const btnCarpeta = document.getElementById('btn-carpeta');
+    const spanNombreCarpeta = document.getElementById('nombre-carpeta-local');
+    const infoLocalActual = document.getElementById('info-local-actual');
+
+    async function actualizarUIConfig() {
+      try {
+        const config = await request('/api/config');
+        document.getElementById('info-auditoria').textContent = config.rutas.excel_auditoria;
+        document.getElementById('info-facturas').textContent = config.rutas.facturas_principal;
+      } catch (e) {
+        console.warn('No se pudo cargar la configuración del servidor:', e);
+      }
+    }
+
+    function actualizarNombreCarpetaLocal(nombre) {
+      if (spanNombreCarpeta) spanNombreCarpeta.textContent = nombre ? `📁 ${nombre}` : '';
+      if (infoLocalActual) infoLocalActual.textContent = nombre || 'No seleccionada';
+      btnCarpeta.title = nombre ? `Destino local: ${nombre} (clic para cambiar)` : 'Cambiar carpeta de destino local';
+    }
+
+    btnCarpeta.addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
       if (!window.showDirectoryPicker) {
@@ -1467,6 +1501,7 @@
       try {
         const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
         await idbSet('config', 'carpeta_facturas', dirHandle);
+        actualizarNombreCarpetaLocal(dirHandle.name);
         resultadoEl.textContent = `Carpeta de destino configurada: ${dirHandle.name}`;
       } catch (err) {
         if (err && err.name !== 'AbortError') {
@@ -1475,35 +1510,7 @@
       }
     });
 
-    const btnCarpetaCierres      = document.getElementById('btn-carpeta-cierres');
-    const btnCarpetaCierreMañana = document.getElementById('btn-carpeta-cierre-mañana');
-    const btnCarpetaCierreTarde  = document.getElementById('btn-carpeta-cierre-tarde');
-    const btnCarpetaCierreDiaCompleto = document.getElementById('btn-carpeta-cierre-dia-completo');
     const btnCarpetaBackup       = document.getElementById('btn-carpeta-backup');
-
-    function actualizarNombreCarpetaCierres(nombre) {
-      btnCarpetaCierres.title = nombre
-        ? `Cierre del mes: ${nombre} (clic para cambiar)`
-        : 'Carpeta para cierres mensuales';
-    }
-
-    function actualizarNombreCarpetaCierreMañana(nombre) {
-      btnCarpetaCierreMañana.title = nombre
-        ? `Cierre de la mañana: ${nombre} (clic para cambiar)`
-        : 'Carpeta para cierre de la mañana';
-    }
-
-    function actualizarNombreCarpetaCierreTarde(nombre) {
-      btnCarpetaCierreTarde.title = nombre
-        ? `Cierre de la tarde: ${nombre} (clic para cambiar)`
-        : 'Carpeta para cierre de la tarde';
-    }
-
-    function actualizarNombreCarpetaCierreDiaCompleto(nombre) {
-      btnCarpetaCierreDiaCompleto.title = nombre
-        ? `Cierre del día completo: ${nombre} (clic para cambiar)`
-        : 'Carpeta para cierre del día completo';
-    }
 
     function actualizarNombreCarpetaBackup(nombre) {
       btnCarpetaBackup.title = nombre
@@ -1511,45 +1518,16 @@
         : 'Carpeta donde se guardan los backups';
     }
 
-    // Cargar nombres de carpetas al inicio
-    idbGet('config', 'carpeta_cierres').then(h => {
-      if (h) actualizarNombreCarpetaCierres(h.name);
-    }).catch(() => {});
-
-    idbGet('config', 'carpeta_cierre_mañana').then(h => {
-      if (h) actualizarNombreCarpetaCierreMañana(h.name);
-    }).catch(() => {});
-
-    idbGet('config', 'carpeta_cierre_tarde').then(h => {
-      if (h) actualizarNombreCarpetaCierreTarde(h.name);
-    }).catch(() => {});
-
-    idbGet('config', 'carpeta_cierre_dia_completo').then(h => {
-      if (h) actualizarNombreCarpetaCierreDiaCompleto(h.name);
+    // Inicialización al cargar
+    idbGet('config', 'carpeta_facturas').then(h => {
+      if (h) actualizarNombreCarpetaLocal(h.name);
     }).catch(() => {});
 
     idbGet('config', 'carpeta_backup').then(h => {
       if (h) actualizarNombreCarpetaBackup(h.name);
     }).catch(() => {});
 
-    btnCarpetaCierres.addEventListener('click', async () => {
-      resultadoEl.textContent = '';
-      errorEl.textContent = '';
-      if (!window.showDirectoryPicker) {
-        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los cierres se descargarán automáticamente.';
-        return;
-      }
-      try {
-        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        await idbSet('config', 'carpeta_cierres', dirHandle);
-        actualizarNombreCarpetaCierres(dirHandle.name);
-        resultadoEl.textContent = `Carpeta de cierres mensuales configurada: ${dirHandle.name}`;
-      } catch (err) {
-        if (err && err.name !== 'AbortError') {
-          errorEl.textContent = 'No se pudo configurar la carpeta de cierres mensuales.';
-        }
-      }
-    });
+    // El sistema modular de atajos...
 
     btnCarpetaCierreTarde.addEventListener('click', async () => {
       resultadoEl.textContent = '';
@@ -2652,6 +2630,7 @@
     // Objetivo: Prevenir spin-down del servidor (Render Free tier)
     KeepAliveManager.start();
 
+    actualizarUIConfig();
     bootstrap();
   </script>
 

@@ -65,6 +65,7 @@ _cargar_env(ENV_PATH)
 
 # ── Configuración de rutas ────────────────────────────────────────────────────
 RUTA_FACTURAS_PRINCIPAL = _ruta_desde_env("FACTURAS_DIR", "facturas")
+RUTA_EXCEL_AUDITORIA = _ruta_desde_env("TICKETS_EXCEL_PATH", "data/tickets.xlsx")
 
 
 # ── Sistema de logging centralizado ───────────────────────────────────────────

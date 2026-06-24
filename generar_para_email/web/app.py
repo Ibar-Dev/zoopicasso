@@ -37,6 +37,7 @@ from src.ventas_store import (
     resumen_ventas_dia_completo,
 )
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
+from src.settings import RUTA_EXCEL_AUDITORIA
 from tickets_src.excel_writer import guardar_ticket
 from tickets_src.ticket_model import Ticket, LineaTicket
 
@@ -297,6 +298,19 @@ def index(request: Request) -> HTMLResponse:
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+@app.get("/api/config")
+def get_config(request: Request) -> dict:
+    if not request.session.get("logged_in"):
+        raise HTTPException(status_code=401, detail="No autenticado")
+    
+    return {
+        "emisor": EMISOR_FACTURA,
+        "rutas": {
+            "excel_auditoria": str(RUTA_EXCEL_AUDITORIA),
+            "facturas_principal": str(src.settings.RUTA_FACTURAS_PRINCIPAL)
+        }
+    }
 
 @app.post("/api/login")
 def login(payload: LoginPayload, request: Request) -> JSONResponse:
