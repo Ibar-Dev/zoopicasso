@@ -33,8 +33,7 @@ Este README cumple dos funciones:
 - src/factura_counter.py: contador correlativo de facturas.
 - src/factura_writer.py: generacion de Excel de factura.
 - src/printer.py: generacion de ticket ESC/POS.
-- src/ventas_store.py: persistencia SQLite de ventas mensuales.
-- src/monthly_closure.py: cierre mensual y exportacion de ganancias.
+- src/ventas_store.py: persistencia SQLite de ventas.
 - src/settings.py: configuracion y logging centralizado.
 - tickets_main.py: app de tickets (Flet en navegador).
 - tickets_src/ticket_model.py: modelo de datos de tickets.

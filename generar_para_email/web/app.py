@@ -22,12 +22,6 @@ from starlette.middleware.sessions import SessionMiddleware
 import src.settings  # noqa: F401
 from src.factura_counter import siguiente_numero_factura
 from src.factura_model import Factura, LineaFactura, PagoInfo
-from src.monthly_closure import (
-    cerrar_mes, cerrar_dia, cerrar_mañana, cerrar_tarde, cerrar_día_completo,
-    obtener_resumen_cierre_mañana, obtener_resumen_cierre_tarde, obtener_resumen_cierre_dia_completo,
-    RUTA_CIERRES
-)
-from web.scheduler import init_scheduler, stop_scheduler, get_automation_status, pause_automation, resume_automation, force_execution, get_routes_health
 from src.printer import generar_ticket_escpos
 from src.backup import guardar_estado, hacer_backup, leer_estado
 from src.ventas_store import (
@@ -43,6 +37,8 @@ from src.ventas_store import (
     resumen_ventas_dia_completo,
 )
 from src.factura_writer import RUTA_FACTURAS, generar_factura_xlsx
+from tickets_src.excel_writer import guardar_ticket
+from tickets_src.ticket_model import Ticket, LineaTicket
 
 logger = logging.getLogger(__name__)
 
@@ -282,7 +278,6 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 inicializar_db_ventas()
-init_scheduler()  # Inicializar scheduler de cierres automáticos
 
 
 def _anio_mes_actual() -> str:
@@ -335,45 +330,7 @@ def keep_alive() -> JSONResponse:
     return JSONResponse({"status": "ok"}, status_code=200)
 
 @app.get("/api/automation/status")
-def automation_status(request: Request) -> JSONResponse:
-    """Obtiene el estado de los cierres automáticos."""
-    _requiere_login(request)
-    return JSONResponse(get_automation_status())
-
-@app.post("/api/automation/pause")
-def automation_pause(request: Request) -> JSONResponse:
-    """Pausa los cierres automáticos."""
-    _requiere_login(request)
-    pause_automation()
-    return JSONResponse({"status": "paused"})
-
-@app.post("/api/automation/resume")
-def automation_resume(request: Request) -> JSONResponse:
-    """Reanuda los cierres automáticos."""
-    _requiere_login(request)
-    resume_automation()
-    return JSONResponse({"status": "resumed"})
-
-@app.post("/api/automation/force/{cierre_type}")
-def automation_force(cierre_type: str, request: Request) -> JSONResponse:
-    """Ejecuta un cierre de forma inmediata (forzado)."""
-    _requiere_login(request)
-    result = force_execution(cierre_type)
-    return JSONResponse(result)
-
-@app.get("/api/rutas/estado")
-def rutas_estado(request: Request) -> JSONResponse:
-    """Obtiene el estado de salud de las rutas de cierre.
-    
-    Valida que todas las carpetas de cierre sean accesibles.
-    Retorna información sobre cada tipo de cierre (mañana, tarde, día_completo, mes).
-    """
-    _requiere_login(request)
-    health = get_routes_health()
-    return JSONResponse(health)
-
-@app.get("/api/precios_categorias")
-def get_precios_categorias(request: Request) -> dict:
+def automation__categorias(request: Request) -> dict:
     _requiere_login(request)
     return {"precios": cargar_precios_categorias()}
 
@@ -558,200 +515,6 @@ def registrar_ajuste_endpoint(payload: AjustePayload, request: Request) -> dict:
     return {"ok": True, "resumen": resumen_ventas_activas(anio_mes)}
 
 
-@app.post("/api/ganancias/cierre-mes")
-def cierre_mensual(payload: MonthlyClosurePayload, request: Request):
-    _requiere_login(request)
-    if not payload.confirmacion:
-        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar mes")
-    usuario = str(request.session.get("usuario", "(desconocido)"))
-    meta, archivo = cerrar_mes(usuario=usuario)
-    if archivo is None:
-        return JSONResponse(meta)
-    return FileResponse(
-        path=archivo,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=archivo.name,
-        headers={
-            "x-cierre-mes": meta["anio_mes"],
-            "x-cierre-ventas": str(meta["cantidad_ventas"]),
-            "x-cierre-total": str(meta["total"]),
-            "x-cierre-mensaje": meta["mensaje"],
-        },
-    )
-
-@app.post("/api/ganancias/cierre-dia")
-def cierre_diario(payload: MonthlyClosurePayload, request: Request):
-    _requiere_login(request)
-    if not payload.confirmacion:
-        raise HTTPException(status_code=400, detail="Confirmación requerida para cerrar día")
-    usuario = str(request.session.get("usuario", "(desconocido)"))
-    meta, archivo = cerrar_dia(usuario=usuario)
-    if archivo is None:
-        return JSONResponse(meta)
-    return FileResponse(
-        path=archivo,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=archivo.name,
-        headers={
-            "x-cierre-fecha": meta["fecha"],
-            "x-cierre-ventas": str(meta["cantidad_ventas"]),
-            "x-cierre-total": str(meta["total"]),
-            "x-cierre-mensaje": meta["mensaje"],
-        },
-    )
-
-
-@app.get("/api/ganancias/estado-cierres")
-def estado_cierres(request: Request):
-    """Obtiene el estado de los cierres del día actual (qué tipos fueron completados)."""
-    from src.ventas_store import obtener_cierres_hoy
-    from datetime import datetime
-    
-    _requiere_login(request)
-    fecha = datetime.now().strftime("%Y-%m-%d")
-    estado = obtener_cierres_hoy(fecha)
-    return JSONResponse(estado)
-
-
-@app.post("/api/ganancias/cierre-mañana")
-def cierre_mañana_endpoint(payload: MonthlyClosurePayload, request: Request):
-    """Realiza el cierre de mañana en dos pasos:
-    - confirmacion=false: devuelve dinero_bruto en JSON (FASE 3)
-    - confirmacion=true: genera Excel y registra (FASE 4)
-    """
-    from datetime import datetime
-    _requiere_login(request)
-    usuario = str(request.session.get("usuario", "(desconocido)"))
-    fecha = datetime.now().strftime("%Y-%m-%d")
-    
-    if not payload.confirmacion:
-        # FASE 3: Mostrar ganancia bruta sin registrar
-        try:
-            resumen = obtener_resumen_cierre_mañana(fecha)
-            return JSONResponse(resumen)
-        except Exception as e:
-            logger.error("Error al obtener resumen mañana: %s", e)
-            return JSONResponse({"ok": False, "mensaje": str(e)}, status_code=400)
-    
-    # FASE 4: Si confirmacion=true, generar Excel y registrar
-    meta, archivo = cerrar_mañana(usuario=usuario)
-    if not meta.get("ok"):
-        return JSONResponse(meta, status_code=400)
-    if archivo is None:
-        return JSONResponse(meta)
-    return FileResponse(
-        path=archivo,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=archivo.name,
-        headers={
-            "x-cierre-tipo": "morning",
-            "x-cierre-fecha": meta["fecha"],
-            "x-cierre-ventas": str(meta["cantidad_ventas"]),
-            "x-cierre-total": str(meta["total"]),
-            "x-cierre-mensaje": meta["mensaje"],
-            "x-cierre-ruta": str(archivo),
-        },
-    )
-
-
-@app.post("/api/ganancias/cierre-tarde")
-def cierre_tarde_endpoint(payload: MonthlyClosurePayload, request: Request):
-    """Realiza el cierre de tarde en dos pasos:
-    - confirmacion=false: devuelve dinero_bruto en JSON (FASE 3)
-    - confirmacion=true: genera Excel y registra (FASE 4)
-    """
-    from datetime import datetime
-    _requiere_login(request)
-    usuario = str(request.session.get("usuario", "(desconocido)"))
-    fecha = datetime.now().strftime("%Y-%m-%d")
-    
-    if not payload.confirmacion:
-        # FASE 3: Mostrar ganancia bruta sin registrar
-        try:
-            resumen = obtener_resumen_cierre_tarde(fecha)
-            return JSONResponse(resumen)
-        except Exception as e:
-            logger.error("Error al obtener resumen tarde: %s", e)
-            return JSONResponse({"ok": False, "mensaje": str(e)}, status_code=400)
-    
-    # FASE 4: Si confirmacion=true, generar Excel y registrar
-    meta, archivo = cerrar_tarde(usuario=usuario)
-    if not meta.get("ok"):
-        return JSONResponse(meta, status_code=400)
-    if archivo is None:
-        return JSONResponse(meta)
-    return FileResponse(
-        path=archivo,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=archivo.name,
-        headers={
-            "x-cierre-tipo": "afternoon",
-            "x-cierre-fecha": meta["fecha"],
-            "x-cierre-ventas": str(meta["cantidad_ventas"]),
-            "x-cierre-total": str(meta["total"]),
-            "x-cierre-mensaje": meta["mensaje"],
-            "x-cierre-ruta": str(archivo),
-        },
-    )
-
-
-@app.post("/api/ganancias/cierre-dia-completo")
-def cierre_dia_completo_endpoint(payload: MonthlyClosurePayload, request: Request):
-    """Realiza el cierre del día completo en dos pasos:
-    - confirmacion=false: devuelve dinero_bruto en JSON (FASE 3)
-    - confirmacion=true: genera Excel y registra (FASE 4)
-    """
-    from datetime import datetime
-    _requiere_login(request)
-    usuario = str(request.session.get("usuario", "(desconocido)"))
-    fecha = datetime.now().strftime("%Y-%m-%d")
-    
-    if not payload.confirmacion:
-        # FASE 3: Mostrar ganancia bruta sin registrar
-        try:
-            resumen = obtener_resumen_cierre_dia_completo(fecha)
-            return JSONResponse(resumen)
-        except Exception as e:
-            logger.error("Error al obtener resumen día completo: %s", e)
-            return JSONResponse({"ok": False, "mensaje": str(e)}, status_code=400)
-    
-    # FASE 4: Si confirmacion=true, generar Excel y registrar
-    meta, archivo = cerrar_día_completo(usuario=usuario)
-    if not meta.get("ok"):
-        return JSONResponse(meta, status_code=400)
-    if archivo is None:
-        return JSONResponse(meta)
-    return FileResponse(
-        path=archivo,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=archivo.name,
-        headers={
-            "x-cierre-tipo": "full_day",
-            "x-cierre-fecha": meta["fecha"],
-            "x-cierre-ventas": str(meta["cantidad_ventas"]),
-            "x-cierre-total": str(meta["total"]),
-            "x-cierre-mensaje": meta["mensaje"],
-            "x-cierre-ruta": str(archivo),
-        },
-    )
-
-
-@app.get("/api/ganancias/descargar-cierre/{nombre_archivo}")
-def descargar_cierre(nombre_archivo: str, request: Request) -> FileResponse:
-    _requiere_login(request)
-    ruta = (RUTA_CIERRES / nombre_archivo).resolve()
-    if not str(ruta).startswith(str(RUTA_CIERRES.resolve())):
-        logger.warning("Intento de descarga de cierre con nombre inválido: %s", nombre_archivo)
-        raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
-    if not ruta.exists():
-        raise HTTPException(status_code=404, detail="Archivo no encontrado")
-    logger.info("Descarga de cierre mensual: %s", ruta.name)
-    return FileResponse(
-        path=ruta,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=ruta.name,
-    )
-
 @app.post("/api/generar")
 def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     _requiere_login(request)
@@ -839,6 +602,20 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
         cambio=cambio,
     )
     registrar_ventas_factura(factura, usuario, pago)
+
+    # PIVOT EXCEL: Registrar en auditoría Excel en tiempo real
+    try:
+        from datetime import datetime as dt
+        ticket_doc = Ticket(
+            numero=int(factura.numero.replace("F", "")),
+            lineas=[LineaTicket(nombre=l.concepto, cantidad=l.cantidad, precio_unitario=l.precio_unitario) for l in factura.lineas],
+            fecha_hora=dt.now()
+        )
+        guardar_ticket(ticket_doc)
+        logger.info("Operación registrada en tickets.xlsx para factura %s", factura.numero_formateado)
+    except Exception as exc:
+        logger.error("Error al registrar en tickets.xlsx: %s", exc, exc_info=True)
+
     ticket_impreso = False
     ticket_estado = "Ticket no solicitado."
     if payload.imprimir_ticket:

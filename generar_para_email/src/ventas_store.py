@@ -76,29 +76,17 @@ def inicializar_db_ventas() -> None:
             )
             """
         )
+        # Tablas de cierres eliminadas en favor de auditoría Excel en tiempo real
         conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS cierres_mensuales (
-                cierre_id TEXT PRIMARY KEY,
-                anio_mes TEXT NOT NULL,
-                usuario TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                total REAL NOT NULL,
-                cantidad_ventas INTEGER NOT NULL,
-                archivo_excel TEXT NOT NULL
-            )
+            CREATE INDEX IF NOT EXISTS idx_ventas_mes
+            ON ventas (anio_mes)
             """
         )
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_ventas_estado_mes
-            ON ventas (estado, anio_mes)
-            """
-        )
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_pagos_estado_mes
-            ON pagos_factura (estado, anio_mes)
+            CREATE INDEX IF NOT EXISTS idx_pagos_mes
+            ON pagos_factura (anio_mes)
             """
         )
         conn.execute(
@@ -117,36 +105,15 @@ def inicializar_db_ventas() -> None:
         )
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_ajustes_estado_mes
-            ON ajustes_manuales (estado, anio_mes)
+            CREATE INDEX IF NOT EXISTS idx_ajustes_mes
+            ON ajustes_manuales (anio_mes)
             """
         )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS cierres_diarios (
-                cierre_id TEXT PRIMARY KEY,
-                fecha TEXT NOT NULL,
-                anio_mes TEXT NOT NULL,
-                usuario TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                total REAL NOT NULL,
-                cantidad_ventas INTEGER NOT NULL,
-                archivo_excel TEXT NOT NULL,
-                tipo_cierre TEXT NOT NULL DEFAULT 'full_day'
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_cierres_diarios_fecha
-            ON cierres_diarios (fecha)
-            """
-        )
-        # Migración: agregar columna tipo_cierre si no existe (para BDs existentes)
+        # Migración: agregar columna tipo_cierre si no existe (mantenido por compatibilidad legacy)
         try:
             conn.execute("ALTER TABLE cierres_diarios ADD COLUMN tipo_cierre TEXT DEFAULT 'full_day'")
         except sqlite3.OperationalError:
-            pass  # Columna ya existe
+            pass
 
 
 def registrar_ventas_factura(factura: Factura, usuario: str, pago: PagoInfo | None = None) -> None:
@@ -236,7 +203,7 @@ def resumen_ventas_activas(anio_mes: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
             """,
             (anio_mes,),
         ).fetchone()
@@ -244,7 +211,7 @@ def resumen_ventas_activas(anio_mes: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
             GROUP BY categoria
             ORDER BY categoria ASC
             """,
@@ -254,7 +221,7 @@ def resumen_ventas_activas(anio_mes: str) -> dict:
             """
             SELECT COALESCE(SUM(monto_efectivo), 0) AS total_efectivo, COALESCE(SUM(monto_tarjeta), 0) AS total_tarjeta
             FROM pagos_factura
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
             """,
             (anio_mes,),
         ).fetchone()
@@ -262,7 +229,7 @@ def resumen_ventas_activas(anio_mes: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS ajuste_total
             FROM ajustes_manuales
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
             """,
             (anio_mes,),
         ).fetchone()
@@ -283,14 +250,14 @@ def resumen_ventas_activas(anio_mes: str) -> dict:
 
 
 def resumen_ventas_dia(fecha: str) -> dict:
-    """Resumen de ventas activas para un día concreto (formato YYYY-MM-DD)."""
+    """Resumen de ventas para un día concreto (formato YYYY-MM-DD)."""
     inicializar_db_ventas()
     with _connect() as conn:
         total_row = conn.execute(
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
             """,
             (fecha,),
         ).fetchone()
@@ -298,7 +265,7 @@ def resumen_ventas_dia(fecha: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
             GROUP BY categoria
             ORDER BY categoria ASC
             """,
@@ -315,7 +282,7 @@ def resumen_ventas_dia(fecha: str) -> dict:
 
 def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
     """
-    Resumen de ventas activas por período (mañana/tarde) para un día concreto.
+    Resumen de ventas por período (mañana/tarde) para un día concreto.
     
     Períodos definidos por hora UTC (created_at):
     - Mañana: 6:00 - 14:00 (HOUR >= 6 AND HOUR < 14)
@@ -323,24 +290,6 @@ def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
     
     Args:
         fecha: Formato YYYY-MM-DD
-    
-    Returns:
-        dict con estructura:
-        {
-            "fecha": "2026-06-11",
-            "total": 150.00,
-            "cantidad_ventas": 3,
-            "mañana": {
-                "total": 100.00,
-                "cantidad": 2,
-                "por_categoria": {"perro": 60.00, "gato": 40.00}
-            },
-            "tarde": {
-                "total": 50.00,
-                "cantidad": 1,
-                "por_categoria": {"ave": 50.00}
-            }
-        }
     """
     inicializar_db_ventas()
     with _connect() as conn:
@@ -349,7 +298,7 @@ def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
             """,
             (fecha,),
         ).fetchone()
@@ -359,7 +308,7 @@ def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
               AND CAST(strftime('%H', created_at) AS INTEGER) < 14
             """,
@@ -369,7 +318,7 @@ def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
               AND CAST(strftime('%H', created_at) AS INTEGER) < 14
             GROUP BY categoria
@@ -383,7 +332,7 @@ def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
               AND CAST(strftime('%H', created_at) AS INTEGER) < 22
             """,
@@ -393,7 +342,7 @@ def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
               AND CAST(strftime('%H', created_at) AS INTEGER) < 22
             GROUP BY categoria
@@ -424,7 +373,7 @@ def resumen_ventas_dia_por_periodo(fecha: str) -> dict:
 
 def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
     """
-    Resumen de ventas activas por período (mañana/tarde) para un mes completo.
+    Resumen de ventas por período (mañana/tarde) para un mes completo.
     
     Períodos definidos por hora UTC (created_at):
     - Mañana: 6:00 - 14:00 (HOUR >= 6 AND HOUR < 14)
@@ -432,28 +381,6 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
     
     Args:
         anio_mes: Formato YYYY-MM (e.g., "2026-06")
-    
-    Returns:
-        dict con estructura:
-        {
-            "anio_mes": "2026-06",
-            "total": 500.00,
-            "cantidad_ventas": 10,
-            "mañana": {
-                "total": 300.00,
-                "cantidad": 6,
-                "total_efectivo": 150.00,
-                "total_tarjeta": 150.00,
-                "por_categoria": {"perro": 200.00, "gato": 100.00}
-            },
-            "tarde": {
-                "total": 200.00,
-                "cantidad": 4,
-                "total_efectivo": 100.00,
-                "total_tarjeta": 100.00,
-                "por_categoria": {"ave": 120.00, "reptiles": 80.00}
-            }
-        }
     """
     inicializar_db_ventas()
     with _connect() as conn:
@@ -462,7 +389,7 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
             """,
             (anio_mes,),
         ).fetchone()
@@ -472,7 +399,7 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
               AND CAST(strftime('%H', created_at) AS INTEGER) < 14
             """,
@@ -482,7 +409,7 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
               AND CAST(strftime('%H', created_at) AS INTEGER) < 14
             GROUP BY categoria
@@ -495,7 +422,7 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
             SELECT COALESCE(SUM(monto_efectivo), 0) AS total_efectivo,
                    COALESCE(SUM(monto_tarjeta), 0) AS total_tarjeta
             FROM pagos_factura
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 6
               AND CAST(strftime('%H', created_at) AS INTEGER) < 14
             """,
@@ -507,7 +434,7 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
               AND CAST(strftime('%H', created_at) AS INTEGER) < 22
             """,
@@ -517,7 +444,7 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
               AND CAST(strftime('%H', created_at) AS INTEGER) < 22
             GROUP BY categoria
@@ -530,7 +457,7 @@ def resumen_ventas_activas_por_periodo(anio_mes: str) -> dict:
             SELECT COALESCE(SUM(monto_efectivo), 0) AS total_efectivo,
                    COALESCE(SUM(monto_tarjeta), 0) AS total_tarjeta
             FROM pagos_factura
-            WHERE estado = 'active' AND anio_mes = ?
+            WHERE anio_mes = ?
               AND CAST(strftime('%H', created_at) AS INTEGER) >= 14
               AND CAST(strftime('%H', created_at) AS INTEGER) < 22
             """,
@@ -722,7 +649,7 @@ def registrar_cierre(
 
 
 def resumen_ventas_mañana(fecha: str) -> dict:
-    """Resumen de ventas activas en MAÑANA (06:00-14:00) para una fecha (YYYY-MM-DD).
+    """Resumen de ventas en MAÑANA (06:00-14:00) para una fecha (YYYY-MM-DD).
     
     NOTA: Las horas se convierten a hora local usando datetime(..., 'localtime')
     ya que created_at se almacena en UTC.
@@ -733,7 +660,7 @@ def resumen_ventas_mañana(fecha: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 14
             """,
@@ -743,7 +670,7 @@ def resumen_ventas_mañana(fecha: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 14
             GROUP BY categoria
@@ -762,7 +689,7 @@ def resumen_ventas_mañana(fecha: str) -> dict:
 
 
 def resumen_ventas_tarde(fecha: str) -> dict:
-    """Resumen de ventas activas en TARDE (14:00-22:00) para una fecha (YYYY-MM-DD).
+    """Resumen de ventas en TARDE (14:00-22:00) para una fecha (YYYY-MM-DD).
     
     NOTA: Las horas se convierten a hora local usando datetime(..., 'localtime')
     ya que created_at se almacena en UTC.
@@ -773,7 +700,7 @@ def resumen_ventas_tarde(fecha: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 14
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
             """,
@@ -783,7 +710,7 @@ def resumen_ventas_tarde(fecha: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 14
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
             GROUP BY categoria
@@ -802,7 +729,7 @@ def resumen_ventas_tarde(fecha: str) -> dict:
 
 
 def resumen_ventas_dia_completo(fecha: str) -> dict:
-    """Resumen de ventas activas en DÍA COMPLETO (06:00-22:00) para una fecha (YYYY-MM-DD).
+    """Resumen de ventas en DÍA COMPLETO (06:00-22:00) para una fecha (YYYY-MM-DD).
     
     NOTA: Las horas se convierten a hora local usando datetime(..., 'localtime')
     ya que created_at se almacena en UTC.
@@ -813,7 +740,7 @@ def resumen_ventas_dia_completo(fecha: str) -> dict:
             """
             SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS cantidad
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
             """,
@@ -823,7 +750,7 @@ def resumen_ventas_dia_completo(fecha: str) -> dict:
             """
             SELECT categoria, COALESCE(SUM(monto), 0) AS total
             FROM ventas
-            WHERE estado = 'active' AND DATE(fecha_venta) = ?
+            WHERE DATE(fecha_venta) = ?
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) >= 6
               AND CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) < 22
             GROUP BY categoria
