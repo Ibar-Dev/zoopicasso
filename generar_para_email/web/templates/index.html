@@ -143,10 +143,6 @@
       <div class="totales">
         <span>IVA:</span><strong>Incluido</strong>
         <span>Total:</span><strong id="total">0.00 €</strong>
-        <span>Ventas hoy:</span><strong id="ventas-hoy">0</strong>
-        <span>Ganancias hoy:</span><strong id="acumulado-hoy">0.00 €</strong>
-        <span>Ventas del mes:</span><strong id="facturas-dia">0</strong>
-        <span>Ganancias del mes:</span><strong id="acumulado-dia">0.00 €</strong>
       </div>
 
       <div class="lineas-head">
@@ -273,8 +269,6 @@
     const appCard = document.getElementById('app-card');
     const lineasEl = document.getElementById('lineas');
     const totalEl = document.getElementById('total');
-    const facturasDiaEl = document.getElementById('facturas-dia');
-    const acumuladoDiaEl = document.getElementById('acumulado-dia');
     const estadoEl = document.getElementById('estado');
     const resultadoEl = document.getElementById('resultado');
     const errorEl = document.getElementById('error');
@@ -448,12 +442,7 @@
         const data = await request('/api/ganancias/resumen');
         const resumen = data.resumen || { total: 0, cantidad_ventas: 0, por_categoria: {} };
         facturasDia = Number(resumen.cantidad_ventas || 0);
-        facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia = Number(resumen.total || 0);
-        acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
-        const resumenHoy = data.resumen_hoy || { total: 0, cantidad_ventas: 0 };
-        document.getElementById('ventas-hoy').textContent = String(Number(resumenHoy.cantidad_ventas || 0));
-        document.getElementById('acumulado-hoy').textContent = `${Number(resumenHoy.total || 0).toFixed(2)} €`;
         if (totalesDiv) totalesDiv.classList.remove('datos-error');
         _actualizarBotones();
       } catch (_) {
@@ -493,9 +482,8 @@
       // btn-cerrar-dia (elemento antiguo - ahora es parte del sistema secuencial)
       const btnCierreDia = document.getElementById('btn-cerrar-dia');
       if (btnCierreDia && (!btnCierreDia.disabled || btnCierreDia.textContent === 'Cerrar día')) {
-        const ventasHoy = Number(document.getElementById('ventas-hoy')?.textContent || 0);
-        btnCierreDia.disabled = ventasHoy === 0;
-        if (ventasHoy === 0) btnCierreDia.dataset.tooltip = 'No hay ventas hoy para cerrar';
+        btnCierreDia.disabled = facturasDia === 0;
+        if (facturasDia === 0) btnCierreDia.dataset.tooltip = 'No hay ventas hoy para cerrar';
         else delete btnCierreDia.dataset.tooltip;
       }
 
@@ -880,9 +868,7 @@
         resultadoEl.textContent = `Ajuste aplicado: -${ajuste.toFixed(2)} € al acumulado.`;
         const resumen = data.resumen || {};
         facturasDia = Number(resumen.cantidad_ventas || 0);
-        facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia = Number(resumen.total || 0);
-        acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
         await refrescarListaAjustes();
         _actualizarBotones();
       } catch (err) {
@@ -1234,9 +1220,7 @@
       }
       await request('/api/logout', { method: 'POST', body: '{}' });
       facturasDia = 0;
-      facturasDiaEl.textContent = '0';
       acumuladoDia = 0;
-      acumuladoDiaEl.textContent = '0.00 €';
       resetFormulario();
       toggleView(false);
     });
@@ -1552,13 +1536,10 @@
     document.getElementById('btn-cerrar-dia').addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
-      const ventasHoy = Number(document.getElementById('ventas-hoy').textContent || 0);
-      const acumuladoHoyText = document.getElementById('acumulado-hoy').textContent.replace('€', '').trim();
-      const acumuladoHoy = Number(acumuladoHoyText) || 0;
       const pModal = document.getElementById('cierre-dia-modal-info');
       if (pModal) {
         const fechaHoy = new Date().toLocaleDateString('es-ES');
-        pModal.textContent = `Vas a cerrar el día ${fechaHoy}: ${ventasHoy} venta${ventasHoy !== 1 ? 's' : ''} por ${acumuladoHoy.toFixed(2)} €. Se generará el Excel del día.`;
+        pModal.textContent = `Vas a cerrar el día ${fechaHoy}: ${facturasDia} venta${facturasDia !== 1 ? 's' : ''} por ${acumuladoDia.toFixed(2)} €. Se generará el Excel del día.`;
       }
       const confirmado = await pedirConfirmacionCierreDia();
       if (!confirmado) return;
