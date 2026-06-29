@@ -208,7 +208,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
         logger.error(f"CRÍTICO: No se puede crear directorio de facturas {RUTA_FACTURAS}: {e}", exc_info=True)
         raise
 
-    nombre_archivo = f"factura_{factura.fecha.year}_{factura.numero:03d}.xlsx"
+    nombre_archivo = f"{factura.fecha.strftime('%Y-%m-%d')}_factura_{factura.numero:03d}.xlsx"
     ruta_archivo = RUTA_FACTURAS / nombre_archivo
 
     wb = openpyxl.Workbook()
