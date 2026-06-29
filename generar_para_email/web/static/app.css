@@ -459,10 +459,6 @@ button[disabled][data-tooltip]:hover::before {
   padding: 0 0.25rem;
 }
 
-/* ── Backup status color coding ────────────────────────────────────────────── */
-.backup-ok   { color: #3a7a3a; font-weight: 600; }
-.backup-fail { color: #c94315; font-weight: 600; }
-
 /* ── FASE 2: Sistema de Tooltips (UX Modular) ─────────────────────────────── */
 
 /* Pequeño icono "?" que se muestra al lado de botones */

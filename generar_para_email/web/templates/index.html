@@ -158,15 +158,6 @@
       </div>
       <div id="lista-ajustes" style="font-size:0.82rem;color:#475569;margin-top:0.4rem;min-height:1em;"></div>
 
-      <div class="lineas-head" style="margin-top:1rem;">
-        <h3>Copia de seguridad</h3>
-        <div class="header-actions">
-          <button id="btn-carpeta-backup" class="ghost" type="button" title="Carpeta donde se guardan los backups">📁 Backup</button>
-          <button id="btn-backup-manual" class="ghost" type="button">Guardar backup</button>
-        </div>
-      </div>
-      <div id="backup-estado" style="font-size:0.85rem;color:#475569;margin-top:0.25rem;min-height:1.2em;"></div>
-
       <button id="btn-generar" class="cta" title="Atajo: Alt+G">Generar factura</button>
       <div class="chuleta">
         <span class="chuleta-titulo">⌨ Atajos</span>
@@ -1278,7 +1269,6 @@
         toggleView(true);
         await cargarPreciosCategorias();
         await refrescarResumenMensual();
-        await refrescarEstadoBackup();
         await refrescarListaAjustes();
         restaurarDraft();
         // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
@@ -1341,21 +1331,9 @@
       }
     });
 
-    const btnCarpetaBackup       = document.getElementById('btn-carpeta-backup');
-
-    function actualizarNombreCarpetaBackup(nombre) {
-      btnCarpetaBackup.title = nombre
-        ? `Carpeta de backups: ${nombre} (clic para cambiar)`
-        : 'Carpeta donde se guardan los backups';
-    }
-
     // Inicialización al cargar
     idbGet('config', 'carpeta_facturas').then(h => {
       if (h) actualizarNombreCarpetaLocal(h.name);
-    }).catch(() => {});
-
-    idbGet('config', 'carpeta_backup').then(h => {
-      if (h) actualizarNombreCarpetaBackup(h.name);
     }).catch(() => {});
 
     // El sistema modular de atajos...
@@ -1414,21 +1392,6 @@
         if (err && err.name !== 'AbortError') {
           errorEl.textContent = 'No se pudo configurar la carpeta.';
         }
-      }
-    });
-
-    btnCarpetaBackup.addEventListener('click', async () => {
-      if (!window.showDirectoryPicker) {
-        backupEstadoEl.textContent = 'Tu navegador no soporta selección de carpeta.';
-        return;
-      }
-      try {
-        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        await idbSet('config', 'carpeta_backup', dirHandle);
-        actualizarNombreCarpetaBackup(dirHandle.name);
-        backupEstadoEl.textContent = `Carpeta de backup: ${dirHandle.name}`;
-      } catch (err) {
-        if (err?.name !== 'AbortError') backupEstadoEl.textContent = 'No se pudo configurar la carpeta.';
       }
     });
 
@@ -1932,50 +1895,6 @@
       document.getElementById('panel-leyenda').classList.toggle('fijo');
     });
 
-    // ── Copia de seguridad ────────────────────────────────────────────────────
-    const backupEstadoEl = document.getElementById('backup-estado');
-    const btnBackupManual = document.getElementById('btn-backup-manual');
-
-    function _formatearFechaBackup(iso) {
-      if (!iso) return '—';
-      const d = new Date(iso);
-      return isNaN(d) ? iso : d.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-    }
-
-    async function refrescarEstadoBackup() {
-      try {
-        const data = await request('/api/backup/estado');
-        if (data.ultimo === null) {
-          backupEstadoEl.textContent = 'Sin backups aún.';
-        } else {
-          const ok = data.backup_ok !== false;
-          const icono = ok ? '✓' : '✗';
-          const clase = ok ? 'backup-ok' : 'backup-fail';
-          const fecha = _formatearFechaBackup(data.ultimo);
-          const msg = data.mensaje ? `  ${data.mensaje}` : '';
-          backupEstadoEl.innerHTML = `Último backup: ${fecha} <span class="${clase}">${icono}${escaparHtml(msg)}</span>`;
-        }
-        btnBackupManual.disabled = false;
-      } catch (_) {
-        backupEstadoEl.textContent = '';
-      }
-    }
-
-    btnBackupManual.addEventListener('click', () => {
-      conCarga(btnBackupManual, 'Guardando…', async () => {
-        const res = await fetch('/api/backup/manual', { method: 'POST', credentials: 'same-origin' });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || 'Error al generar backup');
-        }
-        const blob = await res.blob();
-        const cd = res.headers.get('content-disposition') || '';
-        const nombre = cd.match(/filename=["']?([^"';\r\n]+)/)?.[1]?.trim() ?? `backup_${Date.now()}.zip`;
-        await guardarBackupEnCarpeta(blob, nombre);
-        await refrescarEstadoBackup();
-      });
-    });
-
     async function bootstrap() {
       let loggedIn = false;
       try {
@@ -1986,7 +1905,6 @@
           estadoEl.textContent = 'Cargando datos…';
           await cargarPreciosCategorias();
           await refrescarResumenMensual();
-          await refrescarEstadoBackup();
           await refrescarListaAjustes();
           estadoEl.textContent = 'Completa los datos y genera el Excel.';
         }
