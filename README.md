@@ -81,23 +81,9 @@ uv run uvicorn web.app:app --host 127.0.0.1 --port 8000
 
 Abrir en navegador: `http://127.0.0.1:8000`
 
-### Cierres por Período (Mañana/Tarde)
+### Cierres Mensuales
 
-El sistema permite hacer cierres parciales de turnos para un mejor control de caja:
-
-#### Tipos de Cierre
-
-| Tipo | Horario | Descripción | Archivo |
-|------|---------|-------------|---------|
-| **Mañana** | 06:00-14:00 | Cierre de turno matutino | `cierre_diario_YYYY_MM_DD.xlsx` |
-| **Tarde** | 14:00-22:00 | Cierre de turno vespertino | `cierre_diario_YYYY_MM_DD.xlsx` |
-| **Día Completo** | 06:00-22:00 | Cierre total del día | `cierre_diario_YYYY_MM_DD.xlsx` |
-| **Mes** | 01-30/31 | Archiva ventas y reinicia | `cierre_mensual_YYYY_MM.xlsx` |
-
-#### Características
-
-- **No destructivo**: Cierres de mañana/tarde/día NO archivan datos (solo snapshot para auditoría)
-- **Resumen previo**: Muestra dinero bruto antes de generar Excel
+El sistema permite hacer cierre mensual para archivar todas las ventas del mes y reiniciar los contadores.
 - **Exportación en Excel**: Cada cierre genera un Excel con desglose por categoría
 - **Totales por categoría**: Incluye resumen de ganancias por animal/servicio
 - **Auditoría completa**: Registra quién hizo el cierre y cuándo

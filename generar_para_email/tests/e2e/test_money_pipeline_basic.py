@@ -80,7 +80,7 @@ class TestMoneyPipelineFundamentals:
         import requests
         
         # Probar endpoint de estado
-        response = requests.get(f"{app_url}/api/resumen-periodo", timeout=5)
+        response = requests.get(f"{app_url}/api/session", timeout=5)
         assert response.status_code in [200, 400, 401]  # Espera uno de estos
     
     def test_4_price_validation_format(self, db_helper):

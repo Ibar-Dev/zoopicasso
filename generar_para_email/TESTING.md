@@ -61,17 +61,9 @@ Checklist recomendado antes de publicar cambios:
    - Archivo se descarga como `cierre_diario_YYYY_MM_DD.xlsx`
    - NO archiva datos
 
-4. **Endpoints de Validación**:
-   - `POST /api/ganancias/cierre-mañana` con `confirmacion=false` devuelve resumen sin generar Excel
-   - `POST /api/ganancias/cierre-tarde` con `confirmacion=false` devuelve resumen sin generar Excel
-   - `POST /api/ganancias/cierre-dia-completo` con `confirmacion=false` devuelve resumen sin generar Excel
-   - `GET /api/ganancias/resumen-periodo?fecha=YYYY-MM-DD&tipo=morning|afternoon|full_day` obtiene resumen dinámicamente
-
-5. **Integridad de Datos**:
-   - Cierres parciales NO modifican estado de ventas
-   - Cierres parciales NO afectan contadores visibles
-   - Solo Cierre Mensual archiva datos permanentemente
-   - Máximo 3 cierres por día (mañana, tarde, día completo)
+4. **Integridad de Datos**:
+   - Solo Cierre Mensual es la funcionalidad principal
+   - Cierre Mensual archiva datos permanentemente
 
 6. **Auditoria**:
    - Tabla `cierres_diarios` registra: quién hizo cierre, cuándo, tipo, totales

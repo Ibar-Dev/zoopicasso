@@ -148,9 +148,6 @@
         <span>Ventas del mes:</span><strong id="facturas-dia">0</strong>
         <span>Ganancias del mes:</span><strong id="acumulado-dia">0.00 €</strong>
       </div>
-      <div style="text-align:right;margin-top:0.35rem;">
-        <button id="btn-ver-historial" class="ghost" type="button" style="font-size:0.82rem;padding:0.3rem 0.75rem;">Ver historial de ventas →</button>
-      </div>
 
       <div class="lineas-head">
         <h3>Ajuste Manual</h3>
@@ -211,105 +208,6 @@
       </table>
       <button id="btn-guardar-precios" class="cta" style="margin-top:8px;">Guardar precios categorías</button>
 
-      <div class="lineas-head" style="margin-top:1rem;">
-        <h3>Ventas por período (mañana/tarde/día completo)</h3>
-        <button id="btn-toggle-periodo" class="ghost" type="button" style="font-size:0.9rem;">Mostrar</button>
-      </div>
-      <div id="periodo-breakdown" hidden>
-        <div id="periodo-contenido" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:0.5rem;">
-          <div id="periodo-manana" style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">
-            <h4 style="margin-top:0;color:#1e293b;">🌅 Mañana (6-14h)</h4>
-            <div style="font-size:0.95rem;color:#475569;">
-              <p style="margin:0.25rem 0;"><strong>Total:</strong> <span id="manana-total">0.00</span> €</p>
-              <p style="margin:0.25rem 0;"><strong>Ventas:</strong> <span id="manana-cantidad">0</span></p>
-              <p style="margin:0.25rem 0;"><strong>Efectivo:</strong> <span id="manana-efectivo">0.00</span> €</p>
-              <p style="margin:0.25rem 0;"><strong>Tarjeta:</strong> <span id="manana-tarjeta">0.00</span> €</p>
-            </div>
-            <div style="margin-top:0.5rem;font-size:0.85rem;color:#64748b;">
-              <strong>Por categoría:</strong>
-              <div id="manana-categorias" style="margin-top:0.25rem;"></div>
-            </div>
-          </div>
-          <div id="periodo-tarde" style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">
-            <h4 style="margin-top:0;color:#1e293b;">🌆 Tarde (14-22h)</h4>
-            <div style="font-size:0.95rem;color:#475569;">
-              <p style="margin:0.25rem 0;"><strong>Total:</strong> <span id="tarde-total">0.00</span> €</p>
-              <p style="margin:0.25rem 0;"><strong>Ventas:</strong> <span id="tarde-cantidad">0</span></p>
-              <p style="margin:0.25rem 0;"><strong>Efectivo:</strong> <span id="tarde-efectivo">0.00</span> €</p>
-              <p style="margin:0.25rem 0;"><strong>Tarjeta:</strong> <span id="tarde-tarjeta">0.00</span> €</p>
-            </div>
-            <div style="margin-top:0.5rem;font-size:0.85rem;color:#64748b;">
-              <strong>Por categoría:</strong>
-              <div id="tarde-categorias" style="margin-top:0.25rem;"></div>
-            </div>
-          </div>
-          <div id="periodo-dia-completo" style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">
-            <h4 style="margin-top:0;color:#1e293b;">📅 Día Completo (6-22h)</h4>
-            <div style="font-size:0.95rem;color:#475569;">
-              <p style="margin:0.25rem 0;"><strong>Total:</strong> <span id="dia-completo-total">0.00</span> €</p>
-              <p style="margin:0.25rem 0;"><strong>Ventas:</strong> <span id="dia-completo-cantidad">0</span></p>
-            </div>
-            <div style="margin-top:0.5rem;font-size:0.85rem;color:#64748b;">
-              <strong>Por categoría:</strong>
-              <div id="dia-completo-categorias" style="margin-top:0.25rem;"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="seccion-historial" class="lineas-head" style="margin-top:1.5rem;">
-        <h3>Historial de ventas</h3>
-        <button id="btn-toggle-historial" class="ghost" type="button">Ver / Ocultar</button>
-      </div>
-      <div id="panel-historial" hidden>
-        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;align-items:flex-end;">
-          <label style="margin:0;flex:1;min-width:120px;">Desde
-            <input id="hist-desde" type="date" />
-          </label>
-          <label style="margin:0;flex:1;min-width:120px;">Hasta
-            <input id="hist-hasta" type="date" />
-          </label>
-          <label style="margin:0;flex:1;min-width:120px;">Categoría
-            <select id="hist-categoria">
-              <option value="">Todas</option>
-              <option value="perro">Perro</option>
-              <option value="gato">Gato</option>
-              <option value="Roedor">Roedor</option>
-              <option value="ave">Ave</option>
-              <option value="peces">Peces</option>
-              <option value="reptiles">Reptiles</option>
-              <option value="peluqueria">Peluquería</option>
-              <option value="animal">Animal</option>
-            </select>
-          </label>
-          <label style="margin:0;flex:1;min-width:120px;">Método de pago
-            <select id="hist-metodo">
-              <option value="">Todos</option>
-              <option value="efectivo">Efectivo</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="mixto">Mixto</option>
-            </select>
-          </label>
-          <button id="btn-buscar-historial" type="button" style="align-self:flex-end;">Buscar</button>
-        </div>
-        <div id="hist-resultado" style="margin-top:0.75rem;overflow-x:auto;">
-          <p id="hist-estado" style="color:#888;font-size:0.85rem;"></p>
-          <table id="tabla-historial" class="tabla-categorias" hidden>
-            <thead>
-              <tr>
-                <th>Factura</th>
-                <th>Fecha</th>
-                <th>Cliente</th>
-                <th>Categorías</th>
-                <th>Total (€)</th>
-                <th>Pago</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody id="hist-tbody"></tbody>
-          </table>
-        </div>
-      </div>
     </section>
   </main>
 
@@ -615,75 +513,8 @@
         document.getElementById('acumulado-hoy').textContent = `${Number(resumenHoy.total || 0).toFixed(2)} €`;
         if (totalesDiv) totalesDiv.classList.remove('datos-error');
         _actualizarBotones();
-        refrescarResumenPeriodo();
       } catch (_) {
         if (totalesDiv) totalesDiv.classList.add('datos-error');
-      }
-    }
-
-    async function refrescarResumenPeriodo() {
-      try {
-        const data = await request('/api/ganancias/resumen-periodo');
-        const resumenMes = data.resumen_mes || { anio_mes: '', total: 0, mañana: {}, tarde: {} };
-        const resumenHoy = data.resumen_hoy || { fecha: '', total: 0, mañana: {}, tarde: {}, dia_completo: {} };
-        
-        // Mostrar datos de mañana
-        document.getElementById('manana-total').textContent = (resumenMes.mañana?.total || 0).toFixed(2);
-        document.getElementById('manana-cantidad').textContent = String(resumenMes.mañana?.cantidad || 0);
-        document.getElementById('manana-efectivo').textContent = (resumenMes.mañana?.total_efectivo || 0).toFixed(2);
-        document.getElementById('manana-tarjeta').textContent = (resumenMes.mañana?.total_tarjeta || 0).toFixed(2);
-        
-        // Mostrar categorías de mañana
-        const mananaCategoriasDiv = document.getElementById('manana-categorias');
-        mananaCategoriasDiv.innerHTML = '';
-        if (resumenMes.mañana?.por_categoria) {
-          Object.entries(resumenMes.mañana.por_categoria).forEach(([cat, total]) => {
-            const p = document.createElement('p');
-            p.style.margin = '0.1rem 0';
-            p.style.fontSize = '0.85rem';
-            p.textContent = `${cat}: ${total.toFixed(2)} €`;
-            mananaCategoriasDiv.appendChild(p);
-          });
-        }
-        
-        // Mostrar datos de tarde
-        document.getElementById('tarde-total').textContent = (resumenMes.tarde?.total || 0).toFixed(2);
-        document.getElementById('tarde-cantidad').textContent = String(resumenMes.tarde?.cantidad || 0);
-        document.getElementById('tarde-efectivo').textContent = (resumenMes.tarde?.total_efectivo || 0).toFixed(2);
-        document.getElementById('tarde-tarjeta').textContent = (resumenMes.tarde?.total_tarjeta || 0).toFixed(2);
-        
-        // Mostrar categorías de tarde
-        const tardeCategoriasDiv = document.getElementById('tarde-categorias');
-        tardeCategoriasDiv.innerHTML = '';
-        if (resumenMes.tarde?.por_categoria) {
-          Object.entries(resumenMes.tarde.por_categoria).forEach(([cat, total]) => {
-            const p = document.createElement('p');
-            p.style.margin = '0.1rem 0';
-            p.style.fontSize = '0.85rem';
-            p.textContent = `${cat}: ${total.toFixed(2)} €`;
-            tardeCategoriasDiv.appendChild(p);
-          });
-        }
-        
-        // Mostrar datos de día completo (de HOY)
-        const diaCompletoData = resumenHoy.dia_completo || { total: 0, cantidad_ventas: 0, por_categoria: {} };
-        document.getElementById('dia-completo-total').textContent = (diaCompletoData.total || 0).toFixed(2);
-        document.getElementById('dia-completo-cantidad').textContent = String(diaCompletoData.cantidad_ventas || 0);
-        
-        // Mostrar categorías de día completo
-        const diaCompletoCategoriasDiv = document.getElementById('dia-completo-categorias');
-        diaCompletoCategoriasDiv.innerHTML = '';
-        if (diaCompletoData.por_categoria) {
-          Object.entries(diaCompletoData.por_categoria).forEach(([cat, total]) => {
-            const p = document.createElement('p');
-            p.style.margin = '0.1rem 0';
-            p.style.fontSize = '0.85rem';
-            p.textContent = `${cat}: ${total.toFixed(2)} €`;
-            diaCompletoCategoriasDiv.appendChild(p);
-          });
-        }
-      } catch (_) {
-        // Silenciosamente fallar si no está disponible
       }
     }
 
@@ -2097,89 +1928,6 @@
       conCarga(btnGuardarPrecios, 'Guardando…', guardarPreciosCategorias);
     });
 
-    // ── Historial de ventas ───────────────────────────────────────────────────
-    (function () {
-      const panel = document.getElementById('panel-historial');
-      const btnToggle = document.getElementById('btn-toggle-historial');
-      const btnBuscar = document.getElementById('btn-buscar-historial');
-      const tablaHistorial = document.getElementById('tabla-historial');
-      const histTbody = document.getElementById('hist-tbody');
-      const histEstado = document.getElementById('hist-estado');
-      const inputDesde = document.getElementById('hist-desde');
-      const inputHasta = document.getElementById('hist-hasta');
-
-      // Valores por defecto: primer día del mes actual hasta hoy
-      const hoy = new Date();
-      const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-      inputDesde.value = primerDiaMes.toISOString().slice(0, 10);
-      inputHasta.value = hoy.toISOString().slice(0, 10);
-
-      btnToggle.addEventListener('click', () => {
-        panel.hidden = !panel.hidden;
-      });
-
-      // Toggle para periodo (mañana/tarde)
-      document.getElementById('btn-toggle-periodo').addEventListener('click', () => {
-        const periodoBreakdown = document.getElementById('periodo-breakdown');
-        const btnTogglePeriodo = document.getElementById('btn-toggle-periodo');
-        periodoBreakdown.hidden = !periodoBreakdown.hidden;
-        btnTogglePeriodo.textContent = periodoBreakdown.hidden ? 'Mostrar' : 'Ocultar';
-      });
-
-      document.getElementById('btn-ver-historial').addEventListener('click', () => {
-        panel.hidden = false;
-        document.getElementById('seccion-historial').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-
-      btnBuscar.addEventListener('click', () => {
-        conCarga(btnBuscar, 'Buscando…', buscarHistorial);
-      });
-
-      async function buscarHistorial() {
-        const desde = inputDesde.value;
-        const hasta = inputHasta.value;
-        if (!desde || !hasta) {
-          histEstado.textContent = 'Indica un rango de fechas.';
-          return;
-        }
-        tablaHistorial.hidden = true;
-        const categoria = document.getElementById('hist-categoria').value;
-        const metodo = document.getElementById('hist-metodo').value;
-        const params = new URLSearchParams({ fecha_desde: desde, fecha_hasta: hasta });
-        if (categoria) params.set('categoria', categoria);
-        if (metodo) params.set('metodo_pago', metodo);
-        try {
-          const data = await request(`/api/ganancias/historial?${params}`);
-          const filas = data.filas || [];
-          histTbody.innerHTML = '';
-          if (filas.length === 0) {
-            histEstado.textContent = 'Sin resultados para ese filtro.';
-            return;
-          }
-          filas.forEach((f) => {
-            const tr = document.createElement('tr');
-            const fecha = f.fecha_venta ? f.fecha_venta.slice(0, 10) : '—';
-            const total = f.monto_total != null ? Number(f.monto_total).toFixed(2) : Number(f.monto_lineas || 0).toFixed(2);
-            const estado = f.estado === 'archived' ? 'Archivada' : 'Activa';
-            tr.innerHTML = `
-              <td>${escaparHtml(f.numero_factura || '—')}</td>
-              <td>${escaparHtml(fecha)}</td>
-              <td>${escaparHtml(f.cliente_nombre || '—')}</td>
-              <td>${escaparHtml(f.categorias || '—')}</td>
-              <td style="text-align:right;">${total}</td>
-              <td>${escaparHtml(f.metodo_pago || '—')}</td>
-              <td>${estado}</td>
-            `;
-            histTbody.appendChild(tr);
-          });
-          histEstado.textContent = `${filas.length} factura${filas.length !== 1 ? 's' : ''} encontrada${filas.length !== 1 ? 's' : ''}.`;
-          tablaHistorial.hidden = false;
-        } catch (err) {
-          histEstado.textContent = err.message || 'Error al cargar el historial.';
-        }
-      }
-    })();
-
     document.getElementById('btn-leyenda').addEventListener('click', () => {
       document.getElementById('panel-leyenda').classList.toggle('fijo');
     });
@@ -2543,7 +2291,6 @@
           setTimeout(() => {
             cargarEstadoCierres();
             refrescarResumenMensual();
-            refrescarResumenPeriodo();
             setTimeout(() => ocultarEstado(), 1200);
           }, 800);
 
