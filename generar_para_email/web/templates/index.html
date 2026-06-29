@@ -179,26 +179,6 @@
         </details>
       </div>
 
-      <div class="lineas-head">
-        <h3>Ventas del día por categoría</h3>
-      </div>
-      <table id="tabla-animales" class="tabla-categorias">
-        <thead>
-          <tr><th>Categoría</th><th>Total (€)</th><th>Precio unitario (€)</th></tr>
-        </thead>
-        <tbody>
-          <tr data-cat="perro"><td>Perro</td><td>0.00</td><td><input class="precio-categoria" data-cat="perro" type="number" min="0" step="0.01" /></td></tr>
-          <tr data-cat="gato"><td>Gato</td><td>0.00</td><td><input class="precio-categoria" data-cat="gato" type="number" min="0" step="0.01" /></td></tr>
-          <tr data-cat="Roedor"><td>Roedor</td><td>0.00</td><td><input class="precio-categoria" data-cat="Roedor" type="number" min="0" step="0.01" /></td></tr>
-          <tr data-cat="ave"><td>Ave</td><td>0.00</td><td><input class="precio-categoria" data-cat="ave" type="number" min="0" step="0.01" /></td></tr>
-          <tr data-cat="peces"><td>Peces</td><td>0.00</td><td><input class="precio-categoria" data-cat="peces" type="number" min="0" step="0.01" /></td></tr>
-          <tr data-cat="reptiles"><td>Reptiles</td><td>0.00</td><td><input class="precio-categoria" data-cat="reptiles" type="number" min="0" step="0.01" /></td></tr>
-          <tr data-cat="peluqueria"><td>Peluquería</td><td>0.00</td><td><input class="precio-categoria" data-cat="peluqueria" type="number" min="0" step="0.01" /></td></tr>
-          <tr data-cat="animal"><td>Animal</td><td>0.00</td><td><input class="precio-categoria" data-cat="animal" type="number" min="0" step="0.01" /></td></tr>
-        </tbody>
-      </table>
-      <button id="btn-guardar-precios" class="cta" style="margin-top:8px;">Guardar precios categorías</button>
-
     </section>
   </main>
 
@@ -315,9 +295,6 @@
     let resolverCierreDiaModal = null;
     let acumuladoDia = 0;
     let facturasDia = 0;
-    const totalesPorAnimal = {
-      perro: 0, gato: 0, Roedor: 0, ave: 0, peces: 0, reptiles: 0, peluqueria: 0,
-    };
     let resolverTicketModal = null;
     let resolverCierreModal = null;
 
@@ -382,13 +359,8 @@
       row.querySelector('.precio').addEventListener('input', calcTotals);
       row.querySelector('.cantidad').addEventListener('input', calcTotals);
       row.querySelector('.categoria').addEventListener('change', function () {
-        const cat = this.value;
-        const precioInput = row.querySelector('.precio');
-        if (cat && preciosCategorias[cat] !== undefined && !precioInput.value.trim()) {
-          precioInput.value = preciosCategorias[cat].toFixed(2);
-          calcTotals();
-          _programarGuardadoDraft();
-        }
+        calcTotals();
+        _programarGuardadoDraft();
       });
       row.querySelector('.del').addEventListener('click', () => {
         if (lineasEl.children.length <= 1) {
@@ -470,25 +442,6 @@
       _draftTimer = setTimeout(guardarDraft, 300);
     }
 
-    function actualizarTablaAnimales(categoria, importe) {
-      totalesPorAnimal[categoria] = Number((totalesPorAnimal[categoria] + importe).toFixed(2));
-      const fila = document.querySelector(`#tabla-animales tr[data-cat="${categoria}"]`);
-      if (fila) {
-        fila.cells[1].textContent = totalesPorAnimal[categoria].toFixed(2);
-      }
-    }
-
-    function resetTablaAnimales(resumen) {
-      const porCategoria = (resumen && resumen.por_categoria) ? resumen.por_categoria : {};
-      const filas = document.querySelectorAll('#tabla-animales tbody tr');
-      filas.forEach((fila) => {
-        const cat = fila.getAttribute('data-cat');
-        const total = Number(porCategoria[cat] || 0);
-        fila.cells[1].textContent = total.toFixed(2);
-        totalesPorAnimal[cat] = total;
-      });
-    }
-
     async function refrescarResumenMensual() {
       const totalesDiv = document.querySelector('.totales');
       try {
@@ -498,7 +451,6 @@
         facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia = Number(resumen.total || 0);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
-        resetTablaAnimales(resumen);
         const resumenHoy = data.resumen_hoy || { total: 0, cantidad_ventas: 0 };
         document.getElementById('ventas-hoy').textContent = String(Number(resumenHoy.cantidad_ventas || 0));
         document.getElementById('acumulado-hoy').textContent = `${Number(resumenHoy.total || 0).toFixed(2)} €`;
@@ -931,7 +883,6 @@
         facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia = Number(resumen.total || 0);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
-        resetTablaAnimales(resumen);
         await refrescarListaAjustes();
         _actualizarBotones();
       } catch (err) {
@@ -1267,7 +1218,6 @@
           body: JSON.stringify({ usuario, password_hash }),
         });
         toggleView(true);
-        await cargarPreciosCategorias();
         await refrescarResumenMensual();
         await refrescarListaAjustes();
         restaurarDraft();
@@ -1287,7 +1237,6 @@
       facturasDiaEl.textContent = '0';
       acumuladoDia = 0;
       acumuladoDiaEl.textContent = '0.00 €';
-      resetTablaAnimales({ por_categoria: {} });
       resetFormulario();
       toggleView(false);
     });
@@ -1790,10 +1739,6 @@
         facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia += Number(data.total);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
-        for (const l of lineas) {
-          const lineTotal = Number(l.cantidad) * Number(l.precio_unitario);
-          actualizarTablaAnimales(l.categoria, lineTotal);
-        }
         try {
           await guardarEnCarpeta(data);
         } catch (err) {
@@ -1843,54 +1788,6 @@
       _actualizarBotones();
     });
 
-    // ── Precios por categoría: edición y guardado global ──────────────────────
-    const btnGuardarPrecios = document.getElementById('btn-guardar-precios');
-    const preciosInputs = document.querySelectorAll('.precio-categoria');
-    let preciosCategorias = {};
-
-    async function cargarPreciosCategorias() {
-      try {
-        const res = await request('/api/precios_categorias');
-        preciosCategorias = res.precios || {};
-        preciosInputs.forEach(input => {
-          const cat = input.getAttribute('data-cat');
-          if (cat && preciosCategorias[cat] !== undefined) {
-            input.value = preciosCategorias[cat];
-          }
-        });
-      } catch (_) {
-        // Si falla (e.g. no autenticado), no se muestran errores aquí
-      }
-    }
-
-    async function guardarPreciosCategorias() {
-      if (!window.confirm('¿Seguro que deseas modificar los precios de las categorías? Esto afectará a todos los usuarios.')) {
-        return;
-      }
-      const nuevosPrecios = {};
-      preciosInputs.forEach(input => {
-        const cat = input.getAttribute('data-cat');
-        const val = parseFloat(input.value);
-        if (cat && !isNaN(val) && val >= 0) {
-          nuevosPrecios[cat] = val;
-        }
-      });
-      try {
-        await request('/api/precios_categorias', {
-          method: 'POST',
-          body: JSON.stringify({ precios: nuevosPrecios }),
-        });
-        mostrarToast('Precios actualizados');
-        await cargarPreciosCategorias();
-      } catch (e) {
-        errorEl.textContent = 'No se pudieron guardar los precios.';
-      }
-    }
-
-    btnGuardarPrecios.addEventListener('click', () => {
-      conCarga(btnGuardarPrecios, 'Guardando…', guardarPreciosCategorias);
-    });
-
     document.getElementById('btn-leyenda').addEventListener('click', () => {
       document.getElementById('panel-leyenda').classList.toggle('fijo');
     });
@@ -1903,7 +1800,6 @@
         toggleView(loggedIn);
         if (loggedIn) {
           estadoEl.textContent = 'Cargando datos…';
-          await cargarPreciosCategorias();
           await refrescarResumenMensual();
           await refrescarListaAjustes();
           estadoEl.textContent = 'Completa los datos y genera el Excel.';

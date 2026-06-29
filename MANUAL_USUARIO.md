@@ -14,10 +14,9 @@
 6. [Seguimiento de ganancias del mes](#6-seguimiento-de-ganancias-del-mes)
 7. [Ajuste manual del acumulado](#7-ajuste-manual-del-acumulado)
 8. [Cierre Mensual](#8-cierre-mensual-archivado-permanente)
-9. [Precios por categoría](#9-precios-por-categoría)
-10. [Configurar carpeta de destino](#10-configurar-carpeta-de-destino)
-11. [Referencia de atajos de teclado](#11-referencia-de-atajos-de-teclado)
-12. [Preguntas frecuentes](#12-preguntas-frecuentes)
+9. [Configurar carpeta de destino](#9-configurar-carpeta-de-destino)
+10. [Referencia de atajos de teclado](#10-referencia-de-atajos-de-teclado)
+11. [Preguntas frecuentes](#11-preguntas-frecuentes)
 
 ---
 
@@ -184,26 +183,7 @@ Al terminar el mes hay que realizar este cierre para reiniciar los contadores y 
 
 ---
 
-## 9. Precios por categoría
-
-En la sección **Ventas del día por categoría** (parte derecha del formulario) puedes ver dos cosas:
-
-- **Total (€)** — acumulado de ventas de esa categoría en el día, actualizado con cada factura.
-- **Precio unitario (€)** — precio de referencia configurable para cada categoría.
-
-### Cómo configurar los precios de referencia
-
-1. Introduce el precio unitario deseado en la columna **Precio unitario (€)** de cada categoría.
-2. Pulsa **Guardar precios categorías**.
-3. Aparece un diálogo de confirmación — pulsa **Aceptar** para guardar.
-
-> Los precios de referencia son solo informativos y se muestran en esta tabla. Al añadir una nueva línea de factura deberás introducir el precio manualmente en el campo correspondiente.
-
-Las categorías disponibles son: Perro, Gato, Roedor, Ave, Peces, Reptiles y Peluquería.
-
----
-
-## 10. Configurar carpeta de destino
+## 9. Configurar carpeta de destino
 
 ### Carpeta de facturas
 
@@ -221,7 +201,7 @@ Los informes de cierre mensual van a una carpeta separada. Consulta la sección 
 
 ---
 
-## 11. Referencia de atajos de teclado
+## 10. Referencia de atajos de teclado
 
 ### Formulario principal
 
@@ -265,7 +245,7 @@ Cuatro teclas desde el formulario hasta la factura generada.
 
 ---
 
-## 12. Preguntas frecuentes
+## 11. Preguntas frecuentes
 
 **¿Puedo generar una factura sin nombre de cliente?**
 Sí. Los campos «Nombre» y «NIF» son opcionales. La factura se genera igualmente.
