@@ -481,7 +481,9 @@ def test_historial_ok(monkeypatch, tmp_path):
     assert len(body["filas"]) >= 1
 
 
-# ── /api/precios_categorias ───────────────────────────────────────────────────
+# ── /api/precios_categorias (DEPRECADO) ──────────────────────────────────────
+# La gestión de precios por categoría ha sido removida de la UI.
+# Este test se mantiene para asegurar compatibilidad con backups y código heredado.
 
 def test_precios_categorias_get_y_post(monkeypatch, tmp_path):
     precios_path = tmp_path / "precios_categorias.json"

@@ -323,10 +323,50 @@ def generar_factura_xlsx(factura: Factura) -> Path:
         ws.row_dimensions[fila_actual].height = 18
         fila_actual += 1
 
-    # ── Separador antes de totales ────────────────────────────────────────────
+    # ── Separador antes de totales por categoría ──────────────────────────────
     fila_actual += 1
 
-    # ── Totales ───────────────────────────────────────────────────────────────
+    # ── Totales por categoría ─────────────────────────────────────────────────
+    totales_por_categoria = {}
+    for linea in factura.lineas:
+        categoria = linea.categoria or "Sin categoría"
+        if categoria not in totales_por_categoria:
+            totales_por_categoria[categoria] = 0.0
+        totales_por_categoria[categoria] += linea.total
+
+    # Encabezado "TOTALES POR CATEGORÍA"
+    ws.merge_cells(f"A{fila_actual}:E{fila_actual}")
+    ws[f"A{fila_actual}"].value = "TOTALES POR CATEGORÍA"
+    ws[f"A{fila_actual}"].font = _font(bold=True, size=11, color=_BLANCO)
+    ws[f"A{fila_actual}"].fill = _fill(_AZUL_OSCURO)
+    ws[f"A{fila_actual}"].alignment = _align(h="center")
+    ws[f"A{fila_actual}"].border = _BORDE
+    ws.row_dimensions[fila_actual].height = 18
+    fila_actual += 1
+
+    # Filas con cada categoría y su total
+    for categoria in sorted(totales_por_categoria.keys()):
+        total_cat = totales_por_categoria[categoria]
+        ws.merge_cells(f"A{fila_actual}:D{fila_actual}")
+        ws[f"A{fila_actual}"].value = f"  {categoria}"
+        ws[f"A{fila_actual}"].font = _font(size=11)
+        ws[f"A{fila_actual}"].alignment = _align(h="left")
+        ws[f"A{fila_actual}"].border = _BORDE
+        ws[f"A{fila_actual}"].fill = _fill(_GRIS_CLARO)
+        
+        ws[f"E{fila_actual}"].value = total_cat
+        ws[f"E{fila_actual}"].font = _font(size=11)
+        ws[f"E{fila_actual}"].alignment = _align(h="right")
+        ws[f"E{fila_actual}"].number_format = '#,##0.00'
+        ws[f"E{fila_actual}"].border = _BORDE
+        ws[f"E{fila_actual}"].fill = _fill(_GRIS_CLARO)
+        ws.row_dimensions[fila_actual].height = 18
+        fila_actual += 1
+
+    # ── Separador antes de totales finales ─────────────────────────────────────
+    fila_actual += 1
+
+    # ── Totales finales ───────────────────────────────────────────────────────
     def _fila_total(fila: int, label: str, valor: float, negrita: bool = False) -> None:
         ws.merge_cells(f"A{fila}:D{fila}")
         ws[f"A{fila}"].value = label

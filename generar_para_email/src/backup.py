@@ -9,6 +9,9 @@ from src.ventas_store import RUTA_DB_VENTAS
 
 logger = logging.getLogger(__name__)
 
+# DEPRECADO: precios_categorias.json se mantiene para compatibilidad con backups
+# La gestión de precios por categoría fue removida de la UI.
+# Se incluye aquí para asegurar que los backups anteriores se restauren correctamente.
 _ARCHIVOS_JSON = ["contador_facturas.json", "precios_categorias.json"]
 _ESTADO_FILE = "backup_estado.json"
 

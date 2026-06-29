@@ -24,6 +24,25 @@ Este README cumple dos funciones:
 - Confirmaciones de acciones sensibles (ticket, salida, cierre mensual).
 - Modulo de tickets integrado en `tickets_src/` y `tickets_main.py`.
 
+## Funcionalidades deprecadas (mantenidas por compatibilidad)
+
+> Las siguientes funcionalidades han sido removidas de la UI pero el código se mantiene
+> para compatibilidad con backups y restauraciones de versiones anteriores.
+
+- **Gestión de precios por categoría**: La tabla "Ventas del día por categoría" y toda su
+  interfaz ha sido eliminada de la UI. Los endpoints `/api/precios_categorias` (GET/POST) se
+  mantienen solo para compatibilidad con backups. El archivo `data/precios_categorias.json`
+  sigue siendo respaldado pero no se recomienda su uso en nuevas funcionalidades.
+  
+- **Análisis por período**: Los endpoints y funciones de análisis de ventas por período
+  (mañana/tarde/día completo) han sido completamente removidos.
+
+- **Historial de ventas detallado**: La visualización del historial de ventas ha sido
+  simplificada.
+
+- **Sección de Copia de seguridad**: La interfaz de gestión manual de backups fue eliminada
+  de la UI.
+
 ## Estructura principal
 
 - main.py: app de escritorio (Flet).
@@ -153,7 +172,7 @@ Puntos que NO deben romperse:
 - La app web no arranca: ruta de SQLite inaccesible o error de inicializacion de DB.
 - Genera factura pero no sube ganancias mensuales: fallo en tarea background de registro.
 - Cierre mensual dice ok pero total no baja a cero: no se archivaron registros active.
-- No se puede guardar precios por categoria: sesion no valida o error en data/precios_categorias.json.
+- ~~No se puede guardar precios por categoria~~ (DEPRECADO): La gestión de precios por categoría ha sido removida de la UI. El código se mantiene por compatibilidad con backups.
 - Ticket no sale pero factura si: problema de encolado/consumo, no de facturacion.
 
 ## Politica de rollback operativo

@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+# DEPRECADO: Gestión de precios por categoría removida de la UI
+# Se mantiene esta ruta para compatibilidad con backups y código heredado
 PRECIOS_CATEGORIAS_PATH = BASE_DIR / "../data/precios_categorias.json"
 
 USUARIO_VALIDO = "Giselle"
@@ -59,6 +61,15 @@ BACKUP_RETENER: int = int(os.getenv("BACKUP_RETENER", "7"))
 PRECIOS_CATEGORIAS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 def cargar_precios_categorias() -> dict:
+    """
+    DEPRECADO: Carga precios de categorías desde archivo JSON.
+    La gestión de precios por categoría ha sido removida de la UI (se eliminó la tabla
+    de "Ventas del día por categoría"). Esta función se mantiene para:
+    - Compatibilidad con backups existentes
+    - Soporte legado en endpoints (aunque desuso de UI)
+    
+    En futuras versiones, considerar eliminar completamente junto con los endpoints.
+    """
     if not PRECIOS_CATEGORIAS_PATH.exists():
         return {}
     try:
@@ -69,10 +80,19 @@ def cargar_precios_categorias() -> dict:
         return {}
 
 def guardar_precios_categorias(data: dict) -> None:
+    """
+    DEPRECADO: Guarda precios de categorías en archivo JSON.
+    Véase cargar_precios_categorias() para contexto de depreciación.
+    """
     with open(PRECIOS_CATEGORIAS_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 class PreciosCategoriasPayload(BaseModel):
+    """
+    DEPRECADO: Esquema de payload para el endpoint POST /api/precios_categorias.
+    La gestión de precios por categoría ha sido removida de la UI.
+    Se mantiene por compatibilidad con código legado.
+    """
     precios: dict[str, float]
 
 def _env_or_default(name: str, default: str) -> str:
@@ -340,13 +360,25 @@ def keep_alive() -> JSONResponse:
     """
     return JSONResponse({"status": "ok"}, status_code=200)
 
+# DEPRECADO: Endpoint de precios de categorías
+# Removido de la UI pero mantenido para compatibilidad con código heredado
 @app.get("/api/automation/status")
 def automation__categorias(request: Request) -> dict:
+    """DEPRECADO: Retorna precios de categorías. Mantenido por compatibilidad."""
     _requiere_login(request)
     return {"precios": cargar_precios_categorias()}
 
+# DEPRECADO: Endpoint para actualizar precios de categorías
+# La UI para gestionar precios ha sido eliminada. Este endpoint se mantiene
+# solo para compatibilidad con integraciones externas. NO debe ser usado
+# para nuevas funcionalidades.
 @app.post("/api/precios_categorias")
 def set_precios_categorias(payload: PreciosCategoriasPayload, request: Request) -> dict:
+    """DEPRECADO: Actualiza precios de categorías. Mantenido por compatibilidad.
+    
+    ADVERTENCIA: La UI para gestionar precios fue removida.
+    Este endpoint se mantiene solo por compatibilidad heredada.
+    """
     _requiere_login(request)
     usuario = request.session.get("usuario", "(desconocido)")
     precios_anteriores = cargar_precios_categorias()
