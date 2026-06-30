@@ -71,9 +71,9 @@ const ShortcutsRegistry = {
    */
   config: {
     'form': {
-      'Alt+A': 'addLine',
-      'Alt+D': 'deleteLine',
-      'Alt+G': 'generateInvoice'
+      'Ctrl+Shift+A': 'addLine',
+      'Ctrl+Shift+D': 'deleteLine',
+      'Ctrl+Shift+G': 'generateInvoice'
     },
     'paymentModal': {
       'E': 'selectEffectivo',

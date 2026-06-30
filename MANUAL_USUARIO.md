@@ -207,8 +207,8 @@ Los informes de cierre mensual van a una carpeta separada. Consulta la sección 
 
 | Tecla | Acción |
 |-------|--------|
-| `Alt` + `A` | Añadir nueva línea |
-| `Alt` + `G` | Generar factura (abre el modal de pago) |
+| `Ctrl` + `Shift` + `A` | Añadir nueva línea |
+| `Ctrl` + `Shift` + `G` | Generar factura (abre el modal de pago) |
 
 ### Modal de pago
 
@@ -233,10 +233,10 @@ Los informes de cierre mensual van a una carpeta separada. Consulta la sección 
 ### Flujo más rápido: cobro con tarjeta
 
 ```
-Alt+G  →  T  →  Enter  →  Enter
+Ctrl+Shift+G  →  T  →  Enter  →  Enter
 ```
 
-1. `Alt+G` — abre el modal de pago.
+1. `Ctrl+Shift+G` — abre el modal de pago.
 2. `T` — selecciona tarjeta y rellena el total.
 3. `Enter` — confirma el pago.
 4. `Enter` — imprime el ticket.
