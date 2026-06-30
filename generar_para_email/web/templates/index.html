@@ -1270,8 +1270,9 @@
       if (h) actualizarNombreCarpetaLocal(h.name);
     }).catch(() => {});
 
-    // El sistema modular de atajos...
-
+    // FIXME: Los siguientes event listeners referencian botones que no existen (comentados en FASE 2)
+    // Comentados para evitar ReferenceError que rompe todo el script
+    /*
     btnCarpetaCierreTarde.addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
@@ -1328,6 +1329,7 @@
         }
       }
     });
+    */
 
     document.getElementById('btn-add').addEventListener('click', () => addLinea());
     document.getElementById('btn-tutorial').addEventListener('click', () => tutorialManager.reactivar());
