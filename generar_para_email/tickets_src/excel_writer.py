@@ -82,21 +82,57 @@ def guardar_ticket(ticket: Ticket) -> None:
 
     Args:
         ticket: Ticket completo y validado listo para persistir.
+    
+    Raises:
+        OSError: Si no hay permisos para escribir en RUTA_EXCEL
+        PermissionError: Si el archivo está bloqueado (especialmente en Windows)
     """
     RUTA_EXCEL.parent.mkdir(parents=True, exist_ok=True)
 
-    # Carga el libro existente o crea uno nuevo
-    if RUTA_EXCEL.exists():
-        wb = openpyxl.load_workbook(RUTA_EXCEL)
-        ws = wb.active
-        logger.info(f"Añadiendo ticket #{ticket.numero} al Excel existente.")
-    else:
-        wb = _crear_libro()
-        ws = wb.active
+    wb = None
+    try:
+        # Carga el libro existente o crea uno nuevo
+        if RUTA_EXCEL.exists():
+            wb = openpyxl.load_workbook(RUTA_EXCEL)
+            ws = wb.active
+            logger.info(f"Añadiendo ticket #{ticket.numero} al Excel existente en {RUTA_EXCEL}")
+        else:
+            wb = _crear_libro()
+            ws = wb.active
 
-    # Una fila por cada línea del ticket
-    for i in range(len(ticket.lineas)):
-        ws.append(_fila_desde_linea(ticket, i))
+        # Una fila por cada línea del ticket
+        for i in range(len(ticket.lineas)):
+            ws.append(_fila_desde_linea(ticket, i))
 
-    wb.save(RUTA_EXCEL)
-    logger.info(f"Ticket #{ticket.numero} guardado. Líneas añadidas: {len(ticket.lineas)}.")
+        # Guardar con manejo de errores
+        wb.save(RUTA_EXCEL)
+        logger.info(f"Ticket #{ticket.numero} guardado correctamente. Líneas añadidas: {len(ticket.lineas)}.")
+    
+    except PermissionError as e:
+        logger.error(
+            f"CRÍTICO: Windows file lock en {RUTA_EXCEL} - No se puede guardar ticket #{ticket.numero}: {e}",
+            exc_info=True
+        )
+        raise OSError(f"No se pudo guardar ticket - archivo bloqueado en Windows: {e}") from e
+    
+    except OSError as e:
+        logger.error(
+            f"CRÍTICO: No se pudo escribir en {RUTA_EXCEL} (ticket #{ticket.numero}): {e}",
+            exc_info=True
+        )
+        raise
+    
+    except Exception as e:
+        logger.error(
+            f"CRÍTICO: Error inesperado al guardar ticket #{ticket.numero} en {RUTA_EXCEL}: {e}",
+            exc_info=True
+        )
+        raise
+    
+    finally:
+        # Liberar el file lock en Windows: siempre cerrar el workbook
+        if wb is not None:
+            try:
+                wb.close()
+            except Exception as e:
+                logger.warning(f"Advertencia: No se pudo cerrar el workbook correctamente: {e}")
