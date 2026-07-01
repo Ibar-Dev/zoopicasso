@@ -199,29 +199,19 @@ class ColaPersistente:
     def __init__(self, ruta: Path | str = "data/cola_impresion.json"):
         self.ruta = Path(ruta) if isinstance(ruta, str) else ruta
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
-        # Ahora almacenamos list[dict] en lugar de list[str] para incluir metadatos
-        self._datos: list[dict] = self._cargar()
+        self._datos: list[str] = self._cargar()  # Lista de strings base64
     
-    def _cargar(self) -> list[dict]:
-        """Carga cola desde disco JSON. Realiza migración automática de strings a dicts."""
+    def _cargar(self) -> list[str]:
+        """Carga cola desde disco JSON. Retorna lista vacía si no existe."""
         if self.ruta.exists():
             try:
                 with open(self.ruta, "r", encoding="utf-8") as f:
                     contenido = json.load(f)
-                    tickets_base = []
                     if isinstance(contenido, dict) and "tickets" in contenido:
-                        tickets_base = contenido["tickets"]
+                        return contenido["tickets"]
                     elif isinstance(contenido, list):
-                        tickets_base = contenido
-                    
-                    # MIGRACIÓN: Convertir items antiguos (strings) al formato nuevo (dicts)
-                    cola_migrada = []
-                    for item in tickets_base:
-                        if isinstance(item, str):
-                            cola_migrada.append({"ticket": item, "archivo_xlsx": None})
-                        else:
-                            cola_migrada.append(item)
-                    return cola_migrada
+                        return contenido
+                    return []
             except Exception as e:
                 logger.error("Error al cargar cola desde %s: %s", self.ruta, e)
                 return []
@@ -235,34 +225,30 @@ class ColaPersistente:
         except Exception as e:
             logger.error("Error al guardar cola en %s: %s", self.ruta, e)
     
-    def append(self, item: bytes, archivo_nombre: Optional[str] = None) -> None:
+    def append(self, item: bytes) -> None:
         """
-        Añade ticket y metadatos a la cola y persiste.
+        Añade ticket a la cola y persiste.
         
         Args:
             item: bytes en formato ESC/POS
-            archivo_nombre: Nombre del archivo .xlsx asociado (opcional)
         """
         ticket_b64 = base64.b64encode(item).decode("ascii")
-        self._datos.append({
-            "ticket": ticket_b64,
-            "archivo_xlsx": archivo_nombre
-        })
+        self._datos.append(ticket_b64)
         self._guardar()
     
-    def pop(self, index: int = 0) -> dict:
+    def pop(self, index: int = 0) -> bytes:
         """
-        Retira item de la cola y lo devuelve como diccionario.
+        Retira ticket de la cola y persiste.
         
         Args:
             index: Índice a remover (default: 0 = FIFO)
         
         Returns:
-            dict: {"ticket": "base64...", "archivo_xlsx": "nombre.xlsx" | None}
+            bytes: Datos ESC/POS decodificados
         """
-        item = self._datos.pop(index)
+        ticket_b64 = self._datos.pop(index)
         self._guardar()
-        return item
+        return base64.b64decode(ticket_b64)
     
     def __len__(self) -> int:
         """Cantidad de tickets en cola."""
@@ -558,8 +544,7 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     registrar_ventas_factura(factura, usuario, pago)
 
     # PIVOT EXCEL: Registrar en auditoría Excel en tiempo real
-    # DESHABILITADO TEMPORALMENTE (2026-07-01): Estaba bloqueando la impresión
-    # TODO: Implementar guardado de auditoría en background task
+    # DESHABILITADO TEMPORALMENTE: TODO implementar como background task
     # try:
     #     from datetime import datetime as dt
     #     ticket_doc = Ticket(
@@ -577,7 +562,7 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     if payload.imprimir_ticket:
         try:
             ticket = generar_ticket_escpos(factura, ancho=42, pago=pago)
-            cola_impresion.append(ticket, archivo_nombre=ruta.name)
+            cola_impresion.append(ticket)
             ticket_impreso = True
             ticket_estado = "Ticket encolado para impresión."
             logger.info(
@@ -642,19 +627,15 @@ def siguiente_ticket(request: Request) -> JSONResponse:
         return JSONResponse({"hay_ticket": False}, status_code=204)
     
     # Despacha ticket (FIFO)
-    item = cola_impresion.pop(0)
-    ticket_b64 = item["ticket"]
-    archivo_xlsx = item["archivo_xlsx"]
-    
+    ticket = cola_impresion.pop(0)
     logger.info(
-        "Ticket despachado (archivo: %s, quedan %d en cola)",
-        archivo_xlsx,
+        "Ticket despachado (%d bytes, quedan %d en cola)",
+        len(ticket),
         len(cola_impresion),
     )
     return JSONResponse({
         "hay_ticket": True,
-        "ticket_b64": ticket_b64,
-        "archivo_xlsx": archivo_xlsx
+        "ticket_b64": base64.b64encode(ticket).decode("ascii"),
     })
 
 @app.get("/api/descargar/{nombre_archivo}")
