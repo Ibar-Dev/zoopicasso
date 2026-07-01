@@ -558,17 +558,19 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     registrar_ventas_factura(factura, usuario, pago)
 
     # PIVOT EXCEL: Registrar en auditoría Excel en tiempo real
-    try:
-        from datetime import datetime as dt
-        ticket_doc = Ticket(
-            numero=int(factura.numero.replace("F", "")),
-            lineas=[LineaTicket(nombre=l.concepto, cantidad=l.cantidad, precio_unitario=l.precio_unitario) for l in factura.lineas],
-            fecha_hora=dt.now()
-        )
-        guardar_ticket(ticket_doc)
-        logger.info("Operación registrada en tickets.xlsx para factura %s", factura.numero_formateado)
-    except Exception as exc:
-        logger.error("Error al registrar en tickets.xlsx: %s", exc, exc_info=True)
+    # DESHABILITADO TEMPORALMENTE (2026-07-01): Estaba bloqueando la impresión
+    # TODO: Implementar guardado de auditoría en background task
+    # try:
+    #     from datetime import datetime as dt
+    #     ticket_doc = Ticket(
+    #         numero=int(factura.numero.replace("F", "")),
+    #         lineas=[LineaTicket(nombre=l.concepto, cantidad=l.cantidad, precio_unitario=l.precio_unitario) for l in factura.lineas],
+    #         fecha_hora=dt.now()
+    #     )
+    #     guardar_ticket(ticket_doc)
+    #     logger.info("Operación registrada en tickets.xlsx para factura %s", factura.numero_formateado)
+    # except Exception as exc:
+    #     logger.error("Error al registrar en tickets.xlsx: %s", exc, exc_info=True)
 
     ticket_impreso = False
     ticket_estado = "Ticket no solicitado."
