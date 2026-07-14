@@ -10,7 +10,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -456,7 +456,30 @@ def registrar_ajuste_endpoint(payload: AjustePayload, request: Request) -> dict:
 
 
 @app.post("/api/generar")
-def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
+def _guardar_ticket_background(factura: Factura, pago: PagoInfo) -> None:
+    """
+    Guarda ticket en Excel de auditoría (BACKGROUND - NO BLOQUEA).
+    
+    Ejecutado de forma asíncrona después de encolar ticket de impresión.
+    Si falla, solo registra error en logs sin afectar flujo de impresión.
+    """
+    try:
+        from datetime import datetime as dt
+        ticket_doc = Ticket(
+            numero=int(factura.numero.replace("F", "")),
+            lineas=[LineaTicket(nombre=l.concepto, cantidad=l.cantidad, precio_unitario=l.precio_unitario) for l in factura.lineas],
+            fecha_hora=dt.now()
+        )
+        guardar_ticket(ticket_doc)
+        logger.info("✅ Auditoría guardada en Excel para factura %s", factura.numero_formateado)
+    except PermissionError as e:
+        logger.warning("⚠️  No se pudo guardar auditoría (archivo bloqueado): %s", e)
+    except Exception as exc:
+        logger.error("❌ Error al guardar auditoría en Excel: %s", exc, exc_info=True)
+
+
+@app.post("/api/generar")
+def generar(payload: FacturaPayload, request: Request, bg_tasks: BackgroundTasks) -> dict[str, object]:
     _requiere_login(request)
     # Validación método de pago y montos
     metodo = payload.metodo_pago

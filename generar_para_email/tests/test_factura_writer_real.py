@@ -27,7 +27,7 @@ def test_generar_factura_xlsx_crea_archivo(tmp_path, monkeypatch):
     ruta = factura_writer.generar_factura_xlsx(_factura_demo())
 
     assert ruta.exists()
-    assert ruta.name == "factura_2026_009.xlsx"
+    assert ruta.name == "2026-04-08_factura_009.xlsx"
 
 
 def test_generar_factura_xlsx_contenido_basico(tmp_path, monkeypatch):

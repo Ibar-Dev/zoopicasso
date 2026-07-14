@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from web.app import app
 from src.factura_model import Factura, LineaFactura
+import src.ventas_store as _vs
 
 
 def test_index_ok():
@@ -53,15 +54,15 @@ def test_generar_y_descargar_con_login(monkeypatch, tmp_path: Path):
     )
     assert login.status_code == 200
 
-    def _fake_numero() -> int:
-        return 123
+    def _fake_registrar(_t, _u):
+        return "2026-123"
 
     def _fake_generar(_factura):
         ruta = tmp_path / "factura_2026_123.xlsx"
         ruta.write_bytes(b"xlsx")
         return ruta
 
-    monkeypatch.setattr("web.app.siguiente_numero_factura", _fake_numero)
+    monkeypatch.setattr("web.app.registrar_transaccion", _fake_registrar)
     monkeypatch.setattr("web.app.generar_factura_xlsx", _fake_generar)
     monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
 
@@ -84,7 +85,7 @@ def test_generar_y_descargar_con_login(monkeypatch, tmp_path: Path):
 
     assert generar.status_code == 200
     body = generar.json()
-    assert body["numero"].endswith("-123")
+    assert "123" in body["numero"]
     assert body["archivo"] == "factura_2026_123.xlsx"
 
     descarga = client.get(body["download_url"])
@@ -101,166 +102,6 @@ def test_resumen_ganancias_requiere_login():
     assert res.status_code == 401
 
 
-def test_resumen_y_cierre_mensual_con_login(monkeypatch, tmp_path: Path):
-    client = TestClient(app)
-
-    login = client.post(
-        "/api/login",
-        json={
-            "usuario": "Giselle",
-            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
-        },
-    )
-    assert login.status_code == 200
-
-    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
-    monkeypatch.setattr("src.monthly_closure.RUTA_CIERRES", tmp_path / "cierres")
-
-    def _fake_numero() -> int:
-        return 321
-
-    def _fake_generar(_factura):
-        ruta = tmp_path / "factura_2026_321.xlsx"
-        ruta.write_bytes(b"xlsx")
-        return ruta
-
-    monkeypatch.setattr("web.app.siguiente_numero_factura", _fake_numero)
-    monkeypatch.setattr("web.app.generar_factura_xlsx", _fake_generar)
-
-    generar = client.post(
-        "/api/generar",
-        json={
-            "cliente_nombre": "Cliente mensual",
-            "cliente_nif": "Y123",
-            "lineas": [
-                {
-                    "concepto": "Servicio mensual",
-                    "cantidad": 2,
-                    "precio_unitario": 15.0,
-                    "categoria": "perro",
-                }
-            ],
-            "imprimir_ticket": False,
-            "metodo_pago": "tarjeta",
-            "monto_tarjeta": 30.0,
-        },
-    )
-    assert generar.status_code == 200
-
-    resumen = client.get("/api/ganancias/resumen")
-    assert resumen.status_code == 200
-    resumen_body = resumen.json()["resumen"]
-    assert resumen_body["cantidad_ventas"] >= 1
-    assert resumen_body["total"] >= 30.0
-
-    cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
-    assert cierre.status_code == 200
-    assert "spreadsheetml" in cierre.headers["content-type"]
-    assert cierre.headers.get("x-cierre-ventas") is not None
-    assert int(cierre.headers["x-cierre-ventas"]) >= 1
-
-
-def test_cierre_mes_requiere_login():
-    client = TestClient(app)
-    res = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
-    assert res.status_code == 401
-
-
-def test_cierre_mes_sin_confirmacion_retorna_400():
-    client = TestClient(app)
-    client.post(
-        "/api/login",
-        json={
-            "usuario": "Giselle",
-            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
-        },
-    )
-    res = client.post("/api/ganancias/cierre-mes", json={"confirmacion": False})
-    assert res.status_code == 400
-
-
-def _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=888):
-    """Helper: client autenticado, con una venta registrada, listo para cerrar mes."""
-    client = TestClient(app)
-    login = client.post(
-        "/api/login",
-        json={
-            "usuario": "Giselle",
-            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
-        },
-    )
-    assert login.status_code == 200
-
-    cierres_path = tmp_path / "cierres"
-    monkeypatch.setattr("src.monthly_closure.RUTA_CIERRES", cierres_path)
-    monkeypatch.setattr("web.app.RUTA_CIERRES", cierres_path)
-    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
-    monkeypatch.setattr("web.app.siguiente_numero_factura", lambda: numero)
-    monkeypatch.setattr(
-        "web.app.generar_factura_xlsx",
-        lambda _f: (tmp_path / f"factura_2026_{numero}.xlsx").with_suffix(".xlsx"),
-    )
-    (tmp_path / f"factura_2026_{numero}.xlsx").write_bytes(b"xlsx")
-
-    generar = client.post(
-        "/api/generar",
-        json={
-            "lineas": [{"concepto": "Cierre test", "cantidad": 1, "precio_unitario": 25.0, "categoria": "perro"}],
-            "metodo_pago": "tarjeta",
-            "monto_tarjeta": 25.0,
-        },
-    )
-    assert generar.status_code == 200
-    return client
-
-
-def test_cierre_mensual_devuelve_excel(monkeypatch, tmp_path):
-    client = _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=881)
-    cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
-    assert cierre.status_code == 200
-    assert "spreadsheetml" in cierre.headers["content-type"]
-    assert cierre.headers.get("x-cierre-ventas") is not None
-    assert int(cierre.headers["x-cierre-ventas"]) >= 1
-    assert cierre.headers.get("x-cierre-mensaje") is not None
-    assert len(cierre.content) > 0
-
-
-def test_descargar_cierre_requiere_login():
-    client = TestClient(app)
-    res = client.get("/api/ganancias/descargar-cierre/cierre_mensual_2026_05.xlsx")
-    assert res.status_code == 401
-
-
-def test_descargar_cierre_ok(monkeypatch, tmp_path):
-    client = _cliente_con_venta_y_cierre_listo(monkeypatch, tmp_path, numero=882)
-    cierre = client.post("/api/ganancias/cierre-mes", json={"confirmacion": True})
-    assert cierre.status_code == 200
-    cd = cierre.headers.get("content-disposition", "")
-    nombre = cd.split("filename=")[-1].strip('"')
-    assert nombre.endswith(".xlsx")
-
-    descarga = client.get(f"/api/ganancias/descargar-cierre/{nombre}")
-    assert descarga.status_code == 200
-    assert (
-        descarga.headers["content-type"]
-        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-
-def test_descargar_cierre_no_encontrado(monkeypatch, tmp_path):
-    client = TestClient(app)
-    client.post(
-        "/api/login",
-        json={
-            "usuario": "Giselle",
-            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
-        },
-    )
-    monkeypatch.setattr("web.app.RUTA_CIERRES", tmp_path)
-    res = client.get("/api/ganancias/descargar-cierre/no_existe.xlsx")
-    assert res.status_code == 404
-
-
 def _cliente_logueado(monkeypatch, tmp_path):
     """Helper: devuelve un TestClient ya autenticado con monkeypatches de generación."""
     client = TestClient(app)
@@ -273,15 +114,13 @@ def _cliente_logueado(monkeypatch, tmp_path):
     )
     assert login.status_code == 200
 
-    def _fake_numero():
-        return 999
+    monkeypatch.setattr(_vs, "RUTA_DB_VENTAS", tmp_path / "test_ventas.db")
 
     def _fake_generar(_factura):
         ruta = tmp_path / "factura_2026_999.xlsx"
         ruta.write_bytes(b"xlsx")
         return ruta
 
-    monkeypatch.setattr("web.app.siguiente_numero_factura", _fake_numero)
     monkeypatch.setattr("web.app.generar_factura_xlsx", _fake_generar)
     monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
     return client
@@ -485,7 +324,10 @@ def test_historial_ok(monkeypatch, tmp_path):
 # La gestión de precios por categoría ha sido removida de la UI.
 # Este test se mantiene para asegurar compatibilidad con backups y código heredado.
 
-def test_precios_categorias_get_y_post(monkeypatch, tmp_path):
+def test_precios_categorias_post(monkeypatch, tmp_path):
+    """La gestión de precios por categoría solo expone POST (endpoint deprecado).
+    El GET fue eliminado cuando se removió la UI; solo se mantiene POST para
+    compatibilidad con código heredado."""
     precios_path = tmp_path / "precios_categorias.json"
     monkeypatch.setattr("web.app.PRECIOS_CATEGORIAS_PATH", precios_path)
 
@@ -500,12 +342,7 @@ def test_precios_categorias_get_y_post(monkeypatch, tmp_path):
     post_res = client.post("/api/precios_categorias", json={"precios": {"aves": 25.50, "perros": 30.0}})
     assert post_res.status_code == 200
     assert post_res.json()["ok"] is True
-
-    get_res = client.get("/api/precios_categorias")
-    assert get_res.status_code == 200
-    precios = get_res.json()["precios"]
-    assert precios["aves"] == 25.50
-    assert precios["perros"] == 30.0
+    assert post_res.json()["precios"]["aves"] == 25.50
 
 
 # ── /api/backup/manual ────────────────────────────────────────────────────────

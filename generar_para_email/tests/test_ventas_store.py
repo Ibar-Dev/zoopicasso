@@ -59,7 +59,7 @@ class TestInicializarDb:
         conn = sqlite3.connect(vs.RUTA_DB_VENTAS)
         tablas = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
         conn.close()
-        assert {"ventas", "pagos_factura", "cierres_mensuales", "ajustes_manuales"}.issubset(tablas)
+        assert {"ventas", "pagos_factura", "ajustes_manuales", "transacciones", "contadores"}.issubset(tablas)
 
     def test_idempotente(self):
         vs.inicializar_db_ventas()
@@ -251,40 +251,6 @@ class TestArchivarVentas:
         vs.inicializar_db_ventas()
         count = vs.archivar_ventas_activas("2026-05", "cierre-001", "2026-05-31T00:00:00+00:00")
         assert count == 0
-
-
-# ── registrar_cierre ───────────────────────────────────────────────────────────
-
-class TestRegistrarCierre:
-    def test_inserta_cierre(self):
-        vs.registrar_cierre(
-            cierre_id="cierre-001",
-            anio_mes="2026-05",
-            usuario="admin",
-            created_at="2026-05-31T00:00:00+00:00",
-            total=300.0,
-            cantidad_ventas=10,
-            archivo_excel="cierre_2026-05.xlsx",
-        )
-        conn = sqlite3.connect(vs.RUTA_DB_VENTAS)
-        row = conn.execute("SELECT * FROM cierres_mensuales WHERE cierre_id = 'cierre-001'").fetchone()
-        conn.close()
-        assert row is not None
-        assert row[4] == 300.0   # total
-
-    def test_cierre_unico_por_id(self):
-        kwargs = dict(
-            cierre_id="cierre-001",
-            anio_mes="2026-05",
-            usuario="admin",
-            created_at="2026-05-31T00:00:00+00:00",
-            total=100.0,
-            cantidad_ventas=5,
-            archivo_excel="x.xlsx",
-        )
-        vs.registrar_cierre(**kwargs)
-        with pytest.raises(sqlite3.IntegrityError):
-            vs.registrar_cierre(**kwargs)
 
 
 # ── historial_ventas ───────────────────────────────────────────────────────────

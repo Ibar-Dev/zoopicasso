@@ -1,11 +1,18 @@
+from __future__ import annotations
+
+import json
 import logging
 import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.factura_model import Factura, PagoInfo
+
+if TYPE_CHECKING:
+    from core.domain import TransaccionComercial
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +44,28 @@ def _connect():
         conn.close()
 
 
+@contextmanager
+def _connect_exclusive():
+    """Conexión con transacción EXCLUSIVE para operaciones que requieren atomicidad.
+    Usa isolation_level=None para control manual de transacciones.
+    """
+    RUTA_DB_VENTAS.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(RUTA_DB_VENTAS, isolation_level=None, timeout=10)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("BEGIN EXCLUSIVE")
+        yield conn
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
+
+
 def inicializar_db_ventas() -> None:
     with _connect() as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS ventas (
@@ -114,6 +141,48 @@ def inicializar_db_ventas() -> None:
             conn.execute("ALTER TABLE cierres_diarios ADD COLUMN tipo_cierre TEXT DEFAULT 'full_day'")
         except sqlite3.OperationalError:
             pass
+
+        # Contador atómico (reemplaza contador_facturas.json y contador.json)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS contadores (
+                nombre TEXT PRIMARY KEY,
+                valor INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+
+        # Tabla principal de transacciones para el patrón Outbox
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS transacciones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_transaccion TEXT UNIQUE NOT NULL,
+                fecha_hora TEXT NOT NULL,
+                anio_mes TEXT NOT NULL,
+                cliente_nombre TEXT NOT NULL DEFAULT '',
+                cliente_nif TEXT NOT NULL DEFAULT '',
+                total REAL NOT NULL,
+                metodo_pago TEXT NOT NULL,
+                monto_efectivo REAL NOT NULL DEFAULT 0,
+                monto_tarjeta REAL NOT NULL DEFAULT 0,
+                efectivo_entregado REAL NOT NULL DEFAULT 0,
+                cambio REAL NOT NULL DEFAULT 0,
+                usuario TEXT NOT NULL DEFAULT '',
+                items_json TEXT NOT NULL DEFAULT '[]',
+                excel_pendiente INTEGER NOT NULL DEFAULT 1,
+                print_pendiente INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_transacciones_pendientes
+            ON transacciones (excel_pendiente, print_pendiente)
+            WHERE excel_pendiente = 1 OR print_pendiente = 1
+            """
+        )
 
 
 def registrar_ventas_factura(factura: Factura, usuario: str, pago: PagoInfo | None = None) -> None:
@@ -632,3 +701,170 @@ def registrar_cierre_diario(
                 tipo_cierre,
             ),
         )
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# DOMINIO UNIFICADO — Registro atómico y patrón Outbox
+# ════════════════════════════════════════════════════════════════════════════════
+
+def registrar_transaccion(t: "TransaccionComercial", usuario: str) -> str:
+    """
+    Registra una venta de forma completamente atómica usando BEGIN EXCLUSIVE.
+
+    Una sola transacción SQLite:
+      1. Incrementa el contador de transacciones en la tabla 'contadores'.
+      2. Inserta la fila en 'transacciones' con excel_pendiente=1, print_pendiente=1.
+      3. Inserta las líneas en 'ventas' (compatibilidad con resúmenes y cierres).
+      4. Inserta el pago en 'pagos_factura'.
+
+    Si cualquier paso falla, el ROLLBACK deja la DB sin cambios y el contador
+    no avanza — ningún número se "quema".
+
+    Retorna:
+        id_transaccion asignado, formato "YYYY-NNN".
+    """
+    inicializar_db_ventas()
+    created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    fecha_str = t.fecha_hora.date().isoformat()
+    anio_mes = t.anio_mes
+    year = t.fecha_hora.year
+    items_json = t.items_as_json()
+
+    with _connect_exclusive() as conn:
+        # ── Contador atómico ──────────────────────────────────────────────────
+        conn.execute(
+            "INSERT OR IGNORE INTO contadores (nombre, valor) VALUES ('transacciones', 0)"
+        )
+        conn.execute(
+            "UPDATE contadores SET valor = valor + 1 WHERE nombre = 'transacciones'"
+        )
+        numero = int(
+            conn.execute(
+                "SELECT valor FROM contadores WHERE nombre = 'transacciones'"
+            ).fetchone()["valor"]
+        )
+        id_transaccion = f"{year}-{numero:03d}"
+
+        # ── Transacción principal (Outbox) ────────────────────────────────────
+        conn.execute(
+            """
+            INSERT INTO transacciones (
+                id_transaccion, fecha_hora, anio_mes, cliente_nombre, cliente_nif,
+                total, metodo_pago, monto_efectivo, monto_tarjeta, efectivo_entregado,
+                cambio, usuario, items_json, excel_pendiente, print_pendiente, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)
+            """,
+            (
+                id_transaccion,
+                t.fecha_hora.isoformat(),
+                anio_mes,
+                (t.cliente_nombre or "").strip(),
+                (t.cliente_nif or "").strip(),
+                float(t.total),
+                t.metodo_pago,
+                float(t.monto_efectivo),
+                float(t.monto_tarjeta),
+                float(t.efectivo_entregado),
+                float(t.cambio),
+                (usuario or "").strip(),
+                items_json,
+                created_at,
+            ),
+        )
+
+        # ── Líneas de ventas (para resúmenes y cierres existentes) ────────────
+        filas_ventas = [
+            (
+                id_transaccion,
+                fecha_str,
+                anio_mes,
+                (item.categoria or "sin_categoria").strip() or "sin_categoria",
+                float(item.total),
+                (t.cliente_nombre or "").strip(),
+                (usuario or "").strip(),
+                created_at,
+            )
+            for item in t.items
+        ]
+        conn.executemany(
+            """
+            INSERT INTO ventas (
+                numero_factura, fecha_venta, anio_mes, categoria, monto,
+                cliente_nombre, usuario, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            filas_ventas,
+        )
+
+        # ── Pago ──────────────────────────────────────────────────────────────
+        conn.execute(
+            """
+            INSERT INTO pagos_factura (
+                numero_factura, fecha_venta, anio_mes, monto_total, monto_efectivo,
+                monto_tarjeta, metodo_pago, usuario, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                id_transaccion,
+                fecha_str,
+                anio_mes,
+                float(t.total),
+                float(t.monto_efectivo),
+                float(t.monto_tarjeta),
+                t.metodo_pago,
+                (usuario or "").strip(),
+                created_at,
+            ),
+        )
+
+    logger.info(
+        "Transacción %s registrada atómicamente. Líneas: %d, Total: %.2f, Método: %s",
+        id_transaccion,
+        len(t.items),
+        t.total,
+        t.metodo_pago,
+    )
+    return id_transaccion
+
+
+def recuperar_pendientes() -> list[dict]:
+    """
+    Patrón Outbox: retorna transacciones cuyos sinks no se completaron.
+
+    Se llama al arrancar la app para reintentar sinks fallidos.
+    Cada fila contiene todos los campos necesarios para reconstruir
+    una TransaccionComercial mediante TransaccionComercial.from_db_row().
+    """
+    inicializar_db_ventas()
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id_transaccion, fecha_hora, anio_mes, cliente_nombre, cliente_nif,
+                   total, metodo_pago, monto_efectivo, monto_tarjeta, efectivo_entregado,
+                   cambio, usuario, items_json, excel_pendiente, print_pendiente
+            FROM transacciones
+            WHERE excel_pendiente = 1 OR print_pendiente = 1
+            ORDER BY created_at ASC
+            """,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def marcar_excel_completado(id_transaccion: str) -> None:
+    """Marca el sink de Excel como completado para la transacción dada."""
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE transacciones SET excel_pendiente = 0 WHERE id_transaccion = ?",
+            (id_transaccion,),
+        )
+    logger.debug("excel_pendiente=0 para transacción %s", id_transaccion)
+
+
+def marcar_print_completado(id_transaccion: str) -> None:
+    """Marca el sink de impresión como completado para la transacción dada."""
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE transacciones SET print_pendiente = 0 WHERE id_transaccion = ?",
+            (id_transaccion,),
+        )
+    logger.debug("print_pendiente=0 para transacción %s", id_transaccion)

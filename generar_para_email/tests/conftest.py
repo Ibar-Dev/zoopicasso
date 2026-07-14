@@ -31,6 +31,33 @@ def temp_contador_file(temp_dir):
 
 
 @pytest.fixture
+def aislar_db_wal(tmp_path):
+    """
+    Fixture de aislamiento para tests que usan SQLite en modo WAL.
+
+    El modo WAL genera archivos auxiliares (-wal, -shm) junto al .db principal.
+    Usar un directorio temporal completo garantiza que:
+      - Cada test parte de una DB virgen
+      - Los archivos auxiliares se destruyen al finalizar
+      - No hay datos "fantasma" de un test anterior recuperados por WAL checkpoint
+
+    Uso:
+        def test_algo(aislar_db_wal, monkeypatch):
+            import src.ventas_store as vs
+            monkeypatch.setattr(vs, "RUTA_DB_VENTAS", aislar_db_wal)
+    """
+    import sqlite3
+
+    db_path = tmp_path / "test_ventas.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.commit()
+    conn.close()
+    yield db_path
+    # tmp_path se destruye automáticamente por pytest, incluyendo -wal y -shm
+
+
+@pytest.fixture
 def temp_env_file(temp_dir):
     """Crea un archivo .env temporal para tests."""
     env_file = temp_dir / ".env"
@@ -112,9 +139,9 @@ async def page(browser: Browser) -> Page:
     await context.close()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def base_url() -> str:
-    """URL base de la aplicación"""
+    """URL base de la aplicación (session-scoped para compatibilidad con pytest-base-url)."""
     return "http://localhost:8000"
 
 
