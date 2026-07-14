@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./facturas:/app/facturas
+      - ./logs:/app/logs
+    environment:
+      WEB_SESSION_SECRET: "dev-secret-cambiar-en-produccion"
+      WEB_SESSION_HTTPS_ONLY: "false"
+      WEB_SESSION_SAME_SITE: "lax"
+      LOG_LEVEL: "INFO"
