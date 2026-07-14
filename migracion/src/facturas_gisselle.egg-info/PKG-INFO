@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: facturas-gisselle
+Version: 1.0.0
+Summary: Generador de facturas para Gisselle Marin Tabares
+Requires-Python: >=3.11
+Requires-Dist: flet>=0.84.0
+Requires-Dist: openpyxl>=3.1.5
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: uvicorn>=0.30.0
+Requires-Dist: jinja2>=3.1.4
+Requires-Dist: itsdangerous>=2.2.0
+Requires-Dist: python-escpos>=3.1
+Requires-Dist: libusb-package>=1.0.26
+Requires-Dist: pyusb>=1.2.1
+Requires-Dist: pywin32>=306; platform_system == "Windows"
+Requires-Dist: requests>=2.33.1

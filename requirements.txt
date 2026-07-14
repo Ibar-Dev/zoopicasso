@@ -1,1 +1,0 @@
--r generar_para_email/requirements.txt
