@@ -1,0 +1,9 @@
+[Unit]
+Description=Actualizar IP en DuckDNS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/facturas/duckdns.env
+ExecStart=/opt/facturas-app/generar_para_email/deploy/duckdns_update.sh

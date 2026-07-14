@@ -1,0 +1,2184 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Facturas | Zoo Picasso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@2/dist/driver.css" />
+  <!-- Keep-Alive Module (Opción C: Ping cada 5 minutos, incondicional) -->
+  <script src="/static/keep-alive.js"></script>
+  <style>
+    #leyenda-atajos { position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; }
+    #btn-leyenda {
+      background: #1e293b; color: #e2e8f0; border: 1px solid #475569; border-radius: 50%;
+      width: 2.5rem; height: 2.5rem; font-size: 1.15rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+    #btn-leyenda:hover { background: #334155; border-color: #94a3b8; }
+    #panel-leyenda {
+      display: none; position: absolute; bottom: 2.8rem; right: 0;
+      background: rgba(18,18,18,0.94); color: #e5e5e5; border-radius: 8px;
+      padding: 0.75rem 1rem; font-size: 0.78rem; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.45); pointer-events: none;
+    }
+    .product-header {
+      display: grid !important;
+      grid-template-columns: 1.8fr 0.8fr 0.6fr 0.7fr 0.8fr 34px !important;
+      gap: 0.45rem !important;
+      align-items: center !important;
+      margin-bottom: 0.3rem !important;
+      padding-bottom: 0.4rem !important;
+      border-bottom: 2px solid var(--accent) !important;
+      font-weight: 600 !important;
+      font-size: 0.85rem !important;
+      color: var(--accent) !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+    }
+    .fila {
+      margin-top: 0.6rem !important;
+      display: grid !important;
+      grid-template-columns: 1.8fr 0.8fr 0.6fr 0.7fr 0.8fr 34px !important;
+      gap: 0.45rem !important;
+      align-items: center !important;
+    }
+    }
+    #panel-leyenda strong { display: block; margin-bottom: 0.5rem; color: #fff; font-size: 0.83rem; }
+    #panel-leyenda table { border-collapse: collapse; }
+    #panel-leyenda td { padding: 0.1rem 0.35rem; vertical-align: top; }
+    #panel-leyenda td:first-child { font-family: monospace; color: #7dd3fc; padding-right: 0.75rem; }
+    #panel-leyenda .leyenda-seccion { color: #888; font-size: 0.7rem; padding-top: 0.35rem; }
+    #leyenda-atajos:hover #panel-leyenda, #panel-leyenda.fijo { display: block; pointer-events: auto; }
+    .chuleta {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem;
+      margin-top: 0.75rem; padding: 0.5rem 0.75rem;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+      font-size: 0.74rem; color: #475569;
+    }
+    .chuleta-titulo { font-weight: 600; color: #334155; white-space: nowrap; }
+    .chuleta-item { display: flex; align-items: center; gap: 0.25rem; white-space: nowrap; }
+    .modal-atajos {
+      margin-top: 0.9rem; padding: 0.45rem 0.6rem;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+      text-align: center; font-size: 0.72rem; color: #475569;
+    }
+    kbd {
+      display: inline-block; padding: 0.1rem 0.35rem;
+      border: 1px solid #d1d5db; border-radius: 3px; border-bottom-width: 2px;
+      font-family: monospace; font-size: 0.68rem; color: #374151;
+      background: #f3f4f6; line-height: 1.3;
+    }
+    /* Spinner para feedback visual */
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 1em; height: 1em; border: 2px solid #ddd;
+      border-top-color: #333; border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin-right: 0.5em; vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-shape one"></div>
+  <div class="bg-shape two"></div>
+
+  <main class="shell">
+    <section id="login-card" class="card active">
+      <h1>Generador de Facturas</h1>
+      <p>Zoo Picasso · Acceso seguro</p>
+      <label>Usuario
+        <input id="usuario" type="text" placeholder="Giselle" autocomplete="username" />
+      </label>
+      <label>Contraseña
+        <input id="password" type="password" autocomplete="current-password" />
+      </label>
+      <button id="btn-login">Entrar</button>
+      <p id="login-error" class="error"></p>
+    </section>
+
+    <section id="app-card" class="card">
+      <div class="header-row">
+        <div>
+          <h2>Factura Web</h2>
+          <p id="estado">Completa los datos y genera el Excel.</p>
+        </div>
+        <div class="header-actions">
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+            <button id="btn-carpeta" class="ghost" type="button" title="Cambiar carpeta de destino">📁 Carpeta</button>
+            <span id="nombre-carpeta-local" style="font-size:0.7rem; color:#64748b; margin-right:5px;"></span>
+          </div>
+          <button id="btn-tutorial" class="ghost" type="button" title="Guía de la aplicación" aria-label="Abrir guía">?</button>
+          <button id="btn-logout" class="ghost">Salir</button>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <label>Cliente (opcional)
+          <input id="cliente_nombre" type="text" />
+        </label>
+        <label>NIF/CIF (opcional)
+          <input id="cliente_nif" type="text" />
+        </label>
+      </div>
+
+      <div class="lineas-head">
+        <h3>Líneas</h3>
+        <span id="draft-guardado" class="draft-saved-hint" hidden>✓ Borrador</span>
+        <button id="btn-add" class="ghost" title="Atajo: Ctrl+Shift+A">+ Añadir línea</button>
+      </div>
+      <div class="product-header">
+        <div>Concepto</div>
+        <div>Precio</div>
+        <div>Cantidad</div>
+        <div>Total</div>
+        <div>Categoría</div>
+        <div></div>
+      </div>
+      <div id="lineas"></div>
+
+      <div class="totales">
+        <span>IVA:</span><strong>Incluido</strong>
+        <span>Total:</span><strong id="total">0.00 €</strong>
+      </div>
+
+      <div class="lineas-head">
+        <h3>Ajuste Manual</h3>
+      </div>
+      <div class="fila">
+        <input id="ajuste" type="text" inputmode="decimal" placeholder="Importe EUR a restar del acumulado" />
+        <button id="btn-restar" class="ghost" type="button">Restar</button>
+      </div>
+      <div id="lista-ajustes" style="font-size:0.82rem;color:#475569;margin-top:0.4rem;min-height:1em;"></div>
+
+      <button id="btn-generar" class="cta" title="Atajo: Ctrl+Shift+G">Generar factura</button>
+      <div class="chuleta">
+        <span class="chuleta-titulo">⌨ Atajos</span>
+        <span class="chuleta-item"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> Añadir línea</span>
+        <span class="chuleta-item"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> Eliminar última línea</span>
+        <span class="chuleta-item"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> Generar factura</span>
+      </div>
+      <p id="resultado" class="ok"></p>
+      <p id="error" class="error"></p>
+
+      <div id="info-config-servidor" style="margin-top:2rem; padding:0.75rem; border-top:1px solid #e2e8f0; font-size:0.8rem; color:#64748b;">
+        <details>
+          <summary style="cursor:pointer; color:#94a3b8; font-weight:500;">⚙️ Configuración del sistema</summary>
+          <div style="margin-top:0.5rem; display:grid; gap:6px;">
+            <p style="margin:0; font-size:12px; color:#64748b;"><strong>📋 Registro de auditoría de tickets:</strong><br><span style="font-size:11px; color:#94a3b8;">Histórico de todos los tickets vendidos</span><br><code id="info-auditoria" style="word-break:break-all; background:#f1f5f9; padding:2px 4px; border-radius:3px; font-size:10px; display:block; margin-top:2px;">...</code></p>
+            <p style="margin:0; font-size:12px; color:#64748b;"><strong>📊 Facturas generadas (servidor):</strong><br><span style="font-size:11px; color:#94a3b8;">Copias en Excel de todas las facturas emitidas</span><br><code id="info-facturas" style="word-break:break-all; background:#f1f5f9; padding:2px 4px; border-radius:3px; font-size:10px; display:block; margin-top:2px;">...</code></p>
+            <p style="margin:0; border-top:1px dashed #cbd5e1; padding-top:6px; margin-top:6px; font-size:12px; color:#64748b;"><strong>💾 Descargar facturas en mi PC:</strong><br><span style="font-size:11px; color:#94a3b8;">Carpeta local donde guardar copias de tus facturas</span><br><span id="info-local-actual" style="color:#1e293b; font-size:12px;">No seleccionada</span></p>
+          </div>
+        </details>
+      </div>
+
+    </section>
+  </main>
+
+  <div id="ticket-modal" class="modal-backdrop" aria-hidden="true" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title">
+      <h3 id="ticket-modal-title">Imprimir ticket</h3>
+      <p>La factura se va a generar y descargar. ¿Deseas imprimir ticket térmico ahora?</p>
+      <div class="modal-actions">
+        <button id="btn-ticket-cancelar" class="ghost" type="button">Cancelar</button>
+        <button id="btn-ticket-no" class="ghost" type="button">No imprimir</button>
+        <button id="btn-ticket-si" type="button">Sí, imprimir</button>
+      </div>
+      <div class="modal-atajos"><kbd>Enter</kbd> imprimir &ensp; <kbd>N</kbd> no imprimir &ensp; <kbd>Esc</kbd> cancelar</div>
+    </div>
+  </div>
+
+  <!-- Modal método de pago -->
+  <div id="pago-modal" class="modal-backdrop" aria-hidden="true" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pago-modal-title">
+      <h3 id="pago-modal-title">Selecciona método de pago</h3>
+      <form id="pago-form">
+        <div style="margin-bottom: 1em;">
+          <label><input type="radio" name="metodo_pago" value="efectivo" required> Efectivo</label>
+          <label><input type="radio" name="metodo_pago" value="tarjeta"> Tarjeta</label>
+          <label><input type="radio" name="metodo_pago" value="mixto"> Mixto</label>
+        </div>
+          <div id="pago-montos">
+            <div id="pago-efectivo-group" style="display:none; margin-bottom:0.5em;">
+              <label>Monto en efectivo (€): <input id="pago-efectivo" type="number" min="0" step="0.01"></label>
+            </div>
+            <div id="pago-entregado-group" style="display:none; margin-bottom:0.5em;">
+              <label>Efectivo entregado (€): <input id="pago-entregado" type="number" min="0" step="0.01"></label>
+              <span id="pago-cambio-info" style="margin-left:1em; color:#007700;"></span>
+            </div>
+            <div id="pago-tarjeta-group" style="display:none; margin-bottom:0.5em;">
+              <label>Monto en tarjeta (€): <input id="pago-tarjeta" type="number" min="0" step="0.01"></label>
+            </div>
+            <div id="pago-mixto-info" style="display:none; color:#555; font-size:0.95em; margin-bottom:0.5em;"></div>
+          </div>
+        <div class="modal-actions">
+          <button id="btn-pago-cancelar" class="ghost" type="button">Cancelar</button>
+          <button id="btn-pago-confirmar" type="submit">Aceptar</button>
+        </div>
+        <div id="pago-error" class="error" style="margin-top:0.5em;"></div>
+        <div class="modal-atajos"><kbd>E</kbd> efectivo &ensp; <kbd>T</kbd> tarjeta &ensp; <kbd>M</kbd> mixto &ensp; <kbd>Enter</kbd> confirmar &ensp; <kbd>Esc</kbd> cancelar</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Leyenda de atajos de teclado -->
+  <div id="leyenda-atajos">
+    <div id="panel-leyenda">
+      <strong>⌨ Atajos de teclado</strong>
+      <table>
+        <tr><td colspan="2" class="leyenda-seccion">Formulario principal</td></tr>
+        <tr><td>Ctrl+Shift+A</td><td>Añadir línea</td></tr>
+        <tr><td>Ctrl+Shift+D</td><td>Eliminar última línea</td></tr>
+        <tr><td>Ctrl+Shift+G</td><td>Generar factura</td></tr>
+        <tr><td colspan="2" class="leyenda-seccion">Modal de pago</td></tr>
+        <tr><td>E</td><td>Efectivo</td></tr>
+        <tr><td>T</td><td>Tarjeta</td></tr>
+        <tr><td>M</td><td>Mixto</td></tr>
+        <tr><td>Enter</td><td>Confirmar</td></tr>
+        <tr><td colspan="2" class="leyenda-seccion">Modal de ticket</td></tr>
+        <tr><td>Enter</td><td>Sí, imprimir</td></tr>
+        <tr><td>N</td><td>No imprimir</td></tr>
+        <tr><td colspan="2" class="leyenda-seccion">Siempre</td></tr>
+        <tr><td>Esc</td><td>Cancelar</td></tr>
+      </table>
+    </div>
+    <button id="btn-leyenda" title="Atajos de teclado">⌨</button>
+  </div>
+
+  <datalist id="conceptos-opciones">
+    <option value="Alimentación">
+    <option value="Snack">
+    <option value="Accesorios">
+    <option value="Higiene">
+    <option value="Salud">
+    <option value="Servicio de peluquería">
+  </datalist>
+
+  <script src="https://cdn.jsdelivr.net/npm/driver.js@2/dist/driver.js.iife.js"></script>
+  <script src="/static/tutorial-pasos.js"></script>
+  <script src="/static/tutorial.js"></script>
+  <script src="/static/shortcuts.js"></script>
+  <!-- FASE 2: Sistema de Tooltips no-intrusivo -->
+  <script src="/static/help-system.js"></script>
+
+  <script>
+    const loginCard = document.getElementById('login-card');
+    const appCard = document.getElementById('app-card');
+    const lineasEl = document.getElementById('lineas');
+    const totalEl = document.getElementById('total');
+    const estadoEl = document.getElementById('estado');
+    const resultadoEl = document.getElementById('resultado');
+    const errorEl = document.getElementById('error');
+    const ajusteEl = document.getElementById('ajuste');
+    const ticketModalEl = document.getElementById('ticket-modal');
+    const btnTicketCancelar = document.getElementById('btn-ticket-cancelar');
+    const btnTicketNo = document.getElementById('btn-ticket-no');
+    const btnTicketSi = document.getElementById('btn-ticket-si');
+    // Elementos de cierre antiguo (reemplazados por nuevo sistema secuencial en FASE 2)
+    // Se comentan para no generar errores de null
+    // const cierreMesModalEl = document.getElementById('cierre-mes-modal');
+    // const btnCierreMes = document.getElementById('btn-cerrar-mes');
+    // const btnCierreCancelar = document.getElementById('btn-cierre-cancelar');
+    // const btnCierreConfirmar = document.getElementById('btn-cierre-confirmar');
+    // const cierreDiaModalEl = document.getElementById('cierre-dia-modal');
+    // const btnCierreDiaCancelar = document.getElementById('btn-cierre-dia-cancelar');
+    // const btnCierreDiaConfirmar = document.getElementById('btn-cierre-dia-confirmar');
+    let resolverCierreDiaModal = null;
+    let acumuladoDia = 0;
+    let facturasDia = 0;
+    let resolverTicketModal = null;
+    let resolverCierreModal = null;
+
+    function sha256(text) {
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(buf =>
+        [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+      );
+    }
+
+    function toggleView(loggedIn) {
+      loginCard.classList.toggle('active', !loggedIn);
+      appCard.classList.toggle('active', loggedIn);
+      if (!loggedIn) {
+        ticketModalEl.hidden = true;
+        ticketModalEl.classList.remove('active');
+        ticketModalEl.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function importeEurValido(valor) {
+      return /^(0|[1-9]\d*)([\.,]\d{1,2})?$/.test(valor);
+    }
+
+    function calcTotals() {
+      const filas = [...lineasEl.querySelectorAll('.fila')];
+      let total = 0;
+      for (const fila of filas) {
+        const cant = parseInt(fila.querySelector('.cantidad').value || '0', 10);
+        const precioRaw = (fila.querySelector('.precio').value || '').trim();
+        const precio = importeEurValido(precioRaw)
+          ? Number(precioRaw.replace(',', '.'))
+          : Number.NaN;
+        const parcial = Number.isFinite(cant) && Number.isFinite(precio) ? cant * precio : 0;
+        fila.querySelector('.parcial').textContent = parcial.toFixed(2);
+        total += parcial;
+      }
+      totalEl.textContent = `${total.toFixed(2)} €`;
+    }
+
+    function addLinea(concepto = '', cantidad = 1, precio = '', categoria = '') {
+      const row = document.createElement('div');
+      row.className = 'fila';
+      row.innerHTML = `
+        <input list="conceptos-opciones" class="concepto" type="text" placeholder="Elige o escribe concepto…" />
+        <input class="precio" type="text" inputmode="decimal" placeholder="€" value="${precio}" />
+        <input class="cantidad" type="number" min="1" value="${cantidad}" />
+        <span class="parcial">0.00</span>
+        <select class="categoria">
+          <option value="">— Categoría —</option>
+          <option value="perro">Perro</option>
+          <option value="gato">Gato</option>
+          <option value="Roedor">Roedor</option>
+          <option value="ave">Ave</option>
+          <option value="peces">Peces</option>
+          <option value="reptiles">Reptiles</option>
+          <option value="peluqueria">Peluquería</option>
+          <option value="animal">Animal</option>
+        </select>
+        <button class="del" type="button" aria-label="Eliminar línea" title="Eliminar línea">×</button>
+      `;
+      if (concepto) row.querySelector('.concepto').value = concepto;
+      if (categoria) row.querySelector('.categoria').value = categoria;
+      row.querySelector('.precio').addEventListener('input', calcTotals);
+      row.querySelector('.cantidad').addEventListener('input', calcTotals);
+      row.querySelector('.categoria').addEventListener('change', function () {
+        calcTotals();
+        _programarGuardadoDraft();
+      });
+      row.querySelector('.del').addEventListener('click', () => {
+        if (lineasEl.children.length <= 1) {
+          row.querySelector('.concepto').value = '';
+          row.querySelector('.precio').value = '';
+          row.querySelector('.cantidad').value = '1';
+          calcTotals();
+          _actualizarBotones();
+          return;
+        }
+        row.remove();
+        calcTotals();
+        _actualizarBotones();
+      });
+      lineasEl.appendChild(row);
+      calcTotals();
+      _actualizarBotones();
+    }
+
+    function resetFormulario() {
+      document.getElementById('cliente_nombre').value = '';
+      document.getElementById('cliente_nif').value = '';
+      lineasEl.innerHTML = '';
+      limpiarDraft();
+      addLinea();
+      _actualizarBotones();
+    }
+
+    // ── Persistencia del borrador de factura (localStorage) ───────────────────
+    const _DRAFT_KEY = 'factura_draft';
+    let _draftTimer = null;
+
+    function guardarDraft() {
+      const lineas = [...lineasEl.querySelectorAll('.fila')].map((fila) => ({
+        concepto: fila.querySelector('.concepto')?.value || '',
+        precio: fila.querySelector('.precio')?.value || '',
+        cantidad: fila.querySelector('.cantidad')?.value || '1',
+        categoria: fila.querySelector('.categoria')?.value || '',
+      }));
+      try {
+        localStorage.setItem(_DRAFT_KEY, JSON.stringify({
+          cliente_nombre: document.getElementById('cliente_nombre').value,
+          cliente_nif: document.getElementById('cliente_nif').value,
+          lineas,
+        }));
+        const hint = document.getElementById('draft-guardado');
+        if (hint) {
+          hint.hidden = false;
+          hint.classList.add('visible');
+          clearTimeout(hint._timer);
+          hint._timer = setTimeout(() => hint.classList.remove('visible'), 1800);
+        }
+      } catch (_) {}
+    }
+
+    function limpiarDraft() {
+      try { localStorage.removeItem(_DRAFT_KEY); } catch (_) {}
+    }
+
+    function restaurarDraft() {
+      let draft = null;
+      try {
+        const raw = localStorage.getItem(_DRAFT_KEY);
+        if (raw) draft = JSON.parse(raw);
+      } catch (_) {}
+      if (!draft || !Array.isArray(draft.lineas) || draft.lineas.length === 0) {
+        addLinea();
+        return;
+      }
+      document.getElementById('cliente_nombre').value = draft.cliente_nombre || '';
+      document.getElementById('cliente_nif').value = draft.cliente_nif || '';
+      draft.lineas.forEach((l) =>
+        addLinea(l.concepto, Number(l.cantidad) || 1, l.precio, l.categoria)
+      );
+    }
+
+    function _programarGuardadoDraft() {
+      if (_draftTimer) clearTimeout(_draftTimer);
+      _draftTimer = setTimeout(guardarDraft, 300);
+    }
+
+    async function refrescarResumenMensual() {
+      const totalesDiv = document.querySelector('.totales');
+      try {
+        const data = await request('/api/ganancias/resumen');
+        const resumen = data.resumen || { total: 0, cantidad_ventas: 0, por_categoria: {} };
+        facturasDia = Number(resumen.cantidad_ventas || 0);
+        acumuladoDia = Number(resumen.total || 0);
+        if (totalesDiv) totalesDiv.classList.remove('datos-error');
+        _actualizarBotones();
+      } catch (_) {
+        if (totalesDiv) totalesDiv.classList.add('datos-error');
+      }
+    }
+
+    function _actualizarBotonLogin() {
+      const btn = document.getElementById('btn-login');
+      const ok = document.getElementById('usuario').value.trim() &&
+                 document.getElementById('password').value;
+      btn.disabled = !ok;
+      if (!ok) btn.dataset.tooltip = 'Introduce tu usuario y contraseña';
+      else delete btn.dataset.tooltip;
+    }
+
+    function _actualizarBotones() {
+      // btn-generar: solo evaluar si no está en medio de conCarga
+      const btnGenerar = document.getElementById('btn-generar');
+      if (!btnGenerar.disabled || btnGenerar.textContent === 'Generar factura') {
+        const filas = [...lineasEl.querySelectorAll('.fila')];
+        let razon = '';
+        if (filas.length === 0 || filas.every(f => !f.querySelector('.concepto').value.trim())) {
+          razon = 'Añade al menos una línea con concepto';
+        } else if (filas.some(f => !f.querySelector('.concepto').value.trim())) {
+          razon = 'Completa el concepto en todas las líneas';
+        } else if (filas.some(f => !f.querySelector('.categoria').value)) {
+          razon = 'Selecciona una categoría en cada línea';
+        } else if (filas.some(f => !importeEurValido((f.querySelector('.precio').value || '').trim()))) {
+          razon = 'Hay precios vacíos o con formato incorrecto';
+        }
+        btnGenerar.disabled = Boolean(razon);
+        if (razon) btnGenerar.dataset.tooltip = razon;
+        else delete btnGenerar.dataset.tooltip;
+      }
+
+      // btn-cerrar-dia (elemento antiguo - ahora es parte del sistema secuencial)
+      const btnCierreDia = document.getElementById('btn-cerrar-dia');
+      if (btnCierreDia && (!btnCierreDia.disabled || btnCierreDia.textContent === 'Cerrar día')) {
+        btnCierreDia.disabled = facturasDia === 0;
+        if (facturasDia === 0) btnCierreDia.dataset.tooltip = 'No hay ventas hoy para cerrar';
+        else delete btnCierreDia.dataset.tooltip;
+      }
+
+      // btn-cerrar-mes (elemento antiguo - mantenido para compatibilidad)
+      const btnCierre = document.getElementById('btn-cerrar-mes');
+      if (btnCierre && (!btnCierre.disabled || btnCierre.textContent === 'Cerrar mes')) {
+        const sinVentas = facturasDia === 0 && acumuladoDia === 0;
+        btnCierre.disabled = sinVentas;
+        if (sinVentas) btnCierre.dataset.tooltip = 'No hay ventas activas este mes';
+        else delete btnCierre.dataset.tooltip;
+      }
+
+      // btn-restar
+      const btnRestar = document.getElementById('btn-restar');
+      if (!btnRestar.disabled || btnRestar.textContent === 'Restar') {
+        const ajusteRaw = (ajusteEl.value || '').trim();
+        const ajusteNum = Number(ajusteRaw.replace(',', '.'));
+        const formatoOk = importeEurValido(ajusteRaw) && ajusteNum > 0;
+        const superaTotal = formatoOk && acumuladoDia > 0 && ajusteNum > acumuladoDia;
+        btnRestar.disabled = !formatoOk || superaTotal;
+        if (!formatoOk) btnRestar.dataset.tooltip = 'Introduce un importe válido para restar';
+        else if (superaTotal) btnRestar.dataset.tooltip = `Supera el total del mes (${acumuladoDia.toFixed(2)} €)`;
+        else delete btnRestar.dataset.tooltip;
+      }
+    }
+
+    function confirmarSalida(mensaje) {
+      return window.confirm(mensaje);
+    }
+
+    function cerrarModalTicket(valor) {
+      ticketModalEl.classList.remove('active');
+      ticketModalEl.setAttribute('aria-hidden', 'true');
+      ticketModalEl.hidden = true;
+      if (resolverTicketModal) {
+        const resolve = resolverTicketModal;
+        resolverTicketModal = null;
+        resolve(valor);
+      }
+    }
+
+    function cerrarModalCierre(valor) {
+      cierreMesModalEl.classList.remove('active');
+      cierreMesModalEl.setAttribute('aria-hidden', 'true');
+      cierreMesModalEl.hidden = true;
+      if (resolverCierreModal) {
+        const resolve = resolverCierreModal;
+        resolverCierreModal = null;
+        resolve(valor);
+      }
+    }
+
+    function pedirConfirmacionCierreDia() {
+      return new Promise((resolve) => {
+        resolverCierreDiaModal = resolve;
+        cierreDiaModalEl.classList.add('active');
+        cierreDiaModalEl.setAttribute('aria-hidden', 'false');
+        cierreDiaModalEl.hidden = false;
+        btnCierreDiaConfirmar.focus();
+      });
+    }
+
+    function cerrarModalCierreDia(valor) {
+      cierreDiaModalEl.classList.remove('active');
+      cierreDiaModalEl.setAttribute('aria-hidden', 'true');
+      cierreDiaModalEl.hidden = true;
+      if (resolverCierreDiaModal) {
+        const r = resolverCierreDiaModal;
+        resolverCierreDiaModal = null;
+        r(valor);
+      }
+    }
+
+    function pedirImpresionTicket() {
+      return new Promise((resolve) => {
+        if (!appCard.classList.contains('active')) {
+          resolve(null);
+          return;
+        }
+        resolverTicketModal = resolve;
+        ticketModalEl.classList.add('active');
+        ticketModalEl.setAttribute('aria-hidden', 'false');
+        ticketModalEl.hidden = false;
+        btnTicketSi.focus();
+      });
+    }
+
+    function pedirConfirmacionCierreMes() {
+      return new Promise((resolve) => {
+        if (!appCard.classList.contains('active')) {
+          resolve(false);
+          return;
+        }
+        resolverCierreModal = resolve;
+        cierreMesModalEl.classList.add('active');
+        cierreMesModalEl.setAttribute('aria-hidden', 'false');
+        cierreMesModalEl.hidden = false;
+        btnCierreConfirmar.focus();
+      });
+    }
+
+    function escaparHtml(valor) {
+      return String(valor ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function formatoImporte(valor) {
+      return `${Number(valor || 0).toFixed(2)} EUR`;
+    }
+
+
+    async function imprimirTicketNavegador(datos) {
+      const emisor = datos.emisor || {};
+      const negocio = emisor.negocio || 'Zoo Picasso';
+      const nombreEmisor = emisor.nombre_completo || 'Gisselle Marin Tabares';
+      const nifEmisor = emisor.nif || '';
+      const direccionEmisor = emisor.direccion || '';
+      const telefonoEmisor = emisor.telefono || '';
+      const emailEmisor = emisor.email || '';
+
+      const lineasHtml = datos.lineas.map((linea) => {
+        const detalle = `${linea.cantidad} x ${formatoImporte(linea.precio_unitario)}`;
+        const total = formatoImporte(linea.total_linea);
+        return `
+          <div class="linea-item">
+            <div class="linea-concepto">${escaparHtml(linea.concepto)}</div>
+            <div class="linea-detalle">${escaparHtml(detalle)}</div>
+            <div class="linea-total">${escaparHtml(total)}</div>
+          </div>
+        `;
+      }).join('');
+
+      const emisorHtml = `
+        <div class="emisor-block">
+          <div class="center bold">${escaparHtml(negocio)}</div>
+          <div class="center">${escaparHtml(nombreEmisor)}</div>
+          ${nifEmisor ? `<div>NIF: ${escaparHtml(nifEmisor)}</div>` : ''}
+          ${direccionEmisor ? `<div>${escaparHtml(direccionEmisor)}</div>` : ''}
+          ${telefonoEmisor ? `<div>Tel: ${escaparHtml(telefonoEmisor)}</div>` : ''}
+          ${emailEmisor ? `<div>${escaparHtml(emailEmisor)}</div>` : ''}
+        </div>
+      `;
+
+      const clienteHtml = (datos.cliente_nombre || datos.cliente_nif)
+        ? `
+          <div class="sep"></div>
+          ${datos.cliente_nombre ? `<div>Cliente: ${escaparHtml(datos.cliente_nombre)}</div>` : ''}
+          ${datos.cliente_nif ? `<div>NIF/CIF: ${escaparHtml(datos.cliente_nif)}</div>` : ''}
+        `
+        : '';
+
+      // Efectivo entregado y cambio
+      let pagoHtml = '';
+      if (datos.efectivo_entregado > 0 && (datos.metodo_pago === 'efectivo' || datos.metodo_pago === 'mixto')) {
+        pagoHtml += `<div class="totales"><span>Efectivo entregado</span><span>${escaparHtml(formatoImporte(datos.efectivo_entregado))}</span></div>`;
+        if (datos.cambio > 0) {
+          pagoHtml += `<div class="totales"><span>Cambio a devolver</span><span>${escaparHtml(formatoImporte(datos.cambio))}</span></div>`;
+        }
+      }
+
+      const html = `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Ticket ${escaparHtml(datos.numero)}</title>
+  <style>
+    @page { size: 80mm auto; margin: 0; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New', Consolas, monospace;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      width: 80mm;
+      max-width: 80mm;
+      padding: 2mm 2.5mm;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .ticket { width: 100%; }
+    .center { text-align: center; }
+    .bold { font-weight: 700; }
+    .sep {
+      border-top: 1px dashed #000;
+      margin: 5px 0;
+    }
+    .linea-item {
+      margin: 0 0 6px 0;
+      padding: 0;
+    }
+    .linea-concepto {
+      font-weight: 700;
+      word-break: break-word;
+      margin-bottom: 1px;
+    }
+    .linea-detalle {
+      font-size: 12px;
+      word-break: break-word;
+    }
+    .linea-total {
+      text-align: right;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+    .totales {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .foot {
+      margin-top: 8px;
+      text-align: center;
+    }
+    @media screen {
+      body {
+        margin: 10px auto;
+        border: 1px solid #ddd;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ticket">
+    ${emisorHtml}
+    <div class="sep"></div>
+    <div class="center">Ticket de venta</div>
+    <div class="center">Factura ${escaparHtml(datos.numero)}</div>
+    <div class="center">Fecha ${escaparHtml(datos.fecha)}</div>
+    ${clienteHtml}
+    <div class="sep"></div>
+    <div class="bold">Productos / Servicios</div>
+    <div class="sep"></div>
+    ${lineasHtml || '<div>Sin líneas de detalle</div>'}
+    <div class="sep"></div>
+    <div class="totales"><span>TOTAL</span><span>${escaparHtml(formatoImporte(datos.total))}</span></div>
+    ${pagoHtml}
+    <div>IVA incluido</div>
+    <div class="sep"></div>
+    <div class="foot">Gracias por tu compra<br/>${escaparHtml(negocio)}</div>
+  </div>
+</body>
+</html>`;
+
+      await new Promise((resolve, reject) => {
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+
+        let resuelto = false;
+        let timeoutId = null;
+
+        const limpiar = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          iframe.remove();
+        };
+
+        const resolverOk = () => {
+          if (resuelto) {
+            return;
+          }
+          resuelto = true;
+          limpiar();
+          resolve();
+        };
+
+        const resolverError = (err) => {
+          if (resuelto) {
+            return;
+          }
+          resuelto = true;
+          limpiar();
+          reject(err);
+        };
+
+        const onLoad = () => {
+          try {
+            const win = iframe.contentWindow;
+            if (!win) {
+              throw new Error('No fue posible preparar la impresión del ticket.');
+            }
+
+            // Espera al ciclo de impresión antes de limpiar el iframe,
+            // evitando cortes de contenido en algunos drivers térmicos.
+            win.addEventListener('afterprint', resolverOk, { once: true });
+
+            win.focus();
+            win.print();
+
+            // Fallback si afterprint no dispara (según navegador/driver).
+            timeoutId = setTimeout(resolverOk, 12000);
+          } catch (err) {
+            resolverError(err);
+          }
+        };
+
+        iframe.addEventListener('load', onLoad, { once: true });
+        document.body.appendChild(iframe);
+
+        if ('srcdoc' in iframe) {
+          iframe.srcdoc = html;
+          return;
+        }
+
+        try {
+          const doc = iframe.contentDocument;
+          if (!doc) {
+            throw new Error('No fue posible generar la vista de ticket.');
+          }
+          doc.open();
+          doc.write(html);
+          doc.close();
+        } catch (err) {
+          resolverError(err);
+        }
+      });
+    }
+
+    async function refrescarListaAjustes() {
+      const el = document.getElementById('lista-ajustes');
+      try {
+        const data = await request('/api/ganancias/ajustes');
+        const ajustes = data.ajustes || [];
+        if (ajustes.length === 0) {
+          el.textContent = '';
+          return;
+        }
+        const items = ajustes.map((a) => {
+          const fecha = new Date(a.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+          return `−${Number(a.monto).toFixed(2)} € (${fecha})`;
+        });
+        el.textContent = `Ajustes este mes: ${items.join(' · ')}`;
+      } catch (_) {
+        el.textContent = '';
+      }
+    }
+
+    async function restarAcumulado() {
+      errorEl.textContent = '';
+      const ajusteRaw = (ajusteEl.value || '').trim();
+      if (!importeEurValido(ajusteRaw)) {
+        errorEl.textContent = 'Importe invalido: usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50).';
+        return;
+      }
+      const ajuste = Number(ajusteRaw.replace(',', '.'));
+
+      if (!Number.isFinite(ajuste) || ajuste <= 0) {
+        errorEl.textContent = 'Introduce un importe válido mayor que 0 para ajustar.';
+        return;
+      }
+
+      if (ajuste > acumuladoDia) {
+        errorEl.textContent = `El ajuste (${ajuste.toFixed(2)} €) supera el total acumulado del mes (${acumuladoDia.toFixed(2)} €).`;
+        return;
+      }
+
+      if (!confirm(`¿Restar ${ajuste.toFixed(2)} € del total del mes? Esta acción no se puede deshacer.`)) return;
+
+      try {
+        const data = await request('/api/ganancias/ajuste', {
+          method: 'POST',
+          body: JSON.stringify({ monto: ajuste }),
+        });
+        ajusteEl.value = '';
+        resultadoEl.textContent = `Ajuste aplicado: -${ajuste.toFixed(2)} € al acumulado.`;
+        const resumen = data.resumen || {};
+        facturasDia = Number(resumen.cantidad_ventas || 0);
+        acumuladoDia = Number(resumen.total || 0);
+        await refrescarListaAjustes();
+        _actualizarBotones();
+      } catch (err) {
+        errorEl.textContent = err.message || 'Error al guardar el ajuste.';
+      }
+    }
+
+    async function request(path, options = {}, timeoutMs = 30000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(path, {
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+          credentials: 'same-origin',
+          signal: controller.signal,
+          ...options,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.detail || 'Error inesperado');
+        }
+        return res.json().catch(() => ({}));
+      } catch (err) {
+        if (err.name === 'AbortError') throw new Error('La operación tardó demasiado. Comprueba la conexión e inténtalo de nuevo.');
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function conCarga(btn, textoEspera, fn) {
+      const textoOriginal = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = textoEspera;
+      try {
+        return await fn();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+      }
+    }
+
+    // ── IndexedDB helpers ─────────────────────────────────────────────────────
+    function abrirIDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('facturas-db', 1);
+        req.onupgradeneeded = (e) => { e.target.result.createObjectStore('config'); };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function idbGet(store, key) {
+      const db = await abrirIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readonly');
+        const req = tx.objectStore(store).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function idbSet(store, key, value) {
+      const db = await abrirIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite');
+        const req = tx.objectStore(store).put(value, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    let _toastTimeout = null;
+
+    function mostrarToast(msg) {
+      const toast = document.getElementById('toast-guardado');
+      toast.textContent = msg;
+      toast.classList.add('visible');
+      if (_toastTimeout) clearTimeout(_toastTimeout);
+      _toastTimeout = setTimeout(() => {
+        toast.classList.remove('visible');
+        _toastTimeout = null;
+      }, 2000);
+    }
+
+    // ── Guardado en carpeta (File System Access API + IndexedDB) ──────────────
+    async function _descargarDirecto(url, nombreArchivo) {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('No se pudo descargar el archivo.');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function guardarEnCarpeta(data) {
+      const response = await fetch(data.download_url, { credentials: 'same-origin' });
+      if (!response.ok) {
+        throw new Error('No se pudo descargar el archivo de factura.');
+      }
+      const blob = await response.blob();
+
+      // Fallback para navegadores sin File System Access API (ej. Firefox).
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.archivo;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        mostrarToast('Se ha guardado');
+        return;
+      }
+
+      // Recuperar handle guardado en IndexedDB y verificar permisos.
+      let dirHandle = null;
+      try {
+        dirHandle = await idbGet('config', 'carpeta_facturas');
+      } catch (_) { /* continuar sin handle guardado */ }
+
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+
+      // Si no hay handle válido, pedir carpeta al usuario y persistirla.
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        try { await idbSet('config', 'carpeta_facturas', dirHandle); } catch (_) { /* no crítico */ }
+      }
+
+      const fileHandle = await dirHandle.getFileHandle(data.archivo, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast('Se ha guardado');
+    }
+
+    async function guardarCierreEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierres').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierres', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierres(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
+    async function guardarCierreDiaEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre del día descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierres_dia').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierres_dia', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierresDia(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
+    async function guardarCierreMañanaEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre de la mañana descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierre_mañana').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_mañana', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierreMañana(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
+    async function guardarCierreTardeEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre de la tarde descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierre_tarde').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_tarde', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierreTarde(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
+    async function guardarCierreDiaCompletoEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Cierre del día completo descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_cierre_dia_completo').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_dia_completo', dirHandle).catch(() => {});
+        actualizarNombreCarpetaCierreDiaCompleto(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Guardado en: ${dirHandle.name}`);
+    }
+
+    async function guardarBackupEnCarpeta(blob, nombre) {
+      if (!window.showDirectoryPicker) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+        mostrarToast('Backup descargado');
+        return;
+      }
+      let dirHandle = await idbGet('config', 'carpeta_backup').catch(() => null);
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') dirHandle = null;
+        }
+      }
+      if (!dirHandle) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_backup', dirHandle).catch(() => {});
+        actualizarNombreCarpetaBackup(dirHandle.name);
+      }
+      const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      mostrarToast(`Backup guardado en: ${dirHandle.name}`);
+    }
+
+    document.getElementById('btn-login').addEventListener('click', async () => {
+      const usuario = document.getElementById('usuario').value.trim();
+      const password = document.getElementById('password').value;
+      const error = document.getElementById('login-error');
+      error.textContent = '';
+
+      try {
+        const password_hash = await sha256(password);
+        await request('/api/login', {
+          method: 'POST',
+          body: JSON.stringify({ usuario, password_hash }),
+        });
+        toggleView(true);
+        await refrescarResumenMensual();
+        await refrescarListaAjustes();
+        restaurarDraft();
+        // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
+        // El usuario puede iniciar el tutorial haciendo click en el botón "?" del header
+      } catch (e) {
+        error.textContent = e.message;
+      }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      if (!confirmarSalida('Si sales ahora, el borrador de factura en curso se perderá. ¿Deseas continuar?')) {
+        return;
+      }
+      await request('/api/logout', { method: 'POST', body: '{}' });
+      facturasDia = 0;
+      acumuladoDia = 0;
+      resetFormulario();
+      toggleView(false);
+    });
+
+    const btnCarpeta = document.getElementById('btn-carpeta');
+    const spanNombreCarpeta = document.getElementById('nombre-carpeta-local');
+    const infoLocalActual = document.getElementById('info-local-actual');
+
+    async function actualizarUIConfig() {
+      try {
+        const config = await request('/api/config');
+        document.getElementById('info-auditoria').textContent = config.rutas.excel_auditoria;
+        document.getElementById('info-facturas').textContent = config.rutas.facturas_principal;
+      } catch (e) {
+        console.warn('No se pudo cargar la configuración del servidor:', e);
+      }
+    }
+
+    function actualizarNombreCarpetaLocal(nombre) {
+      if (spanNombreCarpeta) spanNombreCarpeta.textContent = nombre ? `📁 ${nombre}` : '';
+      if (infoLocalActual) infoLocalActual.textContent = nombre || 'No seleccionada';
+      btnCarpeta.title = nombre ? `Destino local: ${nombre} (clic para cambiar)` : 'Cambiar carpeta de destino local';
+    }
+
+    btnCarpeta.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los archivos se descargarán automáticamente.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_facturas', dirHandle);
+        actualizarNombreCarpetaLocal(dirHandle.name);
+        resultadoEl.textContent = `Carpeta de destino configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta de destino.';
+        }
+      }
+    });
+
+    // Inicialización al cargar
+    idbGet('config', 'carpeta_facturas').then(h => {
+      if (h) actualizarNombreCarpetaLocal(h.name);
+    }).catch(() => {});
+
+    // FIXME: Los siguientes event listeners referencian botones que no existen (comentados en FASE 2)
+    // Comentados para evitar ReferenceError que rompe todo el script
+    /*
+    btnCarpetaCierreTarde.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_tarde', dirHandle);
+        actualizarNombreCarpetaCierreTarde(dirHandle.name);
+        resultadoEl.textContent = `Carpeta para cierre de la tarde configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta.';
+        }
+      }
+    });
+
+    btnCarpetaCierreDiaCompleto.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_dia_completo', dirHandle);
+        actualizarNombreCarpetaCierreDiaCompleto(dirHandle.name);
+        resultadoEl.textContent = `Carpeta para cierre del día completo configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta.';
+        }
+      }
+    });
+
+    btnCarpetaCierreMañana.addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta.';
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_cierre_mañana', dirHandle);
+        actualizarNombreCarpetaCierreMañana(dirHandle.name);
+        resultadoEl.textContent = `Carpeta para cierre de la mañana configurada: ${dirHandle.name}`;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta.';
+        }
+      }
+    });
+    */
+
+    document.getElementById('btn-add').addEventListener('click', () => addLinea());
+    document.getElementById('btn-tutorial').addEventListener('click', () => tutorialManager.reactivar());
+    document.getElementById('cliente_nombre').addEventListener('input', _programarGuardadoDraft);
+    document.getElementById('cliente_nif').addEventListener('input', _programarGuardadoDraft);
+    lineasEl.addEventListener('input', _programarGuardadoDraft);
+    lineasEl.addEventListener('change', _programarGuardadoDraft);
+    lineasEl.addEventListener('input', _actualizarBotones);
+    lineasEl.addEventListener('change', _actualizarBotones);
+    document.getElementById('usuario').addEventListener('input', _actualizarBotonLogin);
+    document.getElementById('password').addEventListener('input', _actualizarBotonLogin);
+    document.getElementById('btn-restar').addEventListener('click', () => {
+      conCarga(document.getElementById('btn-restar'), 'Aplicando…', restarAcumulado);
+    });
+    ajusteEl.addEventListener('input', _actualizarBotones);
+    ajusteEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        conCarga(document.getElementById('btn-restar'), 'Aplicando…', restarAcumulado);
+      }
+    });
+
+    btnTicketCancelar.addEventListener('click', () => cerrarModalTicket(null));
+    btnTicketNo.addEventListener('click', () => cerrarModalTicket(false));
+    btnTicketSi.addEventListener('click', () => cerrarModalTicket(true));
+    // Nota: Los elementos de cierre antiguo (btnCierreCancelar, etc.) fueron reemplazados por el nuevo sistema de cierres secuenciales
+    // y no son accesibles aquí. Permanecen las referencias a cierreMesModalEl para compatibilidad.
+
+    ticketModalEl.addEventListener('click', (e) => {
+      if (e.target === ticketModalEl) {
+        cerrarModalTicket(null);
+      }
+    });
+
+    // Nota: Los modales de cierre antiguo (cierreMesModalEl, cierreDiaModalEl) fueron reemplazados
+    // por el nuevo sistema dinámico. Las referencias se mantienen para no romper compatibilidad si existen.
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && ticketModalEl.classList.contains('active')) {
+        cerrarModalTicket(null);
+      }
+    });
+
+    // --- Modal método de pago ---
+    const pagoModalEl = document.getElementById('pago-modal');
+    const pagoForm = document.getElementById('pago-form');
+    const btnPagoCancelar = document.getElementById('btn-pago-cancelar');
+    const btnPagoConfirmar = document.getElementById('btn-pago-confirmar');
+    const pagoErrorEl = document.getElementById('pago-error');
+    const pagoEfectivoEl = document.getElementById('pago-efectivo');
+    const pagoTarjetaEl = document.getElementById('pago-tarjeta');
+    const pagoEntregadoEl = document.getElementById('pago-entregado');
+    const pagoEntregadoGroup = document.getElementById('pago-entregado-group');
+    const pagoCambioInfo = document.getElementById('pago-cambio-info');
+    const pagoEfectivoGroup = document.getElementById('pago-efectivo-group');
+    const pagoTarjetaGroup = document.getElementById('pago-tarjeta-group');
+    const pagoMixtoInfo = document.getElementById('pago-mixto-info');
+    const pagoRadioEfectivo = pagoForm.querySelector('input[value="efectivo"]');
+    const pagoRadioTarjeta = pagoForm.querySelector('input[value="tarjeta"]');
+    const pagoRadioMixto = pagoForm.querySelector('input[value="mixto"]');
+
+    let resolverPagoModal = null;
+
+    function abrirModalPago(totalFactura) {
+      return new Promise((resolve) => {
+        if (!appCard.classList.contains('active')) {
+          resolve(null);
+          return;
+        }
+        pagoForm.reset();
+        pagoEfectivoEl.value = totalFactura.toFixed(2);
+        pagoEfectivoEl.readOnly = false;
+        pagoErrorEl.textContent = '';
+        pagoEfectivoGroup.style.display = 'none';
+        pagoTarjetaGroup.style.display = 'none';
+        pagoMixtoInfo.style.display = 'none';
+        pagoModalEl.classList.add('active');
+        pagoModalEl.setAttribute('aria-hidden', 'false');
+        pagoModalEl.hidden = false;
+        resolverPagoModal = resolve;
+        // Foco en primer radio
+        setTimeout(() => {
+          const radios = pagoForm.querySelectorAll('input[name="metodo_pago"]');
+          if (radios.length) radios[0].focus();
+        }, 100);
+      });
+    }
+
+    function cerrarModalPago(valor) {
+      pagoModalEl.classList.remove('active');
+      pagoModalEl.setAttribute('aria-hidden', 'true');
+      pagoModalEl.hidden = true;
+      if (resolverPagoModal) {
+        const resolve = resolverPagoModal;
+        resolverPagoModal = null;
+        resolve(valor);
+      }
+    }
+
+    function actualizarCambio() {
+      const metodo = pagoForm.metodo_pago.value;
+      const totalFactura = Number(totalEl.textContent.replace('€','').trim());
+      let efectivo = Number(pagoEfectivoEl.value || 0);
+      let entregado = Number(pagoEntregadoEl.value || 0);
+      let cambio = 0;
+      if (metodo === 'efectivo' || metodo === 'mixto') {
+        if (entregado > 0 && efectivo > 0 && entregado >= efectivo) {
+          cambio = +(entregado - efectivo).toFixed(2);
+          pagoCambioInfo.textContent = `Cambio: ${cambio.toFixed(2)} €`;
+        } else {
+          pagoCambioInfo.textContent = '';
+        }
+      } else {
+        pagoCambioInfo.textContent = '';
+      }
+    }
+
+    pagoForm.addEventListener('change', (e) => {
+      const metodo = pagoForm.metodo_pago.value;
+      pagoErrorEl.textContent = '';
+      pagoEntregadoGroup.style.display = 'none';
+      if (metodo === 'efectivo') {
+        pagoEfectivoEl.readOnly = true;
+        pagoEfectivoGroup.style.display = '';
+        pagoEntregadoGroup.style.display = '';
+        pagoTarjetaGroup.style.display = 'none';
+        pagoMixtoInfo.style.display = 'none';
+      } else if (metodo === 'tarjeta') {
+        const total = Number(totalEl.textContent.replace('€', '').trim());
+        pagoEfectivoGroup.style.display = 'none';
+        pagoEntregadoGroup.style.display = 'none';
+        pagoTarjetaGroup.style.display = '';
+        pagoTarjetaEl.value = total.toFixed(2);
+        pagoMixtoInfo.style.display = 'none';
+      } else if (metodo === 'mixto') {
+        pagoEfectivoEl.readOnly = false;
+        pagoEfectivoEl.value = '';
+        pagoEfectivoGroup.style.display = '';
+        pagoEntregadoGroup.style.display = '';
+        pagoTarjetaGroup.style.display = 'none';
+        pagoMixtoInfo.style.display = '';
+        pagoMixtoInfo.textContent = 'Ingresa el monto en efectivo. El resto se cargará a tarjeta automáticamente.';
+      }
+      actualizarCambio();
+    });
+
+    pagoEfectivoEl.addEventListener('input', actualizarCambio);
+    pagoEntregadoEl.addEventListener('input', actualizarCambio);
+
+    btnPagoCancelar.addEventListener('click', () => cerrarModalPago(null));
+    pagoModalEl.addEventListener('click', (e) => {
+      if (e.target === pagoModalEl) cerrarModalPago(null);
+    });
+
+    pagoForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const metodo = pagoForm.metodo_pago.value;
+      let montoEfectivo = Number(pagoEfectivoEl.value || 0);
+      let montoTarjeta = Number(pagoTarjetaEl.value || 0);
+      let efectivoEntregado = Number(pagoEntregadoEl.value || 0);
+      const totalFactura = Number(totalEl.textContent.replace('€','').trim());
+      const tolerancia = 0.01;
+      if (metodo === 'efectivo') {
+        if (montoEfectivo <= 0 || Math.abs(montoEfectivo - totalFactura) > tolerancia) {
+          pagoErrorEl.textContent = 'El monto en efectivo debe ser igual al total.';
+          pagoEfectivoEl.focus();
+          return;
+        }
+        if (efectivoEntregado < montoEfectivo) {
+          pagoErrorEl.textContent = 'El efectivo entregado debe ser igual o mayor al total.';
+          pagoEntregadoEl.focus();
+          return;
+        }
+        montoTarjeta = 0;
+      } else if (metodo === 'tarjeta') {
+        if (montoTarjeta <= 0 || Math.abs(montoTarjeta - totalFactura) > tolerancia) {
+          pagoErrorEl.textContent = 'El monto en tarjeta debe ser igual al total.';
+          pagoTarjetaEl.focus();
+          return;
+        }
+        montoEfectivo = 0;
+        efectivoEntregado = 0;
+      } else if (metodo === 'mixto') {
+        if (montoEfectivo < 0 || montoEfectivo > totalFactura) {
+          pagoErrorEl.textContent = 'El monto en efectivo debe estar entre 0 y el total.';
+          pagoEfectivoEl.focus();
+          return;
+        }
+        if (efectivoEntregado < montoEfectivo) {
+          pagoErrorEl.textContent = 'El efectivo entregado debe ser igual o mayor al efectivo a pagar.';
+          pagoEntregadoEl.focus();
+          return;
+        }
+        montoTarjeta = +(totalFactura - montoEfectivo).toFixed(2);
+        if (montoTarjeta < 0 || Math.abs(montoEfectivo + montoTarjeta - totalFactura) > tolerancia) {
+          pagoErrorEl.textContent = 'La suma de efectivo y tarjeta debe ser igual al total.';
+          pagoEfectivoEl.focus();
+          return;
+        }
+      } else {
+        pagoErrorEl.textContent = 'Selecciona un método de pago.';
+        return;
+      }
+      cerrarModalPago({ metodo_pago: metodo, monto_efectivo: +montoEfectivo, monto_tarjeta: +montoTarjeta, efectivo_entregado: +efectivoEntregado });
+    });
+
+    document.getElementById('btn-cerrar-dia').addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+      const pModal = document.getElementById('cierre-dia-modal-info');
+      if (pModal) {
+        const fechaHoy = new Date().toLocaleDateString('es-ES');
+        pModal.textContent = `Vas a cerrar el día ${fechaHoy}: ${facturasDia} venta${facturasDia !== 1 ? 's' : ''} por ${acumuladoDia.toFixed(2)} €. Se generará el Excel del día.`;
+      }
+      const confirmado = await pedirConfirmacionCierreDia();
+      if (!confirmado) return;
+
+      await conCarga(document.getElementById('btn-cerrar-dia'), 'Cerrando día…', async () => {
+        try {
+          const res = await fetch('/api/ganancias/cierre-dia', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmacion: true }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'No se pudo completar el cierre diario.');
+          }
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await res.json();
+            resultadoEl.textContent = data.mensaje || 'No hay ventas para cerrar hoy.';
+          } else {
+            const blob = await res.blob();
+            const cd = res.headers.get('content-disposition') || '';
+            const nombre = cd.match(/filename=["']?([^"';\r\n]+)/)?.[1]?.trim() ?? `cierre_diario_${Date.now()}.xlsx`;
+            const mensaje = res.headers.get('x-cierre-mensaje') || 'Cierre diario completado.';
+            resultadoEl.textContent = mensaje;
+            try {
+              await guardarCierreDiaEnCarpeta(blob, nombre);
+              mostrarToast('✓ Día cerrado correctamente');
+            } catch (_) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = nombre; a.click();
+              URL.revokeObjectURL(url);
+              resultadoEl.textContent += ' (descarga automática)';
+              mostrarToast('✓ Día cerrado (descarga automática)');
+            }
+          }
+        } catch (e) {
+          errorEl.textContent = e.message || 'No se pudo completar el cierre diario.';
+        }
+      });
+      _actualizarBotones();
+    });
+
+    // NOTA: El antiguo event listener de btnCierreMes ('btn-cerrar-mes') ha sido reemplazado
+    // por el nuevo sistema de cierres secuenciales en el código FASE 2
+    // El manejo del cierre de mes ahora está en la sección "Cierres Contables"
+    // que comienza aproximadamente en línea 2145
+    /*
+    btnCierreMes.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      resultadoEl.textContent = '';
+      const mesActual = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+      const pModalP = cierreMesModalEl.querySelector('p');
+      if (pModalP) {
+        pModalP.textContent = `Vas a cerrar ${mesActual}: ${facturasDia} venta${facturasDia !== 1 ? 's' : ''} por ${acumuladoDia.toFixed(2)} €. Esto generará el Excel del mes y reiniciará los contadores. Esta acción no se puede deshacer.`;
+      }
+      const confirmado = await pedirConfirmacionCierreMes();
+      if (!confirmado) {
+        resultadoEl.textContent = 'Cierre mensual cancelado.';
+        return;
+      }
+
+      await conCarga(btnCierreMes, 'Cerrando mes…', async () => {
+        try {
+          const res = await fetch('/api/ganancias/cierre-mes', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmacion: true }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'No se pudo completar el cierre mensual.');
+          }
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await res.json();
+            resultadoEl.textContent = data.mensaje || 'No hay ventas activas para cerrar.';
+            await refrescarResumenMensual();
+          } else {
+            const blob = await res.blob();
+            const cd = res.headers.get('content-disposition') || '';
+            const nombre = cd.match(/filename=["']?([^"';\r\n]+)/)?.[1]?.trim() ?? `cierre_${Date.now()}.xlsx`;
+            const mensaje = res.headers.get('x-cierre-mensaje') || 'Cierre mensual completado.';
+            resultadoEl.textContent = mensaje;
+            await refrescarResumenMensual();
+            try {
+              await guardarCierreEnCarpeta(blob, nombre);
+              mostrarToast('✓ Mes cerrado correctamente');
+            } catch (_) {
+              // Cierre completado — fallback con el blob ya descargado, sin segunda petición
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = nombre; a.click();
+              URL.revokeObjectURL(url);
+              resultadoEl.textContent += ' (descarga iniciada automáticamente)';
+              mostrarToast('✓ Mes cerrado (descarga automática)');
+            }
+          }
+        } catch (e) {
+          errorEl.textContent = e.message || 'No se pudo completar el cierre mensual.';
+        }
+      });
+      _actualizarBotones();
+    });
+    */
+
+    document.getElementById('btn-generar').addEventListener('click', async () => {
+      resultadoEl.textContent = '';
+      errorEl.textContent = '';
+
+      const filasArr = [...lineasEl.querySelectorAll('.fila')];
+
+      const sinConcepto = filasArr.some((fila) => !fila.querySelector('.concepto').value.trim());
+      if (sinConcepto) {
+        errorEl.textContent = 'Escribe o selecciona un concepto para cada línea.';
+        return;
+      }
+
+      const sinCategoria = filasArr.some((fila) => !fila.querySelector('.categoria').value);
+      if (sinCategoria) {
+        errorEl.textContent = 'Selecciona una categoría para cada línea.';
+        return;
+      }
+
+      const precioInvalido = filasArr.some(
+        (fila) => !importeEurValido((fila.querySelector('.precio').value || '').trim())
+      );
+      if (precioInvalido) {
+        errorEl.textContent = 'Hay precios invalidos. Usa formato EUR sin ceros a la izquierda (ej: 1100 o 1100.50).';
+        return;
+      }
+
+      const btnGenerar = document.getElementById('btn-generar');
+      // Paso 1: método de pago
+      const totalFactura = Number(totalEl.textContent.replace('€','').trim());
+      const pago = await abrirModalPago(totalFactura);
+      if (!pago) {
+        resultadoEl.textContent = 'Generación cancelada por el usuario.';
+        return;
+      }
+
+      // Paso 2: ticket
+      const deseaImprimirTicket = await pedirImpresionTicket();
+      if (deseaImprimirTicket === null) {
+        resultadoEl.textContent = 'Generación cancelada por el usuario.';
+        return;
+      }
+
+      const lineas = filasArr.map((fila) => ({
+        concepto: fila.querySelector('.concepto').value.trim(),
+        cantidad: Number(fila.querySelector('.cantidad').value),
+        precio_unitario: Number((fila.querySelector('.precio').value || '').replace(',', '.')),
+        categoria: fila.querySelector('.categoria').value,
+      }));
+
+      await conCarga(btnGenerar, 'Generando…', async () => {
+      try {
+        const data = await request('/api/generar', {
+          method: 'POST',
+          body: JSON.stringify({
+            cliente_nombre: document.getElementById('cliente_nombre').value,
+            cliente_nif: document.getElementById('cliente_nif').value,
+            lineas,
+            imprimir_ticket: deseaImprimirTicket,
+            metodo_pago: pago.metodo_pago,
+            monto_efectivo: pago.monto_efectivo,
+            monto_tarjeta: pago.monto_tarjeta,
+            efectivo_entregado: pago.efectivo_entregado,
+          }),
+        });
+
+        resultadoEl.textContent = `Factura ${data.numero} generada.`;
+        estadoEl.textContent = `Última factura: ${data.numero}`;
+        facturasDia += 1;
+        facturasDiaEl.textContent = String(facturasDia);
+        acumuladoDia += Number(data.total);
+        acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
+        try {
+          await guardarEnCarpeta(data);
+        } catch (err) {
+          if (err && err.name === 'AbortError') {
+            resultadoEl.textContent += ' Guardado cancelado por el usuario.';
+            return;
+          }
+          throw err;
+        }
+
+        if (deseaImprimirTicket) {
+          const clienteNombre = document.getElementById('cliente_nombre').value.trim();
+          const clienteNif = document.getElementById('cliente_nif').value.trim();
+          const fechaTicket = new Date().toLocaleDateString('es-ES');
+          const lineasTicket = lineas.map((l) => ({
+            concepto: l.concepto,
+            cantidad: l.cantidad,
+            precio_unitario: l.precio_unitario,
+            total_linea: Number(l.cantidad) * Number(l.precio_unitario),
+          }));
+
+          try {
+            await imprimirTicketNavegador({
+              numero: data.numero,
+              fecha: fechaTicket,
+              cliente_nombre: clienteNombre,
+              cliente_nif: clienteNif,
+              lineas: lineasTicket,
+              total: Number(data.total),
+              emisor: data.emisor || null,
+              efectivo_entregado: pago.efectivo_entregado || 0,
+              cambio: Number(data.cambio || 0),
+              metodo_pago: pago.metodo_pago,
+            });
+            resultadoEl.textContent += ' Se abrió la vista de impresión del ticket.';
+          } catch (err) {
+            errorEl.textContent = err.message || 'No se pudo abrir la impresión del ticket.';
+          }
+        }
+
+        await refrescarResumenMensual();
+        resetFormulario();
+      } catch (e) {
+        errorEl.textContent = e.message;
+      }
+      }); // fin conCarga
+      _actualizarBotones();
+    });
+
+    document.getElementById('btn-leyenda').addEventListener('click', () => {
+      document.getElementById('panel-leyenda').classList.toggle('fijo');
+    });
+
+    async function bootstrap() {
+      let loggedIn = false;
+      try {
+        const session = await request('/api/session');
+        loggedIn = Boolean(session.logged_in);
+        toggleView(loggedIn);
+        if (loggedIn) {
+          estadoEl.textContent = 'Cargando datos…';
+          await refrescarResumenMensual();
+          await refrescarListaAjustes();
+          estadoEl.textContent = 'Completa los datos y genera el Excel.';
+        }
+      } catch {
+        toggleView(false);
+      }
+      if (loggedIn) {
+        restaurarDraft();
+        // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
+        // El usuario puede iniciar el tutorial haciendo click en el botón "?" del header
+        // Cargar estado de cierres secuenciales al iniciar sesión
+        if (window.cargarEstadoCierres) {
+          setTimeout(() => window.cargarEstadoCierres(), 500);
+        }
+      } else {
+        addLinea();
+        _actualizarBotonLogin();
+      }
+    }
+
+    // ── Cierres Contables ─────────────────────────────────────────────────────
+    (function() {
+      const btnCierreMañana = document.getElementById('btn-cierre-mañana');
+      const btnCierreTarde = document.getElementById('btn-cierre-tarde');
+      const btnCierreDiaCompleto = document.getElementById('btn-cierre-dia-completo');
+      const btnCierreMes = document.getElementById('btn-cierre-mes');
+      
+      // Validar que todos los elementos existan antes de continuar
+      if (!btnCierreMañana || !btnCierreTarde || !btnCierreDiaCompleto || !btnCierreMes) {
+        console.warn('No todos los botones de cierre fueron encontrados. Algunos pueden ser null.');
+        return;
+      }
+
+      const modalCierre = document.getElementById('modal-cierre');
+      const btnConfirm = document.getElementById('btn-confirm');
+      const btnCancel = document.getElementById('btn-cancel');
+      const cierreStatus = document.getElementById('cierre-status');
+      const modalTitulo = document.getElementById('modal-titulo');
+      const modalMensaje = document.getElementById('modal-mensaje');
+      const modalWarning = document.getElementById('modal-warning');
+      
+      // Indicadores de estado (son opcionales, pueden no existir)
+      const statusMañana = document.getElementById('cierre-mañana-status');
+      const statusTarde = document.getElementById('cierre-tarde-status');
+      const statusDiaCompleto = document.getElementById('cierre-dia-completo-status');
+
+      let cierreEnCurso = null;
+      const tiposDescripcion = {
+        'mañana': { color: '#4CAF50', icono: '🌅', descripcion: 'Cierre de Mañana (06:00-14:00)' },
+        'tarde': { color: '#FF9800', icono: '🌤️', descripcion: 'Cierre de Tarde (14:00-22:00)' },
+        'dia-completo': { color: '#2196F3', icono: '📅', descripcion: 'Cierre del Día Completo' },
+        'mes': { color: '#9C27B0', icono: '📅', descripcion: 'Cierre del Mes' }
+      };
+
+      async function cargarEstadoCierres() {
+        try {
+          const res = await fetch('/api/ganancias/estado-cierres');
+          if (!res.ok) throw new Error('No se pudo cargar el estado');
+          const estado = await res.json();
+          
+          // Actualizar botones según el estado
+          if (estado.hizo_mañana) {
+            btnCierreMañana.disabled = true;
+            btnCierreMañana.style.opacity = '0.6';
+            if (statusMañana) statusMañana.style.display = 'inline';
+            btnCierreTarde.disabled = false;
+            btnCierreTarde.style.opacity = '1';
+            btnCierreTarde.dataset.estado = 'pending';
+          }
+          
+          if (estado.hizo_tarde) {
+            btnCierreTarde.disabled = true;
+            btnCierreTarde.style.opacity = '0.6';
+            if (statusTarde) statusTarde.style.display = 'inline';
+            btnCierreDiaCompleto.disabled = false;
+            btnCierreDiaCompleto.style.opacity = '1';
+            btnCierreDiaCompleto.dataset.estado = 'pending';
+          }
+          
+          if (estado.hizo_dia_completo) {
+            btnCierreDiaCompleto.disabled = true;
+            btnCierreDiaCompleto.style.opacity = '0.6';
+            if (statusDiaCompleto) statusDiaCompleto.style.display = 'inline';
+          }
+        } catch (err) {
+          console.error('Error al cargar estado de cierres:', err);
+        }
+      }
+
+      // Auto-refresh del estado de cierres cada 30 segundos
+      setInterval(cargarEstadoCierres, 30000);
+
+      function mostrarModal(tipo) {
+        cierreEnCurso = tipo;
+        const desc = tiposDescripcion[tipo];
+        
+        if (tipo === 'mañana') {
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
+          modalMensaje.textContent = 'Se generará una foto contable de las ventas entre 06:00 y 14:00. Los datos NO serán archivados (puedes repetir tantas veces como quieras).';
+          modalWarning.textContent = 'Es solo una fotografía de la mañana. Los datos permanecen en el sistema.';
+        } else if (tipo === 'tarde') {
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
+          modalMensaje.textContent = 'Se generará una foto contable de las ventas entre 14:00 y 22:00. Los datos NO serán archivados (puedes repetir tantas veces como quieras).';
+          modalWarning.textContent = 'Es solo una fotografía de la tarde. Los datos permanecen en el sistema.';
+        } else if (tipo === 'dia-completo') {
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
+          modalMensaje.textContent = 'Se generará una foto contable de todas las ventas del día (06:00-22:00). Los datos NO serán archivados.';
+          modalWarning.textContent = 'Solo disponible después de completar mañana Y tarde.';
+        } else {
+          modalTitulo.textContent = `${desc.icono} ${desc.descripcion}`;
+          modalMensaje.textContent = 'Se archivará PERMANENTEMENTE todas las ventas del mes actual. Esta acción NO se puede deshacer.';
+          modalWarning.textContent = 'Una vez archivado, los datos de este mes se dejarán de contar para cálculos futuros.';
+        }
+        
+        btnConfirm.style.background = desc.color;
+        modalCierre.style.display = 'flex';
+        btnConfirm.focus();
+      }
+
+      function ocultarModal() {
+        modalCierre.style.display = 'none';
+        cierreEnCurso = null;
+      }
+
+      function mostrarEstado(mensaje, tipo = 'info', esHtml = false) {
+        cierreStatus.style.display = 'block';
+        const colors = {
+          'success': '#4CAF50',
+          'error': '#f44336',
+          'info': '#2196F3',
+          'warning': '#ff9800'
+        };
+        const icon = {
+          'success': '✅',
+          'error': '❌',
+          'info': 'ℹ️',
+          'warning': '⚠️'
+        };
+        const spinner = tipo === 'info' ? '<span class="spinner"></span>' : '';
+        cierreStatus.style.background = colors[tipo] + '20';
+        cierreStatus.style.color = colors[tipo];
+        cierreStatus.style.borderLeft = `4px solid ${colors[tipo]}`;
+        
+        if (esHtml) {
+          cierreStatus.innerHTML = `<strong>${spinner}${icon[tipo]}</strong> <div>${mensaje}</div>`;
+        } else {
+          cierreStatus.innerHTML = `<strong>${spinner}${icon[tipo]} ${mensaje}</strong>`;
+        }
+      }
+
+      function ocultarEstado() {
+        cierreStatus.style.display = 'none';
+      }
+
+      btnCierreMañana.addEventListener('click', () => mostrarModal('mañana'));
+      btnCierreTarde.addEventListener('click', () => mostrarModal('tarde'));
+      btnCierreDiaCompleto.addEventListener('click', () => mostrarModal('dia-completo'));
+      btnCierreMes.addEventListener('click', () => mostrarModal('mes'));
+      btnCancel.addEventListener('click', ocultarModal);
+
+      modalCierre.addEventListener('click', (e) => {
+        if (e.target === modalCierre) ocultarModal();
+      });
+
+      btnConfirm.addEventListener('click', async () => {
+        if (!cierreEnCurso) return;
+
+        let endpoint;
+        if (cierreEnCurso === 'mañana') {
+          endpoint = '/api/ganancias/cierre-mañana';
+        } else if (cierreEnCurso === 'tarde') {
+          endpoint = '/api/ganancias/cierre-tarde';
+        } else if (cierreEnCurso === 'dia-completo') {
+          endpoint = '/api/ganancias/cierre-dia-completo';
+        } else {
+          endpoint = '/api/ganancias/cierre-mes';
+        }
+
+        ocultarModal();
+        mostrarEstado('Procesando cierre…', 'info');
+        btnCierreMañana.disabled = true;
+        btnCierreTarde.disabled = true;
+        btnCierreDiaCompleto.disabled = true;
+        btnCierreMes.disabled = true;
+
+        try {
+          const desc = tiposDescripcion[cierreEnCurso];
+          
+          // FASE 3: Primer paso - obtener dinero bruto (sin confirmación)
+          let response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmacion: false })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Error en ${desc.descripcion}`);
+          }
+
+          const resumenData = await response.json();
+          
+          if (!resumenData.ok) {
+            throw new Error(resumenData.mensaje || 'Error al obtener datos del cierre');
+          }
+
+          // Mostrar dinero bruto
+          const dineroBruto = resumenData.dinero_bruto || 0;
+          const cantidad = resumenData.cantidad_ventas || 0;
+          const periodo = resumenData.periodo || desc.descripcion;
+          
+          mostrarEstado(
+            `${periodo}: €${dineroBruto.toFixed(2)} (${cantidad} ${cantidad === 1 ? 'venta' : 'ventas'})`,
+            'success'
+          );
+
+          // FASE 4: Preguntar si desea exportar a Excel
+          const exportar = await new Promise(resolve => {
+            const confirmExport = confirm(
+              `${periodo}\n\nGanancia bruta: €${dineroBruto.toFixed(2)}\nVentas: ${cantidad}\n\n¿Deseas exportar el reporte a Excel?`
+            );
+            resolve(confirmExport);
+          });
+
+          if (!exportar) {
+            mostrarEstado(`✅ ${periodo} mostrado. Exportación cancelada.`, 'info');
+            btnCierreMañana.disabled = false;
+            btnCierreTarde.disabled = false;
+            btnCierreDiaCompleto.disabled = false;
+            btnCierreMes.disabled = false;
+            return;
+          }
+
+          // FASE 4: Segundo paso - generar Excel con confirmación
+          mostrarEstado('Generando reporte Excel…', 'info');
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmacion: true })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Error al generar Excel`);
+          }
+
+          const contentType = response.headers.get('content-type') || '';
+          
+          if (contentType.includes('application/vnd.openxmlformats') || contentType.includes('application/x-xlsx')) {
+            // Es un archivo Excel
+            const blob = await response.blob();
+            let nombreArchivo = `Cierre_${cierreEnCurso}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const contentDisposition = response.headers.get('content-disposition');
+            if (contentDisposition) {
+              const match = contentDisposition.match(/filename="?([^"]*)"?/);
+              if (match && match[1]) {
+                nombreArchivo = match[1];
+              }
+            }
+            
+            // Guardar archivo en la carpeta configurada
+            try {
+              if (cierreEnCurso === 'mañana') {
+                await guardarCierreMañanaEnCarpeta(blob, nombreArchivo);
+              } else if (cierreEnCurso === 'tarde') {
+                await guardarCierreTardeEnCarpeta(blob, nombreArchivo);
+              } else if (cierreEnCurso === 'dia-completo') {
+                await guardarCierreDiaCompletoEnCarpeta(blob, nombreArchivo);
+              } else if (cierreEnCurso === 'mes') {
+                await guardarCierreEnCarpeta(blob, nombreArchivo);
+              }
+            } catch (_) {
+              // Fallback: descarga automática
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = nombreArchivo;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
+            
+            const mensaje = response.headers.get('x-cierre-mensaje') || `${periodo} completado`;
+            const rutaExacta = response.headers.get('x-cierre-ruta') || '';
+            let mensajeCompleto = `✅ ${mensaje}. Archivo: ${nombreArchivo}`;
+            
+            if (rutaExacta) {
+              mensajeCompleto += `<br><small style="color:#666;word-break:break-all;font-family:monospace;">📁 Ruta: ${rutaExacta}</small>`;
+            }
+            
+            mostrarEstado(mensajeCompleto, 'success', true);
+          } else {
+            // Es JSON (sin ventas)
+            const data = await response.json();
+            const mensaje = data.mensaje || `${periodo} completado sin ventas.`;
+            mostrarEstado(`ℹ️ ${mensaje}`, 'info');
+          }
+
+          // Recargar estado de cierres
+          mostrarEstado('Actualizando datos…', 'info');
+          setTimeout(() => {
+            cargarEstadoCierres();
+            refrescarResumenMensual();
+            setTimeout(() => ocultarEstado(), 1200);
+          }, 800);
+
+        } catch (err) {
+          console.error('Error en cierre:', err);
+          mostrarEstado(`Error: ${err.message}`, 'error');
+          btnCierreMañana.disabled = false;
+          btnCierreTarde.disabled = false;
+          btnCierreDiaCompleto.disabled = false;
+          btnCierreMes.disabled = false;
+        }
+      });
+
+      // Cargar estado al iniciar (se llamará desde bootstrap cuando loggedIn sea true)
+      window.cargarEstadoCierres = cargarEstadoCierres;
+    })();
+
+    // ===== Sistema Modular de Atajos de Teclado =====
+    // Vinculación de acciones concretas a handlers
+    const keyboardHandlers = {
+      // Formulario - Líneas
+      'addLine': () => addLinea(),
+      'deleteLine': () => {
+        const filas = lineasEl.querySelectorAll('.fila');
+        if (filas.length) filas[filas.length - 1].querySelector('.del').click();
+      },
+      'generateInvoice': () => {
+        document.getElementById('btn-generar').click();
+      },
+
+      // Modal de pago - Selección de método
+      'selectEffectivo': () => {
+        const radio = document.querySelector('input[name="metodo_pago"][value="efectivo"]');
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('pago-entregado').focus();
+        }
+      },
+      'selectTarjeta': () => {
+        const radio = document.querySelector('input[name="metodo_pago"][value="tarjeta"]');
+        const total = Number(totalEl.textContent.replace('€', '').trim());
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('pago-tarjeta').value = total.toFixed(2);
+          document.getElementById('btn-pago-confirmar').focus();
+        }
+      },
+      'selectMixto': () => {
+        const radio = document.querySelector('input[name="metodo_pago"][value="mixto"]');
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('pago-efectivo').focus();
+        }
+      },
+      'confirmPayment': () => {
+        document.getElementById('btn-pago-confirmar').click();
+      },
+      'cancelPayment': () => {
+        cerrarModalPago(null);
+      },
+
+      // Modal de ticket
+      'printTicket': () => {
+        document.getElementById('btn-ticket-si').click();
+      },
+      'skipPrinting': () => {
+        document.getElementById('btn-ticket-no').click();
+      },
+      'cancelTicket': () => {
+        cerrarModalTicket(null);
+      }
+    };
+
+    // Inicializar el sistema de atajos
+    ActionExecutor.registerMultiple(keyboardHandlers);
+    KeyboardSystem.init();
+
+    // ===== Keep-Alive Manager (Opción C: Ping cada 5 minutos, incondicional) =====
+    // Módulo cargado desde: web/static/keep-alive.js
+    // Características: Pings automáticos cada 5 minutos sin verificar actividad
+    // Objetivo: Prevenir spin-down del servidor (Render Free tier)
+    KeepAliveManager.start();
+
+    actualizarUIConfig();
+    bootstrap();
+  </script>
+
+  <div id="toast-guardado" class="toast" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
