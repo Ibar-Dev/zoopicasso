@@ -1,3 +1,29 @@
 [2026-07-14 14:39:45] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/migracion/facturas
 [2026-07-14 14:39:54] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/migracion/facturas
 [2026-07-14 14:39:54] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/migracion/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:52:35] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:52:35] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:52:48] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:53:19] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:53:19] [INFO    ] [src.factura_writer:generar_factura_xlsx:393] Factura 2026-001 generada exitosamente en: /home/ivar/Development/zoopicasso/facturas/2026-07-14_factura_001.xlsx
+[2026-07-14 14:53:36] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:53:36] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:53:36] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
+[2026-07-14 14:53:52] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:53:52] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:53:53] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
+[2026-07-14 14:54:43] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:54:43] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:54:43] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
+[2026-07-14 14:54:46] [WARNING ] [web.app:login:285] Intento de acceso web fallido.
+[2026-07-14 14:55:43] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:55:43] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:55:43] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
+[2026-07-14 14:56:04] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:56:04] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:56:04] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
+[2026-07-14 14:56:26] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /home/ivar/Development/zoopicasso/facturas
+[2026-07-14 14:56:26] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /home/ivar/Development/zoopicasso/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 14:56:26] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
+[2026-07-14 14:56:29] [WARNING ] [web.app:login:285] Intento de acceso web fallido.
+[2026-07-14 14:56:29] [WARNING ] [web.app:_requiere_login:249] Acceso no autenticado a endpoint protegido.
