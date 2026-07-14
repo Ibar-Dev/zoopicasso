@@ -295,8 +295,8 @@ def logout(request: Request) -> dict[str, bool]:
 
 
 @app.get("/api/session")
-def session_status(request: Request) -> dict[str, bool]:
-    return {"logged_in": bool(request.session.get("logged_in"))}
+def session_status(request: Request) -> JSONResponse:
+    return JSONResponse({"logged_in": bool(request.session.get("logged_in"))})
 
 
 # ════════════════════════════════════════════════════════════════════════════
