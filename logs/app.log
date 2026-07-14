@@ -27,3 +27,6 @@
 [2026-07-14 14:56:26] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
 [2026-07-14 14:56:29] [WARNING ] [web.app:login:285] Intento de acceso web fallido.
 [2026-07-14 14:56:29] [WARNING ] [web.app:_requiere_login:249] Acceso no autenticado a endpoint protegido.
+[2026-07-14 13:04:11] [INFO    ] [src.factura_writer:<module>:35] Módulo factura_writer inicializado. Ruta de facturas: /app/facturas
+[2026-07-14 13:04:11] [INFO    ] [web.app:<module>:133] Cola persistente inicializada: /app/data/cola_impresion.json (0 tickets pendientes)
+[2026-07-14 13:04:11] [WARNING ] [web.app:lifespan:212] BACKUP_DIR no configurado — backup automático desactivado
