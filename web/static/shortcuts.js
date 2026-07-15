@@ -14,7 +14,7 @@ const KeyNormalizer = {
   /**
    * Normaliza un evento de teclado a una combinación legible
    * @param {KeyboardEvent} event
-   * @returns {string} e.g., "Alt+A", "Ctrl+Shift+K", "Enter"
+    * @returns {string} e.g., "Alt+A", "Ctrl+Alt+K", "Enter"
    */
   normalize(event) {
     const modifiers = [
@@ -46,7 +46,7 @@ const KeyNormalizer = {
 
   /**
    * Normaliza una cadena de combinación para comparación
-   * @param {string} combo e.g., "Alt+A", "e", "Ctrl+Shift+K"
+    * @param {string} combo e.g., "Alt+A", "e", "Ctrl+Alt+K"
    * @returns {string} versión normalizada
    */
   normalizeString(combo) {
@@ -71,9 +71,9 @@ const ShortcutsRegistry = {
    */
   config: {
     'form': {
-      'Ctrl+Shift+A': 'addLine',
-      'Ctrl+Shift+D': 'deleteLine',
-      'Ctrl+Shift+G': 'generateInvoice'
+      'Ctrl+Alt+A': 'addLine',
+      'Ctrl+Alt+D': 'deleteLine',
+      'Ctrl+Alt+G': 'generateInvoice'
     },
     'paymentModal': {
       'E': 'selectEffectivo',

@@ -25,11 +25,11 @@ const HelpSystem = {
       position: 'bottom'
     },
     '#btn-add': {
-      text: '➕ Agrega una línea de producto. Atajo: Ctrl+Shift+A',
+      text: '➕ Agrega una línea de producto. Atajo: Ctrl+Alt+A',
       position: 'bottom'
     },
     '#btn-generar': {
-      text: '✅ Genera la factura Excel. Atajo: Ctrl+Shift+G',
+      text: '✅ Genera la factura Excel. Atajo: Ctrl+Alt+G',
       position: 'top'
     },
     '#btn-cierre-manana': {

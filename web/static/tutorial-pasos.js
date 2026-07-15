@@ -20,7 +20,7 @@ window.TUTORIAL_PASOS = [
     element: '#btn-add',
     popover: {
       title: 'Añadir líneas',
-      description: 'Cada línea es un producto o servicio. Usá este botón o el atajo <strong>Ctrl+Shift+A</strong> para añadir una nueva línea.',
+      description: 'Cada línea es un producto o servicio. Usá este botón o el atajo <strong>Ctrl+Alt+A</strong> para añadir una nueva línea.',
       side: 'bottom',
     },
   },
