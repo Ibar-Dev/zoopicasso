@@ -1536,7 +1536,8 @@
       cerrarModalPago({ metodo_pago: metodo, monto_efectivo: +montoEfectivo, monto_tarjeta: +montoTarjeta, efectivo_entregado: +efectivoEntregado });
     });
 
-    document.getElementById('btn-cerrar-dia').addEventListener('click', async () => {
+    const btnCerrarDiaLegacy = document.getElementById('btn-cerrar-dia');
+    if (btnCerrarDiaLegacy) btnCerrarDiaLegacy.addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
       const pModal = document.getElementById('cierre-dia-modal-info');
@@ -1547,7 +1548,7 @@
       const confirmado = await pedirConfirmacionCierreDia();
       if (!confirmado) return;
 
-      await conCarga(document.getElementById('btn-cerrar-dia'), 'Cerrando día…', async () => {
+      await conCarga(btnCerrarDiaLegacy, 'Cerrando día…', async () => {
         try {
           const res = await fetch('/api/ganancias/cierre-dia', {
             method: 'POST',
@@ -1587,6 +1588,7 @@
       });
       _actualizarBotones();
     });
+    else console.warn('[init] btn-cerrar-dia no existe. Se omite listener legacy de cierre diario.');
 
     // NOTA: El antiguo event listener de btnCierreMes ('btn-cerrar-mes') ha sido reemplazado
     // por el nuevo sistema de cierres secuenciales en el código FASE 2
@@ -1652,7 +1654,11 @@
     });
     */
 
-    document.getElementById('btn-generar').addEventListener('click', async () => {
+    const btnGenerarEl = document.getElementById('btn-generar');
+    if (!btnGenerarEl) {
+      console.error('[init] No se encontró #btn-generar. El flujo de facturación queda inactivo.');
+    }
+    btnGenerarEl?.addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
 
@@ -1678,7 +1684,7 @@
         return;
       }
 
-      const btnGenerar = document.getElementById('btn-generar');
+      const btnGenerar = btnGenerarEl;
       // Paso 1: método de pago
       const totalFactura = Number(totalEl.textContent.replace('€','').trim());
       const pago = await abrirModalPago(totalFactura);

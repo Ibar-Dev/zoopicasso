@@ -57,13 +57,14 @@ def test_generar_y_descargar_con_login(monkeypatch, tmp_path: Path):
     def _fake_registrar(_t, _u):
         return "2026-123"
 
-    def _fake_generar(_factura):
+    def _fake_generar(_transaccion):
         ruta = tmp_path / "factura_2026_123.xlsx"
         ruta.write_bytes(b"xlsx")
         return ruta
 
     monkeypatch.setattr("web.app.registrar_transaccion", _fake_registrar)
-    monkeypatch.setattr("web.app.generar_factura_xlsx", _fake_generar)
+    monkeypatch.setattr("web.app.generar_xlsx", _fake_generar)
+    monkeypatch.setattr("web.app.anexar_a_excel", lambda _t: None)
     monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
 
     generar = client.post(
@@ -116,14 +117,110 @@ def _cliente_logueado(monkeypatch, tmp_path):
 
     monkeypatch.setattr(_vs, "RUTA_DB_VENTAS", tmp_path / "test_ventas.db")
 
-    def _fake_generar(_factura):
+    def _fake_generar(_transaccion):
         ruta = tmp_path / "factura_2026_999.xlsx"
         ruta.write_bytes(b"xlsx")
         return ruta
 
-    monkeypatch.setattr("web.app.generar_factura_xlsx", _fake_generar)
+    monkeypatch.setattr("web.app.generar_xlsx", _fake_generar)
+    monkeypatch.setattr("web.app.anexar_a_excel", lambda _t: None)
     monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
     return client
+
+
+def test_generar_sin_ticket_siempre_genera_excel(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    generado = {"count": 0}
+    encolado = {"count": 0}
+
+    def _fake_generar(_transaccion):
+        generado["count"] += 1
+        ruta = tmp_path / "factura_2026_321.xlsx"
+        ruta.write_bytes(b"xlsx")
+        return ruta
+
+    def _fake_encolar(_transaccion, _cola):
+        encolado["count"] += 1
+
+    monkeypatch.setattr("web.app.generar_xlsx", _fake_generar)
+    monkeypatch.setattr("web.app.encolar_impresion", _fake_encolar)
+
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 10.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 10.0,
+            "imprimir_ticket": False,
+        },
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ticket_impreso"] is False
+    assert generado["count"] == 1
+    assert encolado["count"] == 0
+
+    descarga = client.get(body["download_url"])
+    assert descarga.status_code == 200
+
+
+def test_generar_con_ticket_tambien_genera_excel(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    generado = {"count": 0}
+    encolado = {"count": 0}
+
+    def _fake_generar(_transaccion):
+        generado["count"] += 1
+        ruta = tmp_path / "factura_2026_654.xlsx"
+        ruta.write_bytes(b"xlsx")
+        return ruta
+
+    def _fake_encolar(_transaccion, _cola):
+        encolado["count"] += 1
+
+    monkeypatch.setattr("web.app.generar_xlsx", _fake_generar)
+    monkeypatch.setattr("web.app.encolar_impresion", _fake_encolar)
+
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 10.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 10.0,
+            "imprimir_ticket": True,
+        },
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ticket_impreso"] is True
+    assert generado["count"] == 1
+    assert encolado["count"] == 1
+
+    descarga = client.get(body["download_url"])
+    assert descarga.status_code == 200
+
+
+def test_generar_si_falla_excel_retorna_500(monkeypatch, tmp_path):
+    client = _cliente_logueado(monkeypatch, tmp_path)
+
+    def _fake_generar(_transaccion):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("web.app.generar_xlsx", _fake_generar)
+
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test", "cantidad": 1, "precio_unitario": 10.0}],
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 10.0,
+        },
+    )
+
+    assert res.status_code == 500
+    assert res.json()["detail"] == "No se pudo generar la factura"
 
 
 def test_generar_sin_metodo_pago_retorna_400(monkeypatch, tmp_path):
