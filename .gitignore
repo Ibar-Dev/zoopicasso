@@ -1,0 +1,11 @@
+# Python bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest and coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
