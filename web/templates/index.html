@@ -988,7 +988,11 @@
         a.remove();
         URL.revokeObjectURL(url);
         mostrarToast('Se ha guardado');
-        return;
+        return {
+          archivo: data.archivo,
+          carpeta: 'Descargas del navegador',
+          modo: 'fallback',
+        };
       }
 
       // Recuperar handle guardado en IndexedDB y verificar permisos.
@@ -1009,13 +1013,30 @@
       if (!dirHandle) {
         dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
         try { await idbSet('config', 'carpeta_facturas', dirHandle); } catch (_) { /* no crítico */ }
+        actualizarNombreCarpetaLocal(dirHandle.name || 'Carpeta seleccionada');
       }
 
-      const fileHandle = await dirHandle.getFileHandle(data.archivo, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
+      try {
+        const fileHandle = await dirHandle.getFileHandle(data.archivo, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } catch (err) {
+        if (err?.name === 'NotAllowedError') {
+          throw new Error('Permiso denegado para escribir en la carpeta local. Vuelve a seleccionar la carpeta y acepta permisos.');
+        }
+        if (err?.name === 'SecurityError') {
+          throw new Error('El navegador bloqueó el guardado local por seguridad. Prueba de nuevo o reinicia el navegador.');
+        }
+        throw err;
+      }
+
       mostrarToast('Se ha guardado');
+      return {
+        archivo: data.archivo,
+        carpeta: dirHandle.name || 'Carpeta seleccionada',
+        modo: 'file-system',
+      };
     }
 
     async function guardarCierreEnCarpeta(blob, nombre) {
@@ -1257,7 +1278,7 @@
         const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
         await idbSet('config', 'carpeta_facturas', dirHandle);
         actualizarNombreCarpetaLocal(dirHandle.name);
-        resultadoEl.textContent = `Carpeta de destino configurada: ${dirHandle.name}`;
+        resultadoEl.textContent = `Carpeta de destino configurada: ${dirHandle.name}. Nota: el navegador solo muestra el nombre de la carpeta.`;
       } catch (err) {
         if (err && err.name !== 'AbortError') {
           errorEl.textContent = 'No se pudo configurar la carpeta de destino.';
@@ -1730,7 +1751,8 @@
         acumuladoDia += Number(data.total);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
         try {
-          await guardarEnCarpeta(data);
+          const destino = await guardarEnCarpeta(data);
+          resultadoEl.textContent += ` Guardada local: ${destino.archivo} en ${destino.carpeta}.`;
         } catch (err) {
           if (err && err.name === 'AbortError') {
             resultadoEl.textContent += ' Guardado cancelado por el usuario.';

@@ -27,7 +27,11 @@ from src.factura_model import (
     TELEFONO_EMISOR,
     Factura,
 )
-from src.settings import RUTA_FACTURAS_PRINCIPAL
+from src.settings import (
+    RUTA_FACTURAS_PRINCIPAL,
+    FACTURAS_COPY_TO_WINDOWS,
+    validar_ruta_facturas,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +171,8 @@ def _rutas_documentos_windows() -> list[Path]:
 def _copiar_en_documentos_windows(ruta_archivo: Path) -> Path | None:
     """
     Copia la factura en Documentos/Facturas en Windows, si existe Documentos.
+    Esta operación es opcional y está controlada por la opción
+    `FACTURAS_COPY_TO_WINDOWS` en `src.settings`.
     Falla silenciosamente si no hay permisos, pero lo logea como WARNING.
     """
     rutas_docs = _rutas_documentos_windows()
@@ -202,11 +208,16 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     - OSError si no hay permisos para escribir en RUTA_FACTURAS
     - openpyxl exceptions si hay problemas con el documento Excel
     """
+    # Intentar validar y crear la ruta de facturas; no detener la app si falla.
     try:
-        RUTA_FACTURAS.mkdir(parents=True, exist_ok=True)
-    except OSError as e:
-        logger.error(f"CRÍTICO: No se puede crear directorio de facturas {RUTA_FACTURAS}: {e}", exc_info=True)
-        raise
+        ok = validar_ruta_facturas(RUTA_FACTURAS)
+        if not ok:
+            logger.warning(
+                f"Ruta de facturas {RUTA_FACTURAS} no parece escribible. "
+                "Se intentará guardar pero puede fallar en el momento de escribir el archivo."
+            )
+    except Exception:
+        logger.exception("Error inesperado validando la ruta de facturas")
 
     nombre_archivo = f"{factura.fecha.strftime('%Y-%m-%d')}_factura_{factura.numero:03d}.xlsx"
     ruta_archivo = RUTA_FACTURAS / nombre_archivo
@@ -391,17 +402,33 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     try:
         wb.save(ruta_archivo)
         logger.info(f"Factura {factura.numero_formateado} generada exitosamente en: {ruta_archivo}")
+    except PermissionError as e:
+        logger.error(
+            f"PERMISO DENEGADO: no se pudo escribir {ruta_archivo}: {e}",
+            exc_info=True,
+        )
+        raise
     except OSError as e:
-        logger.error(f"CRÍTICO: No se pudo escribir archivo de factura en {ruta_archivo}: {e}", exc_info=True)
+        logger.error(
+            f"CRÍTICO: No se pudo escribir archivo de factura en {ruta_archivo}: {e}",
+            exc_info=True,
+        )
         raise
     except Exception as e:
-        logger.error(f"CRÍTICO: Error inesperado al guardar factura {factura.numero_formateado}: {e}", exc_info=True)
+        logger.error(
+            f"CRÍTICO: Error inesperado al guardar factura {factura.numero_formateado}: {e}",
+            exc_info=True,
+        )
         raise
 
-    ruta_copia = _copiar_en_documentos_windows(ruta_archivo)
-    if ruta_copia is not None:
-        logger.info(
-            f"Copia de factura {factura.numero_formateado} guardada en: {ruta_copia}"
-        )
+    # Copia secundaria a Documentos (solo si está activada en settings)
+    ruta_copia = None
+    if FACTURAS_COPY_TO_WINDOWS:
+        try:
+            ruta_copia = _copiar_en_documentos_windows(ruta_archivo)
+            if ruta_copia is not None:
+                logger.info(f"Copia de factura {factura.numero_formateado} guardada en: {ruta_copia}")
+        except Exception:
+            logger.exception("Error copiando factura a Documentos de Windows (no crítico)")
 
     return ruta_archivo

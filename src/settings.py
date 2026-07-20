@@ -67,6 +67,15 @@ _cargar_env(ENV_PATH)
 RUTA_FACTURAS_PRINCIPAL = _ruta_desde_env("FACTURAS_DIR", "facturas")
 RUTA_EXCEL_AUDITORIA = _ruta_desde_env("TICKETS_EXCEL_PATH", "data/tickets.xlsx")
 
+# Opción para copiar facturas a "Documentos" en Windows. Por defecto OFF.
+def _parse_bool_env(key: str, default: bool = False) -> bool:
+    val = os.getenv(key)
+    if val is None:
+        return default
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+FACTURAS_COPY_TO_WINDOWS = _parse_bool_env("FACTURAS_COPY_TO_WINDOWS", False)
+
 
 # ── Sistema de logging centralizado ───────────────────────────────────────────
 def _configurar_logging() -> logging.Logger:
@@ -158,3 +167,34 @@ def get_logger(modulo: str) -> logging.Logger:
         logger.info("Mensaje de prueba")
     """
     return logging.getLogger(modulo)
+
+
+def validar_ruta_facturas(ruta: Path | None = None) -> bool:
+    """
+    Intenta asegurar que la ruta de facturas existe y es escribible.
+
+    - Crea la ruta si no existe.
+    - Intenta escribir un fichero temporal para comprobar permisos.
+
+    Devuelve True si la ruta parece escribible, False en caso contrario.
+    No lanza excepciones al llamador; en su lugar registra warnings.
+    """
+    ruta = ruta or RUTA_FACTURAS_PRINCIPAL
+    try:
+        ruta.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.warning(
+            f"No se pudo crear directorio de facturas {ruta}: {e}", exc_info=True
+        )
+        return False
+
+    # Probar escritura mediante creación/eliminação de archivo temporal
+    try:
+        test = ruta / ".write_test"
+        with open(test, "w", encoding="utf-8") as f:
+            f.write("test")
+        test.unlink()
+        return True
+    except Exception as e:
+        logger.warning(f"Ruta de facturas no escribible {ruta}: {e}", exc_info=True)
+        return False

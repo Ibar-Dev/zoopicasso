@@ -19,10 +19,10 @@ from starlette.background import BackgroundTask
 from starlette.middleware.sessions import SessionMiddleware
 
 import src.settings  # noqa: F401 — Configura logging y rutas al importarse
+import src.factura_writer as factura_writer
 from core.domain import TransaccionComercial, VentaItem
 from core.sinks import anexar_a_excel, encolar_impresion, generar_xlsx
 from src.backup import guardar_estado, hacer_backup, leer_estado
-from src.factura_writer import RUTA_FACTURAS
 from src.settings import RUTA_EXCEL_AUDITORIA
 from src.ventas_store import (
     historial_ventas,
@@ -53,6 +53,9 @@ BACKUP_RETENER: int = int(os.getenv("BACKUP_RETENER", "7"))
 
 DATA_DIR = (BASE_DIR / ".." / "data").resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Path para precios por categoría (archivo JSON). Usado en tests.
+PRECIOS_CATEGORIAS_PATH = DATA_DIR / "precios_categorias.json"
 
 
 def _env_or_default(name: str, default: str) -> str:
@@ -250,6 +253,11 @@ def _requiere_login(request: Request) -> None:
         raise HTTPException(status_code=401, detail="No autenticado")
 
 
+def _ruta_facturas_efectiva() -> Path:
+    """Ruta real de facturas en ejecución (puede cambiar dinámicamente)."""
+    return Path(factura_writer.RUTA_FACTURAS).resolve()
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # ENDPOINTS — Públicos
 # ════════════════════════════════════════════════════════════════════════════
@@ -294,6 +302,29 @@ def logout(request: Request) -> dict[str, bool]:
     return {"ok": True}
 
 
+@app.post("/api/precios_categorias")
+def post_precios_categorias(payload: dict, request: Request) -> JSONResponse:
+    """Endpoint de compatibilidad para guardar precios por categoría (deprecated).
+
+    Recibe JSON: {"precios": {"aves": 25.5, ...}}
+    Guarda en PRECIOS_CATEGORIAS_PATH.
+    """
+    _requiere_login(request)
+    precios = payload.get("precios") if isinstance(payload, dict) else None
+    if not isinstance(precios, dict):
+        raise HTTPException(status_code=400, detail="Campo 'precios' requerido")
+
+    try:
+        PRECIOS_CATEGORIAS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(PRECIOS_CATEGORIAS_PATH, "w", encoding="utf-8") as f:
+            json.dump({"precios": precios}, f, ensure_ascii=False, indent=2)
+    except Exception as exc:
+        logger.error("No se pudo guardar precios por categoría: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return JSONResponse({"ok": True, "precios": precios})
+
+
 @app.get("/api/session")
 def session_status(request: Request) -> JSONResponse:
     return JSONResponse({"logged_in": bool(request.session.get("logged_in"))})
@@ -310,7 +341,8 @@ def get_config(request: Request) -> dict:
         "emisor": EMISOR_FACTURA,
         "rutas": {
             "excel_auditoria": str(RUTA_EXCEL_AUDITORIA),
-            "facturas_principal": str(src.settings.RUTA_FACTURAS_PRINCIPAL),
+            "facturas_principal": str(_ruta_facturas_efectiva()),
+            "facturas_settings": str(src.settings.RUTA_FACTURAS_PRINCIPAL),
         },
     }
 
@@ -570,12 +602,23 @@ def siguiente_ticket(request: Request) -> JSONResponse:
 @app.get("/api/descargar/{nombre_archivo}")
 def descargar(nombre_archivo: str, request: Request) -> FileResponse:
     _requiere_login(request)
-    ruta = (RUTA_FACTURAS / nombre_archivo).resolve()
-    if not str(ruta).startswith(str(RUTA_FACTURAS.resolve())):
+    base_ruta = _ruta_facturas_efectiva()
+    ruta = (base_ruta / nombre_archivo).resolve()
+
+    try:
+        ruta.relative_to(base_ruta)
+    except ValueError:
         logger.warning("Intento de descarga con nombre inválido: %s", nombre_archivo)
         raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
+
     if not ruta.exists():
+        logger.warning(
+            "Archivo no encontrado para descarga: %s (base actual: %s)",
+            nombre_archivo,
+            base_ruta,
+        )
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
     logger.info("Descarga de factura: %s", ruta.name)
     return FileResponse(
         path=ruta,

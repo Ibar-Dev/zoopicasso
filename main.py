@@ -14,6 +14,13 @@ from typing import Callable
 
 import flet as ft
 
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+    TKINTER_AVAILABLE = True
+except Exception:
+    TKINTER_AVAILABLE = False
+
 # ── Credenciales de acceso ────────────────────────────────────────────────────
 _USUARIO_VALIDO = "Giselle"
 _HASH_PASSWORD = "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda"
@@ -29,8 +36,7 @@ from src.factura_model import LineaFactura
 from src.factura_model import Factura
 from src.printer import generar_ticket_escpos
 from src.printer import imprimir_ticket_usb_windows
-from src.factura_writer import RUTA_FACTURAS
-from src.factura_writer import generar_factura_xlsx
+import src.factura_writer as factura_writer
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +222,7 @@ def main(page: ft.Page):
         total_dia = 0.0
         facturas_dia = 0
         totales_por_animal: dict[str, float] = {v: 0.0 for v in ANIMALES.values()}
+        force_save = False
 
         # ── Controles dinámicos ───────────────────────────────────────────────
         contenedor_filas = ft.Column(spacing=6)
@@ -291,6 +298,32 @@ def main(page: ft.Page):
             width=200,
         )
 
+        def _seleccionar_carpeta_tkinter() -> Path | None:
+            if not TKINTER_AVAILABLE:
+                return None
+            try:
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes('-topmost', True)
+                carpeta = filedialog.askdirectory(title="Seleccionar carpeta para guardar facturas", initialdir=str(factura_writer.RUTA_FACTURAS))
+                root.destroy()
+                return Path(carpeta).resolve() if carpeta else None
+            except Exception:
+                logger.exception("Error al abrir diálogo de selección de carpeta")
+                return None
+
+        def _cambiar_ruta_facturas(nueva_ruta: Path) -> bool:
+            try:
+                nueva_ruta.mkdir(parents=True, exist_ok=True)
+                test = nueva_ruta / ".write_test"
+                test.write_text("test")
+                test.unlink()
+                factura_writer.RUTA_FACTURAS = nueva_ruta
+                logger.info(f"Ruta de facturas cambiada a: {nueva_ruta}")
+                return True
+            except Exception:
+                logger.exception("No se pudo cambiar ruta de facturas")
+                return False
 
 
         async def _confirmar_cierre(evento: ft.WindowEvent) -> None:
@@ -365,8 +398,8 @@ def main(page: ft.Page):
 
         def abrir_carpeta_facturas(_=None):
             try:
-                RUTA_FACTURAS.mkdir(parents=True, exist_ok=True)
-                ruta_str = str(RUTA_FACTURAS)
+                factura_writer.RUTA_FACTURAS.mkdir(parents=True, exist_ok=True)
+                ruta_str = str(factura_writer.RUTA_FACTURAS)
                 if sys.platform.startswith("win"):
                     os.startfile(ruta_str)  # type: ignore[attr-defined]
                 elif sys.platform == "darwin":
@@ -381,6 +414,63 @@ def main(page: ft.Page):
 
         def generar(_=None):
             nonlocal total_dia, facturas_dia
+            nonlocal force_save
+
+            def _validation_test() -> bool:
+                """Test write access to factura_writer.RUTA_FACTURAS."""
+                try:
+                    factura_writer.RUTA_FACTURAS.mkdir(parents=True, exist_ok=True)
+                    test = factura_writer.RUTA_FACTURAS / ".write_test"
+                    test.write_text("test")
+                    test.unlink()
+                    return True
+                except (PermissionError, OSError):
+                    return False
+
+            def _mostrar_dialogo_ruta():
+                nonlocal force_save
+
+                def _seleccionar(_=None):
+                    nueva_ruta = _seleccionar_carpeta_tkinter()
+                    if nueva_ruta:
+                        if _cambiar_ruta_facturas(nueva_ruta):
+                            force_save = False
+                            page.pop_dialog()
+                            generar()
+                        else:
+                            lbl_estado.value = "No se pudo cambiar la carpeta"
+                            lbl_estado.color = ft.Colors.RED_600
+                            page.update()
+                    else:
+                        page.pop_dialog()
+
+                def _intentar_guardar(_=None):
+                    force_save = True
+                    page.pop_dialog()
+                    generar()
+
+                def _cancelar(_=None):
+                    page.pop_dialog()
+
+                dlg = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("Sin acceso a escritura"),
+                    content=ft.Text(
+                        "No se puede escribir en la carpeta de facturas. Selecciona otra carpeta o intenta de todos modos."
+                    ),
+                    actions=[
+                        ft.TextButton("Seleccionar carpeta", on_click=_seleccionar),
+                        ft.TextButton("Intentar guardar", on_click=_intentar_guardar),
+                        ft.TextButton("Cancelar", on_click=_cancelar),
+                    ],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+                page.show_dialog(dlg)
+
+            # Validar acceso a escritura antes de intentar guardar
+            if not force_save and not _validation_test():
+                _mostrar_dialogo_ruta()
+                return
 
             # Validar categoría animal en cada línea
             if any(not f.categoria.value for f in filas):
@@ -408,13 +498,20 @@ def main(page: ft.Page):
 
             # Generar xlsx directamente en carpeta facturas/
             try:
-                ruta = generar_factura_xlsx(factura)
+                ruta = factura_writer.generar_factura_xlsx(factura)
+            except (PermissionError, OSError) as ex:
+                # Show dialog if write fails
+                _mostrar_dialogo_ruta()
+                return
             except Exception as ex:
                 lbl_estado.value = f"Error al generar factura: {ex}"
                 lbl_estado.color = ft.Colors.RED_600
                 logger.error("Error al generar factura %s: %s", factura.numero_formateado, ex, exc_info=True)
                 page.update()
                 return
+
+            # Reset force_save for next invoice
+            force_save = False
 
             cliente_log = factura.cliente_nombre or "(sin cliente)"
             logger.info(

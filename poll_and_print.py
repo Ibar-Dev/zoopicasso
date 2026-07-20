@@ -53,7 +53,6 @@ import requests
 import logging
 import os
 import sys
-import hashlib
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -176,9 +175,9 @@ class AgenteImpresion:
             else:
                 logger.warning(f"⚠️  Error en consulta de tickets ({resp.status_code})")
                 return None
-        
+       
         except requests.exceptions.Timeout:
-            logger.warning(f"⏱️  Timeout al consultar tickets")
+            logger.warning("Timeout al consultar tickets")
             return None
         except requests.exceptions.ConnectionError as e:
             logger.warning(f"❌ Error de conexión: {e}")
