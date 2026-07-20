@@ -185,3 +185,43 @@ class TestFacturaWriter:
 
         tiempo_diferencia = ahora - modificado
         assert tiempo_diferencia < 5
+
+
+def test_generar_factura_xlsx_completo(tmp_path, monkeypatch):
+    """Generación E2E de un .xlsx real en un directorio temporal."""
+    import openpyxl
+    from src.factura_model import LineaFactura, Factura
+    from src import factura_writer
+
+    # Forzar salida a tmp_path
+    monkeypatch.setattr("src.factura_writer.RUTA_FACTURAS", tmp_path)
+
+    lineas = [LineaFactura(concepto="Item", cantidad=1, precio_unitario=10.0, categoria="General")]
+    factura = Factura(numero=1, fecha=date.today(), cliente_nombre="Test", cliente_nif="123", lineas=lineas)
+
+    ruta = factura_writer.generar_factura_xlsx(factura)
+    assert ruta.exists()
+
+    wb = openpyxl.load_workbook(ruta)
+    assert wb.active.title == f"Factura {factura.numero_formateado}"
+
+
+def test_generar_factura_sin_permisos(tmp_path, monkeypatch):
+    """Simular `PermissionError` al guardar y verificar que se propaga."""
+    import openpyxl
+    from src.factura_model import LineaFactura, Factura
+    from src import factura_writer
+
+    monkeypatch.setattr("src.factura_writer.RUTA_FACTURAS", tmp_path)
+
+    lineas = [LineaFactura(concepto="Item", cantidad=1, precio_unitario=5.0, categoria="General")]
+    factura = Factura(numero=2, fecha=date.today(), cliente_nombre="Test2", cliente_nif="456", lineas=lineas)
+
+    # Forzar PermissionError en openpyxl.Workbook.save
+    def fake_save(self, *args, **kwargs):
+        raise PermissionError("simulated permission error")
+
+    monkeypatch.setattr(openpyxl.workbook.workbook.Workbook, "save", fake_save)
+
+    with pytest.raises(PermissionError):
+        factura_writer.generar_factura_xlsx(factura)

@@ -65,7 +65,7 @@ def test_generar_y_descargar_con_login(monkeypatch, tmp_path: Path):
     monkeypatch.setattr("web.app.registrar_transaccion", _fake_registrar)
     monkeypatch.setattr("web.app.generar_xlsx", _fake_generar)
     monkeypatch.setattr("web.app.anexar_a_excel", lambda _t: None)
-    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
+    monkeypatch.setattr("web.app.factura_writer.RUTA_FACTURAS", tmp_path)
 
     generar = client.post(
         "/api/generar",
@@ -124,8 +124,29 @@ def _cliente_logueado(monkeypatch, tmp_path):
 
     monkeypatch.setattr("web.app.generar_xlsx", _fake_generar)
     monkeypatch.setattr("web.app.anexar_a_excel", lambda _t: None)
-    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
+    monkeypatch.setattr("web.app.factura_writer.RUTA_FACTURAS", tmp_path)
     return client
+
+
+def test_config_reporta_ruta_facturas_efectiva(monkeypatch, tmp_path):
+    client = TestClient(app)
+    login = client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+    assert login.status_code == 200
+
+    monkeypatch.setattr("web.app.factura_writer.RUTA_FACTURAS", tmp_path)
+
+    res = client.get("/api/config")
+    assert res.status_code == 200
+
+    body = res.json()
+    assert body["rutas"]["facturas_principal"] == str(tmp_path.resolve())
+    assert "facturas_settings" in body["rutas"]
 
 
 def test_generar_sin_ticket_siempre_genera_excel(monkeypatch, tmp_path):
@@ -514,9 +535,27 @@ def test_descargar_factura_no_encontrada(monkeypatch, tmp_path):
             "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
         },
     )
-    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
+    monkeypatch.setattr("web.app.factura_writer.RUTA_FACTURAS", tmp_path)
     res = client.get("/api/descargar/no_existe.xlsx")
     assert res.status_code == 404
+
+
+def test_descargar_factura_usa_ruta_efectiva(monkeypatch, tmp_path):
+    client = TestClient(app)
+    client.post(
+        "/api/login",
+        json={
+            "usuario": "Giselle",
+            "password_hash": "2aa2d838b21d5fe3fe9819640d83e40aea9f899d93b25a0ef9858ba9f83effda",
+        },
+    )
+
+    monkeypatch.setattr("web.app.factura_writer.RUTA_FACTURAS", tmp_path)
+    archivo = tmp_path / "factura_efectiva.xlsx"
+    archivo.write_bytes(b"xlsx")
+
+    res = client.get(f"/api/descargar/{archivo.name}")
+    assert res.status_code == 200
 
 
 # ── /api/impresion/siguiente ──────────────────────────────────────────────────
