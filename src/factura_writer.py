@@ -15,9 +15,12 @@ import os
 import shutil
 import ctypes
 from pathlib import Path
+from typing import cast
 
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 from src.factura_model import (
     EMAIL_EMISOR,
@@ -223,7 +226,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     ruta_archivo = RUTA_FACTURAS / nombre_archivo
 
     wb = openpyxl.Workbook()
-    ws = wb.active
+    ws = cast(Worksheet, wb.active)
     ws.title = f"Factura {factura.numero_formateado}"
 
     # ── Anchos de columna ─────────────────────────────────────────────────────
@@ -312,7 +315,6 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     headers = ["Concepto", "Categoría", "Cantidad", "P. Unitario", "Total"]
     alin_headers = ["left", "left", "center", "right", "right"]
     for col_idx, (header, ali) in enumerate(zip(headers, alin_headers), start=1):
-        from openpyxl.utils import get_column_letter
         col = get_column_letter(col_idx)
         celda = ws[f"{col}12"]
         celda.value = header
@@ -338,7 +340,7 @@ def generar_factura_xlsx(factura: Factura) -> Path:
     fila_actual += 1
 
     # ── Totales por categoría ─────────────────────────────────────────────────
-    totales_por_categoria = {}
+    totales_por_categoria: dict[str, float] = {}
     for linea in factura.lineas:
         categoria = linea.categoria or "Sin categoría"
         if categoria not in totales_por_categoria:

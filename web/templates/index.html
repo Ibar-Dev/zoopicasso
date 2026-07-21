@@ -279,13 +279,13 @@
     const btnTicketSi = document.getElementById('btn-ticket-si');
     // Elementos de cierre antiguo (reemplazados por nuevo sistema secuencial en FASE 2)
     // Se comentan para no generar errores de null
-    // const cierreMesModalEl = document.getElementById('cierre-mes-modal');
-    // const btnCierreMes = document.getElementById('btn-cerrar-mes');
-    // const btnCierreCancelar = document.getElementById('btn-cierre-cancelar');
-    // const btnCierreConfirmar = document.getElementById('btn-cierre-confirmar');
-    // const cierreDiaModalEl = document.getElementById('cierre-dia-modal');
-    // const btnCierreDiaCancelar = document.getElementById('btn-cierre-dia-cancelar');
-    // const btnCierreDiaConfirmar = document.getElementById('btn-cierre-dia-confirmar');
+    const cierreMesModalEl = document.getElementById('cierre-mes-modal');
+    const btnCierreMes = document.getElementById('btn-cerrar-mes');
+    const btnCierreCancelar = document.getElementById('btn-cierre-cancelar');
+    const btnCierreConfirmar = document.getElementById('btn-cierre-confirmar');
+    const cierreDiaModalEl = document.getElementById('cierre-dia-modal');
+    const btnCierreDiaCancelar = document.getElementById('btn-cierre-dia-cancelar');
+    const btnCierreDiaConfirmar = document.getElementById('btn-cierre-dia-confirmar');
     let resolverCierreDiaModal = null;
     let acumuladoDia = 0;
     let facturasDia = 0;
@@ -527,6 +527,14 @@
     }
 
     function cerrarModalCierre(valor) {
+      if (!cierreMesModalEl) {
+        if (resolverCierreModal) {
+          const resolve = resolverCierreModal;
+          resolverCierreModal = null;
+          resolve(valor);
+        }
+        return;
+      }
       cierreMesModalEl.classList.remove('active');
       cierreMesModalEl.setAttribute('aria-hidden', 'true');
       cierreMesModalEl.hidden = true;
@@ -539,6 +547,10 @@
 
     function pedirConfirmacionCierreDia() {
       return new Promise((resolve) => {
+        if (!cierreDiaModalEl || !btnCierreDiaConfirmar) {
+          resolve(false);
+          return;
+        }
         resolverCierreDiaModal = resolve;
         cierreDiaModalEl.classList.add('active');
         cierreDiaModalEl.setAttribute('aria-hidden', 'false');
@@ -548,6 +560,14 @@
     }
 
     function cerrarModalCierreDia(valor) {
+      if (!cierreDiaModalEl) {
+        if (resolverCierreDiaModal) {
+          const r = resolverCierreDiaModal;
+          resolverCierreDiaModal = null;
+          r(valor);
+        }
+        return;
+      }
       cierreDiaModalEl.classList.remove('active');
       cierreDiaModalEl.setAttribute('aria-hidden', 'true');
       cierreDiaModalEl.hidden = true;
@@ -575,6 +595,10 @@
     function pedirConfirmacionCierreMes() {
       return new Promise((resolve) => {
         if (!appCard.classList.contains('active')) {
+          resolve(false);
+          return;
+        }
+        if (!cierreMesModalEl || !btnCierreConfirmar) {
           resolve(false);
           return;
         }
