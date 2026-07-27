@@ -4,6 +4,7 @@
 
 import logging
 from pathlib import Path
+import os
 
 import openpyxl
 from openpyxl.styles import Font
@@ -87,7 +88,27 @@ def guardar_ticket(ticket: Ticket) -> None:
         OSError: Si no hay permisos para escribir en RUTA_EXCEL
         PermissionError: Si el archivo está bloqueado (especialmente en Windows)
     """
-    RUTA_EXCEL.parent.mkdir(parents=True, exist_ok=True)
+    logger.info(f"DEBUG: RUTA_EXCEL = {RUTA_EXCEL}")
+    logger.info(
+        f"DEBUG: RUTA_EXCEL.parent = {RUTA_EXCEL.parent} "
+        f"exists={RUTA_EXCEL.parent.exists()} is_dir={RUTA_EXCEL.parent.is_dir()}"
+    )
+    try:
+        # Intentar crear el directorio padre si no existe
+        RUTA_EXCEL.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(
+            f"CRÍTICO: No se pudo crear el directorio padre {RUTA_EXCEL.parent}: {e}",
+            exc_info=True,
+        )
+        raise
+
+    # Indicar si el directorio padre parece escribible (diagnóstico)
+    try:
+        parent_writable = RUTA_EXCEL.parent.exists() and os.access(RUTA_EXCEL.parent, os.W_OK)
+    except Exception:
+        parent_writable = False
+    logger.info(f"DEBUG: parent writable={parent_writable}")
 
     wb = None
     try:
