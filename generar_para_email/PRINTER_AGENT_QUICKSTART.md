@@ -55,14 +55,18 @@ python poll_and_print.py
 
 ### Cambiar carpeta de tickets
 
+La carpeta de destino la elige el usuario (selector nativo en la primera
+ejecución) y queda guardada en `agente_config.json`:
+
 ```bash
-# Windows
-set TICKETS_FOLDER=D:/Mi_Carpeta_Tickets/
+# Primera ejecución: se abre el selector de carpeta
 python poll_and_print.py
 
-# Linux/Mac
-export TICKETS_FOLDER=/home/usuario/tickets/
-python poll_and_print.py
+# Cambiar carpeta cuando quieras
+python poll_and_print.py --elegir-carpeta
+
+# O indicarla directamente (queda guardada)
+python poll_and_print.py --carpeta D:/Mi_Carpeta_Tickets/
 ```
 
 ## 📚 Documentación Completa

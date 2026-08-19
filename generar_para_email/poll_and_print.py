@@ -33,11 +33,15 @@ Instalación:
   python poll_and_print.py
 
 Configuración:
-  Variables de entorno (opcional):
-    - PRINTER_SERVER_URL: URL base del servidor (default: http://localhost:8000)
-    - TICKETS_FOLDER: Carpeta local de tickets (default: C:/Facturas_Tickets/)
-    - POLL_INTERVAL: Segundos entre consultas (default: 3)
-    - RECONNECT_DELAY: Segundos de espera en desconexión (default: 5)
+  La carpeta de destino y el servidor se guardan en agente_config.json
+  (junto a este script). Opciones en orden de precedencia:
+    - --carpeta RUTA        → carpeta donde guardar archivos (se guarda)
+    - --elegir-carpeta      → abre selector de carpeta nativo
+    - --servidor URL        → URL base del servidor (se guarda)
+    - TICKETS_FOLDER        → variable de entorno (solo para esa ejecución)
+    - PRINTER_SERVER_URL    → variable de entorno (solo para esa ejecución)
+    - POLL_INTERVAL         → segundos entre consultas (default: 3)
+    - RECONNECT_DELAY       → segundos de espera en desconexión (default: 5)
 
 Logs:
   Cada acción genera log:
@@ -54,6 +58,8 @@ import logging
 import os
 import sys
 import hashlib
+import argparse
+import json
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -64,14 +70,147 @@ from src.printer import imprimir_ticket_usb_windows
 
 
 # ────────────────────────────────────────────────────────────────────────────
+# CONFIGURACIÓN PERSISTENTE DEL AGENTE
+# ────────────────────────────────────────────────────────────────────────────
+
+# Archivo donde se guarda la configuración elegida por el usuario.
+CONFIG_RUTA = Path(__file__).resolve().parent / "agente_config.json"
+
+CARPETA_CONFIG_KEY = "carpeta_tickets"
+SERVER_URL_CONFIG_KEY = "servidor_url"
+
+
+def cargar_config() -> dict:
+    """Carga la configuración guardada por el usuario. Retorna {} si no existe."""
+    if not CONFIG_RUTA.exists():
+        return {}
+    try:
+        datos = json.loads(CONFIG_RUTA.read_text(encoding="utf-8"))
+        return datos if isinstance(datos, dict) else {}
+    except Exception:
+        return {}
+
+
+def guardar_config(config: dict) -> None:
+    """Persiste la configuración del usuario en CONFIG_RUTA."""
+    try:
+        CONFIG_RUTA.write_text(
+            json.dumps(config, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        print(f"[!] No se pudo guardar la configuración en {CONFIG_RUTA}: {e}")
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# SELECTOR DE CARPETA (el usuario elige dónde guardar los archivos)
+# ────────────────────────────────────────────────────────────────────────────
+
+def elegir_carpeta_dialogo() -> Optional[Path]:
+    """Abre un selector de carpeta nativo (tkinter). Retorna None si cancela."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        raiz = tk.Tk()
+        raiz.withdraw()
+        raiz.attributes("-topmost", True)
+        try:
+            carpeta = filedialog.askdirectory(
+                title="Elige la carpeta donde guardar tickets y facturas"
+            )
+        finally:
+            raiz.destroy()
+        return Path(carpeta) if carpeta else None
+    except Exception:
+        return None
+
+
+def pedir_carpeta_consola() -> Optional[Path]:
+    """Fallback sin ventanas: pide la ruta por consola."""
+    print("=" * 70)
+    print("CONFIGURACIÓN DE CARPETA")
+    print("=" * 70)
+    print("¿Dónde quieres guardar los tickets y las facturas descargadas?")
+    print("(Deja vacío y pulsa Enter para usar el Escritorio)")
+    ruta = input("Ruta: ").strip()
+    if not ruta:
+        return (Path.home() / "Desktop").resolve()
+    return Path(ruta).expanduser()
+
+
+def resolver_carpeta(arg_carpeta: Optional[str]) -> Path:
+    """
+    Determina la carpeta de guardado, en este orden:
+      1. --carpeta / --elegir-carpeta (argumento CLI)
+      2. Variable de entorno TICKETS_FOLDER
+      3. Carpeta guardada en agente_config.json
+      4. Primera ejecución: se pregunta al usuario y se guarda la respuesta
+      5. Fallback final: Escritorio del usuario
+    """
+    config = cargar_config()
+
+    if arg_carpeta:
+        carpeta = Path(arg_carpeta).expanduser()
+        config[CARPETA_CONFIG_KEY] = str(carpeta)
+        guardar_config(config)
+    else:
+        env_carpeta = os.getenv("TICKETS_FOLDER", "").strip()
+        if env_carpeta:
+            carpeta = Path(env_carpeta).expanduser()
+        elif config.get(CARPETA_CONFIG_KEY):
+            carpeta = Path(config[CARPETA_CONFIG_KEY]).expanduser()
+        else:
+            carpeta = elegir_carpeta_dialogo() or pedir_carpeta_consola()
+            config[CARPETA_CONFIG_KEY] = str(carpeta)
+            guardar_config(config)
+
+    return carpeta.resolve()
+
+
+# ────────────────────────────────────────────────────────────────────────────
 # CONFIGURACIÓN
 # ────────────────────────────────────────────────────────────────────────────
 
-# URL del servidor
-BASE_URL = os.getenv("PRINTER_SERVER_URL", "http://localhost:8000")
+parser = argparse.ArgumentParser(
+    description="Agente local de impresión y sincronización de facturas."
+)
+parser.add_argument(
+    "--carpeta",
+    help="Carpeta local donde guardar tickets y facturas (se guarda en la configuración).",
+)
+parser.add_argument(
+    "--elegir-carpeta",
+    action="store_true",
+    help="Abre el selector de carpeta para cambiar dónde se guardan los archivos.",
+)
+parser.add_argument(
+    "--servidor",
+    help="URL base del servidor (se guarda en la configuración).",
+)
+args = parser.parse_args()
 
-# Carpeta local donde guardar tickets y archivos
-TICKETS_FOLDER = Path(os.getenv("TICKETS_FOLDER", "C:/Facturas_Tickets/"))
+config_agente = cargar_config()
+if args.elegir_carpeta:
+    carpeta_nueva = elegir_carpeta_dialogo() or pedir_carpeta_consola()
+    config_agente[CARPETA_CONFIG_KEY] = str(carpeta_nueva)
+    guardar_config(config_agente)
+    print(f"[+] Carpeta configurada: {carpeta_nueva}")
+
+if args.servidor:
+    config_agente[SERVER_URL_CONFIG_KEY] = args.servidor
+    guardar_config(config_agente)
+
+# URL del servidor: --servidor > PRINTER_SERVER_URL > configuración guardada > localhost
+BASE_URL = (
+    args.servidor
+    or os.getenv("PRINTER_SERVER_URL", "").strip()
+    or config_agente.get(SERVER_URL_CONFIG_KEY, "")
+    or "http://localhost:8000"
+)
+
+# Carpeta local donde guardar tickets y archivos (elegida y guardada por el usuario)
+TICKETS_FOLDER = resolver_carpeta(args.carpeta)
 
 # Intervalos (segundos)
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "3"))        # Entre consultas
@@ -391,6 +530,7 @@ def main():
     logger.info(f"Python: {sys.version}")
     logger.info(f"Carpeta: {TICKETS_FOLDER}")
     logger.info(f"Log: {LOG_FILE}")
+    logger.info(f"Configuración guardada en: {CONFIG_RUTA}")
     
     agente = AgenteImpresion(BASE_URL, TICKETS_FOLDER)
     agente.iniciar()

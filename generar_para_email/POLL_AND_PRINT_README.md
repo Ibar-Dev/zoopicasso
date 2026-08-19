@@ -79,35 +79,43 @@ python poll_and_print.py
 
 ## ⚙️ Configuración
 
-### Variables de Entorno
+### Carpeta de destino (elegida por el usuario)
+
+La carpeta donde se guardan tickets y facturas **no está hardcodeada**:
+el usuario la elige y queda guardada en `agente_config.json` (junto a este
+script). En la primera ejecución se abre un selector de carpeta nativo.
+
+```bash
+# Elegir carpeta la primera vez (selector de Windows)
+python poll_and_print.py
+
+# Cambiar la carpeta de destino en cualquier momento
+python poll_and_print.py --elegir-carpeta
+
+# O indicarla directamente (queda guardada en agente_config.json)
+python poll_and_print.py --carpeta D:/Mis_Archivos/Facturas
+
+# Ver la carpeta elegida: aparece al iniciar el agente (📁 Carpeta: ...)
+```
+
+### Servidor
 
 Por defecto, apunta a localhost. Para producción:
 
 ```bash
 # Windows CMD
+python poll_and_print.py --servidor https://zoopicasso.onrender.com
+
+# También se puede usar la variable de entorno (solo para esa ejecución)
 set PRINTER_SERVER_URL=https://zoopicasso.onrender.com
-set TICKETS_FOLDER=C:/Facturas_Tickets/
-set POLL_INTERVAL=3
-set RECONNECT_DELAY=5
-python poll_and_print.py
-
-# Windows PowerShell
-$env:PRINTER_SERVER_URL="https://zoopicasso.onrender.com"
-$env:TICKETS_FOLDER="C:/Facturas_Tickets/"
-python poll_and_print.py
-
-# Linux/Mac
-export PRINTER_SERVER_URL="https://zoopicasso.onrender.com"
-export TICKETS_FOLDER="/home/tickets/"
 python poll_and_print.py
 ```
 
-### Parámetros
+### Otras Variables de Entorno
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `PRINTER_SERVER_URL` | `http://localhost:8000` | URL base del servidor |
-| `TICKETS_FOLDER` | `C:/Facturas_Tickets/` | Carpeta local de tickets |
+| `TICKETS_FOLDER` | guardado en config | Carpeta local de tickets (override de una ejecución) |
 | `POLL_INTERVAL` | `3` | Segundos entre consultas |
 | `RECONNECT_DELAY` | `5` | Segundos de espera tras error |
 

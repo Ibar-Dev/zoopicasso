@@ -90,25 +90,20 @@ if errorlevel 1 (
 echo   [OK] Dependencias instaladas
 
 REM ────────────────────────────────────────────────────────────────────────
-REM Paso 4: Crear carpeta de tickets
+REM Paso 4: Elegir carpeta donde guardar los archivos
 REM ────────────────────────────────────────────────────────────────────────
 
 echo.
-echo [4/5] Preparando carpeta de tickets...
-set TICKETS_FOLDER=C:\Facturas_Tickets
-if exist "%TICKETS_FOLDER%" (
-    echo   [OK] Carpeta ya existe: %TICKETS_FOLDER%
-) else (
-    echo   Creando carpeta: %TICKETS_FOLDER%
-    mkdir "%TICKETS_FOLDER%" >nul 2>&1
-    if errorlevel 1 (
-        echo   ERROR: No se pudo crear carpeta
-        echo   Intenta usar una ruta diferente o ejecuta como administrador
-        pause
-        exit /b 1
-    )
-    echo   [OK] Carpeta creada
-)
+echo [4/5] Elige la carpeta donde se guardaran los archivos...
+echo   (tickets y facturas descargadas del servidor)
+echo.
+echo   La ruta quedara guardada en agente_config.json para proximas ejecuciones.
+echo   Puedes cambiarla despues con:  python poll_and_print.py --elegir-carpeta
+echo.
+set DEFAULT_FOLDER=%USERPROFILE%\Desktop\Facturas_Tickets
+set /p TICKETS_FOLDER="Carpeta de destino (Enter para usar %DEFAULT_FOLDER%): "
+if "%TICKETS_FOLDER%"=="" set TICKETS_FOLDER=%DEFAULT_FOLDER%
+echo   [OK] Carpeta seleccionada: %TICKETS_FOLDER%
 
 REM ────────────────────────────────────────────────────────────────────────
 REM Paso 5: Mostrar configuración y ejecutar
@@ -122,12 +117,11 @@ echo  CONFIGURACION
 echo ============================================================================
 echo.
 echo   Servidor:           http://localhost:8000
-echo   Carpeta de tickets: %TICKETS_FOLDER%
+echo   Carpeta de archivos: %TICKETS_FOLDER%
 echo   Log file:           %TICKETS_FOLDER%\poll_and_print.log
 echo.
 echo CAMBIAR SERVIDOR (Produccion):
-echo   set PRINTER_SERVER_URL=https://zoopicasso.onrender.com
-echo   python poll_and_print.py
+echo   python poll_and_print.py --servidor https://zoopicasso.onrender.com
 echo.
 echo ============================================================================
 echo.
@@ -140,17 +134,16 @@ if /i "%START%"=="s" (
     echo (Presiona Ctrl+C para detener)
     echo.
     
-    REM Asegurar que TICKETS_FOLDER existe antes de ejecutar
+    REM Asegurar que la carpeta existe antes de ejecutar
     if not exist "%TICKETS_FOLDER%" mkdir "%TICKETS_FOLDER%"
     
-    REM Ejecutar agente
-    set TICKETS_FOLDER=%TICKETS_FOLDER%
-    python poll_and_print.py
+    REM Ejecutar agente guardando la carpeta elegida en la configuracion
+    python poll_and_print.py --carpeta "%TICKETS_FOLDER%"
 ) else (
     echo.
     echo Para iniciar manualmente despues, ejecuta:
     echo   venv\Scripts\activate.bat
-    echo   python poll_and_print.py
+    echo   python poll_and_print.py --carpeta "%TICKETS_FOLDER%"
     echo.
 )
 
