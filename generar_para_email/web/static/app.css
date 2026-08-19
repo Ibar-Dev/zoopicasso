@@ -5,6 +5,9 @@
   --ink-soft: #5f5447;
   --accent: #c94315;
   --accent-deep: #8f2b0c;
+  --green: #1f7a1f;
+  --green-deep: #145c14;
+  --green-soft: rgba(31, 122, 31, 0.1);
   --panel: rgba(255, 253, 249, 0.85);
   --line: #d8c9b6;
 }
@@ -44,6 +47,15 @@ body {
   background: #d46c3d;
   bottom: -6rem;
   left: -4rem;
+}
+
+.bg-shape.three {
+  width: 20rem;
+  height: 20rem;
+  background: var(--green);
+  opacity: 0.16;
+  top: 35%;
+  right: -10rem;
 }
 
 .shell {
@@ -106,6 +118,12 @@ input {
   background: #fffdfa;
 }
 
+input:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-soft);
+}
+
 select {
   width: 100%;
   border: 1px solid var(--line);
@@ -154,6 +172,15 @@ button {
 
 button:hover {
   background: var(--accent-deep);
+}
+
+button.btn-success {
+  background: var(--green);
+  color: #fff;
+}
+
+button.btn-success:hover {
+  background: var(--green-deep);
 }
 
 button.ghost {
@@ -207,7 +234,8 @@ button.cta {
   font-family: "IBM Plex Mono", monospace;
   text-align: right;
   font-weight: 600;
-  background-color: rgba(201, 67, 21, 0.08);
+  background-color: var(--green-soft);
+  color: var(--green);
   padding: 0.3rem 0.5rem;
   border-radius: 4px;
 }
@@ -240,7 +268,7 @@ input[readonly] {
 }
 
 .ok {
-  color: #1f7a1f;
+  color: var(--green);
   font-weight: 600;
 }
 

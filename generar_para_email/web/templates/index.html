@@ -85,6 +85,7 @@
 <body>
   <div class="bg-shape one"></div>
   <div class="bg-shape two"></div>
+  <div class="bg-shape three"></div>
 
   <main class="shell">
     <section id="login-card" class="card active">
@@ -96,7 +97,7 @@
       <label>Contraseña
         <input id="password" type="password" autocomplete="current-password" />
       </label>
-      <button id="btn-login">Entrar</button>
+      <button id="btn-login" class="btn-success">Entrar</button>
       <p id="login-error" class="error"></p>
     </section>
 
@@ -154,7 +155,7 @@
       </div>
       <div id="lista-ajustes" style="font-size:0.82rem;color:#475569;margin-top:0.4rem;min-height:1em;"></div>
 
-      <button id="btn-generar" class="cta" title="Atajo: Ctrl+Shift+G">Generar factura</button>
+      <button id="btn-generar" class="cta btn-success" title="Atajo: Ctrl+Shift+G">Generar factura</button>
       <div class="chuleta">
         <span class="chuleta-titulo">⌨ Atajos</span>
         <span class="chuleta-item"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> Añadir línea</span>
@@ -185,7 +186,7 @@
       <div class="modal-actions">
         <button id="btn-ticket-cancelar" class="ghost" type="button">Cancelar</button>
         <button id="btn-ticket-no" class="ghost" type="button">No imprimir</button>
-        <button id="btn-ticket-si" type="button">Sí, imprimir</button>
+        <button id="btn-ticket-si" class="btn-success" type="button">Sí, imprimir</button>
       </div>
       <div class="modal-atajos"><kbd>Enter</kbd> imprimir &ensp; <kbd>N</kbd> no imprimir &ensp; <kbd>Esc</kbd> cancelar</div>
     </div>
@@ -216,11 +217,28 @@
           </div>
         <div class="modal-actions">
           <button id="btn-pago-cancelar" class="ghost" type="button">Cancelar</button>
-          <button id="btn-pago-confirmar" type="submit">Aceptar</button>
+          <button id="btn-pago-confirmar" class="btn-success" type="submit">Aceptar</button>
         </div>
         <div id="pago-error" class="error" style="margin-top:0.5em;"></div>
         <div class="modal-atajos"><kbd>E</kbd> efectivo &ensp; <kbd>T</kbd> tarjeta &ensp; <kbd>M</kbd> mixto &ensp; <kbd>Enter</kbd> confirmar &ensp; <kbd>Esc</kbd> cancelar</div>
       </form>
+    </div>
+  </div>
+
+  <!-- Aviso de una sola lectura (bloqueante hasta cerrarlo) -->
+  <div id="aviso-modal" class="modal-backdrop" aria-hidden="true" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="aviso-modal-title">
+      <h3 id="aviso-modal-title">📢 Novedades: ¡prueba el flujo completo!</h3>
+      <p>Se ha restaurado la versión del 13 de julio. Por favor, prueba el flujo completo:</p>
+      <ul style="margin:0 0 1rem 1.2rem; padding:0; line-height:1.7;">
+        <li>Generar una factura.</li>
+        <li>Imprimir el ticket.</li>
+        <li>Guardar los archivos en la carpeta que elijas.</li>
+      </ul>
+      <p>Cierra este aviso para continuar.</p>
+      <div class="modal-actions">
+        <button id="btn-aviso-cerrar" class="btn-success" type="button">Entendido</button>
+      </div>
     </div>
   </div>
 
@@ -956,6 +974,30 @@
       }, 2000);
     }
 
+    // ── Aviso de una sola lectura (bloqueante) ───────────────────────────────
+    const avisoModalEl = document.getElementById('aviso-modal');
+    const _AVISO_KEY = 'aviso_una_lectura_v1';
+
+    function mostrarAvisoUnaVez() {
+      try {
+        if (localStorage.getItem(_AVISO_KEY)) return;
+      } catch (_) { /* sin localStorage: no molestar */ return; }
+
+      if (typeof KeyboardSystem !== 'undefined') KeyboardSystem.pause();
+      avisoModalEl.classList.add('active');
+      avisoModalEl.setAttribute('aria-hidden', 'false');
+      avisoModalEl.hidden = false;
+      document.getElementById('btn-aviso-cerrar').focus();
+    }
+
+    document.getElementById('btn-aviso-cerrar').addEventListener('click', () => {
+      try { localStorage.setItem(_AVISO_KEY, 'leido'); } catch (_) {}
+      avisoModalEl.classList.remove('active');
+      avisoModalEl.setAttribute('aria-hidden', 'true');
+      avisoModalEl.hidden = true;
+      if (typeof KeyboardSystem !== 'undefined') KeyboardSystem.resume();
+    });
+
     // ── Guardado en carpeta (File System Access API + IndexedDB) ──────────────
     async function _descargarDirecto(url, nombreArchivo) {
       const res = await fetch(url, { credentials: 'same-origin' });
@@ -1208,6 +1250,7 @@
         await refrescarResumenMensual();
         await refrescarListaAjustes();
         restaurarDraft();
+        mostrarAvisoUnaVez();
         // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
         // El usuario puede iniciar el tutorial haciendo click en el botón "?" del header
       } catch (e) {
@@ -1793,6 +1836,7 @@
       }
       if (loggedIn) {
         restaurarDraft();
+        mostrarAvisoUnaVez();
         // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
         // El usuario puede iniciar el tutorial haciendo click en el botón "?" del header
         // Cargar estado de cierres secuenciales al iniciar sesión
