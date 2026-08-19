@@ -1,0 +1,18 @@
+[project]
+name = "zoo-picasso-escritorio"
+version = "1.0.0"
+description = "App de escritorio de Zoo Picasso: tickets, facturas, control de ventas y envio de facturas por email"
+requires-python = ">=3.11"
+dependencies = [
+    "flet>=0.84.0",
+    "openpyxl>=3.1.5",
+    "python-escpos>=3.1",
+    "libusb-package>=1.0.26",
+    "pyusb>=1.2.1",
+    "pywin32>=306; platform_system == 'Windows'",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

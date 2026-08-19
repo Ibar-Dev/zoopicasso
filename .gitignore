@@ -13,5 +13,9 @@ wheels/
 generar_para_email/data/ventas.db
 generar_para_email/data/cierres/
 
+# App de escritorio
+app_escritorio/config/
+app_escritorio/reportes/
+
 generar_para_email/logs/
 *.log
