@@ -12,6 +12,7 @@ from src.factura_model import EMAIL_EMISOR
 from src.factura_model import Factura
 from src.factura_model import LineaFactura
 from src.factura_model import TELEFONO_EMISOR
+from src.printer import listar_impresoras_usb
 from src.printer import preview_ticket
 
 ANCHO = 42
@@ -179,3 +180,8 @@ class TestAlineacion:
     def test_ancho_con_ancho_personalizado(self, factura_sin_cliente):
         ticket = preview_ticket(factura_sin_cliente, ancho=32)
         assert _ancho_maximo(ticket) <= 32
+
+
+def test_listar_impresoras_usb_devuelve_lista_vacia_fuera_de_windows(monkeypatch):
+    monkeypatch.setattr("src.printer.sys.platform", "linux")
+    assert listar_impresoras_usb() == []

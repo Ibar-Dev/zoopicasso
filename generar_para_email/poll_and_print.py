@@ -288,7 +288,7 @@ class AgenteImpresion:
         Consulta servidor por ticket pendiente.
         
         Returns:
-            Dict con {"hay_ticket": bool, "ticket_b64": str, "archivo_xlsx": str}
+            Dict con {"hay_ticket": bool, "ticket_b64": str, "archivo_xlsx": str, "download_url": str}
             O None si error
         
         HTTP Status:
@@ -359,7 +359,7 @@ class AgenteImpresion:
             self.estadisticas["errores_impresion"] += 1
             return False
     
-    def descargar_excel(self, nombre_archivo: str) -> bool:
+    def descargar_excel(self, nombre_archivo: str, download_url: str | None = None) -> bool:
         """
         Descarga archivo Excel desde servidor.
         
@@ -370,7 +370,13 @@ class AgenteImpresion:
             True si éxito, False si error
         """
         try:
-            url = f"{self.url_base}/api/descargar/{nombre_archivo}"
+            if download_url:
+                if download_url.startswith(("http://", "https://")):
+                    url = download_url
+                else:
+                    url = f"{self.url_base.rstrip('/')}/{download_url.lstrip('/')}"
+            else:
+                url = f"{self.url_base}/api/descargar/{nombre_archivo}"
             
             logger.info(f"📥 Descargando Excel: {nombre_archivo}...")
             resp = self.session.get(url, timeout=TIMEOUT_REQUEST)
@@ -411,7 +417,7 @@ class AgenteImpresion:
         Procesa un ticket: imprime y descarga archivos asociados.
         
         Args:
-            datos: Dict con {"hay_ticket": bool, "ticket_b64": str, "archivo_xlsx": str}
+            datos: Dict con {"hay_ticket": bool, "ticket_b64": str, "archivo_xlsx": str, "download_url": str}
         
         Returns:
             True si éxito, False si error
@@ -425,6 +431,7 @@ class AgenteImpresion:
         
         ticket_b64 = datos.get("ticket_b64")
         archivo_xlsx = datos.get("archivo_xlsx")
+        download_url = datos.get("download_url")
         
         exito = True
         
@@ -438,7 +445,7 @@ class AgenteImpresion:
         
         # 2. Descargar Excel (si existe)
         if archivo_xlsx:
-            if not self.descargar_excel(archivo_xlsx):
+            if not self.descargar_excel(archivo_xlsx, download_url=download_url):
                 exito = False
         else:
             logger.info("ℹ️  Sin archivo Excel asociado")

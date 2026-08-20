@@ -609,7 +609,7 @@ def test_siguiente_ticket_vacio():
 def test_siguiente_ticket_con_datos():
     import web.app as webapp
     webapp.cola_impresion.clear()
-    webapp.cola_impresion.append(b"\x1b\x40Hello\n")
+    webapp.cola_impresion.append(b"\x1b\x40Hello\n", "factura_2026_001.xlsx")
     client = TestClient(app)
     
     # Login requerido para acceder al endpoint
@@ -627,4 +627,56 @@ def test_siguiente_ticket_con_datos():
     body = res.json()
     assert body["hay_ticket"] is True
     assert "ticket_b64" in body
+    assert body["archivo_xlsx"] == "factura_2026_001.xlsx"
+    assert body["download_url"].startswith("/api/descargar/factura_2026_001.xlsx?agent_token=")
+    webapp.cola_impresion.clear()
+
+
+def test_generar_encola_ticket_con_excel_asociado(monkeypatch, tmp_path):
+    import web.app as webapp
+
+    webapp.cola_impresion.clear()
+    client = _cliente_logueado(monkeypatch, tmp_path)
+    monkeypatch.setattr("web.app.generar_ticket_escpos", lambda *_args, **_kwargs: b"\x1b\x40Ticket\n")
+
+    res = client.post(
+        "/api/generar",
+        json={
+            "lineas": [{"concepto": "Test print", "cantidad": 1, "precio_unitario": 10.0}],
+            "imprimir_ticket": True,
+            "metodo_pago": "tarjeta",
+            "monto_tarjeta": 10.0,
+        },
+    )
+
+    assert res.status_code == 200
+    siguiente = client.get("/api/impresion/siguiente")
+    assert siguiente.status_code == 200
+    body = siguiente.json()
+    assert body["hay_ticket"] is True
+    assert body["archivo_xlsx"] == "factura_2026_999.xlsx"
+    assert body["download_url"].startswith("/api/descargar/factura_2026_999.xlsx?agent_token=")
+    webapp.cola_impresion.clear()
+
+
+def test_descargar_factura_con_token_agente(monkeypatch, tmp_path):
+    import web.app as webapp
+
+    webapp.cola_impresion.clear()
+    archivo = tmp_path / "factura_2026_777.xlsx"
+    archivo.write_bytes(b"xlsx")
+    monkeypatch.setattr("web.app.RUTA_FACTURAS", tmp_path)
+    webapp.cola_impresion.append(b"\x1b\x40Hello\n", archivo.name)
+
+    client = TestClient(app)
+    ticket = client.get("/api/impresion/siguiente")
+    assert ticket.status_code == 200
+    download_url = ticket.json()["download_url"]
+
+    descarga = TestClient(app).get(download_url)
+    assert descarga.status_code == 200
+    assert (
+        descarga.headers["content-type"]
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     webapp.cola_impresion.clear()

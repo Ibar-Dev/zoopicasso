@@ -293,3 +293,44 @@ def imprimir_ticket_usb_windows(ticket: bytes) -> str:
         win32print.ClosePrinter(hprinter)
 
     return impresora
+
+
+def listar_impresoras_usb() -> list[str]:
+  """
+  Lista las impresoras visibles para Windows usadas por el flujo de tickets.
+
+  En sistemas no Windows o si pywin32 no esta disponible, retorna una lista
+  vacia para que los scripts de diagnostico puedan seguir ejecutandose.
+  """
+  if not sys.platform.startswith("win"):
+    return []
+
+  try:
+    import win32print  # type: ignore[import-not-found]
+  except Exception:
+    return []
+
+  try:
+    flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+    registros = win32print.EnumPrinters(flags)
+  except Exception:
+    return []
+
+  impresoras: list[str] = []
+  for registro in registros:
+    if len(registro) < 3:
+      continue
+    nombre = str(registro[2]).strip()
+    if nombre and nombre not in impresoras:
+      impresoras.append(nombre)
+
+  try:
+    predeterminada = str(win32print.GetDefaultPrinter()).strip()
+  except Exception:
+    predeterminada = ""
+
+  if predeterminada and predeterminada in impresoras:
+    impresoras.remove(predeterminada)
+    impresoras.insert(0, predeterminada)
+
+  return impresoras

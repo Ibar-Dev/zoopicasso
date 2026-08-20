@@ -309,6 +309,8 @@
     let facturasDia = 0;
     let resolverTicketModal = null;
     let resolverCierreModal = null;
+    let carpetaFacturasConfigurada = !window.showDirectoryPicker;
+    let carpetaFacturasDirHandle = null;
 
     function sha256(text) {
       return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(buf =>
@@ -492,6 +494,8 @@
           razon = 'Selecciona una categoría en cada línea';
         } else if (filas.some(f => !importeEurValido((f.querySelector('.precio').value || '').trim()))) {
           razon = 'Hay precios vacíos o con formato incorrecto';
+        } else if (window.showDirectoryPicker && !carpetaFacturasConfigurada) {
+          razon = 'Configura una carpeta para guardar facturas';
         }
         btnGenerar.disabled = Boolean(razon);
         if (razon) btnGenerar.dataset.tooltip = razon;
@@ -1012,7 +1016,93 @@
       URL.revokeObjectURL(a.href);
     }
 
-    async function guardarEnCarpeta(data) {
+    async function actualizarEstadoCarpetaFacturas(dirHandle = undefined) {
+      if (!window.showDirectoryPicker) {
+        carpetaFacturasConfigurada = true;
+        carpetaFacturasDirHandle = null;
+        actualizarNombreCarpetaLocal('');
+        _actualizarBotones();
+        return null;
+      }
+
+      let handle = dirHandle;
+      if (handle === undefined) {
+        try {
+          handle = await idbGet('config', 'carpeta_facturas');
+        } catch (_) {
+          handle = null;
+        }
+      }
+
+      if (!handle) {
+        carpetaFacturasConfigurada = false;
+        carpetaFacturasDirHandle = null;
+        actualizarNombreCarpetaLocal('');
+        _actualizarBotones();
+        return null;
+      }
+
+      try {
+        await handle.queryPermission({ mode: 'readwrite' });
+        carpetaFacturasConfigurada = true;
+        carpetaFacturasDirHandle = handle;
+        actualizarNombreCarpetaLocal(handle.name || '');
+        _actualizarBotones();
+        return handle;
+      } catch (_) {
+        carpetaFacturasConfigurada = false;
+        carpetaFacturasDirHandle = null;
+        actualizarNombreCarpetaLocal('');
+        _actualizarBotones();
+        return null;
+      }
+    }
+
+    async function seleccionarCarpetaFacturas() {
+      if (!window.showDirectoryPicker) {
+        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los archivos se descargarán automáticamente.';
+        return null;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await idbSet('config', 'carpeta_facturas', dirHandle);
+        await actualizarEstadoCarpetaFacturas(dirHandle);
+        resultadoEl.textContent = `Carpeta de destino configurada: ${dirHandle.name}`;
+        return dirHandle;
+      } catch (err) {
+        if (err && err.name !== 'AbortError') {
+          errorEl.textContent = 'No se pudo configurar la carpeta de destino.';
+        }
+        return null;
+      }
+    }
+
+    async function asegurarCarpetaFacturas() {
+      if (!window.showDirectoryPicker) {
+        return null;
+      }
+
+      let dirHandle = carpetaFacturasDirHandle || await actualizarEstadoCarpetaFacturas();
+      if (dirHandle) {
+        try {
+          const permiso = await dirHandle.queryPermission({ mode: 'readwrite' });
+          if (permiso === 'granted') {
+            return dirHandle;
+          }
+          const solicitado = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (solicitado === 'granted') {
+            await actualizarEstadoCarpetaFacturas(dirHandle);
+            return dirHandle;
+          }
+        } catch (_) {
+          await actualizarEstadoCarpetaFacturas(null);
+        }
+      }
+
+      return await seleccionarCarpetaFacturas();
+    }
+
+    async function guardarEnCarpeta(data, dirHandle = null) {
       const response = await fetch(data.download_url, { credentials: 'same-origin' });
       if (!response.ok) {
         throw new Error('No se pudo descargar el archivo de factura.');
@@ -1033,31 +1123,33 @@
         return;
       }
 
-      // Recuperar handle guardado en IndexedDB y verificar permisos.
-      let dirHandle = null;
+      let handle = dirHandle;
+      if (!handle) {
+        handle = await asegurarCarpetaFacturas();
+      }
+      if (!handle) {
+        throw new Error(`Factura ${data.numero} creada en servidor, pero no se guardó localmente.`);
+      }
+
       try {
-        dirHandle = await idbGet('config', 'carpeta_facturas');
-      } catch (_) { /* continuar sin handle guardado */ }
-
-      if (dirHandle) {
-        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        const perm = await handle.queryPermission({ mode: 'readwrite' });
         if (perm !== 'granted') {
-          const req = await dirHandle.requestPermission({ mode: 'readwrite' });
-          if (req !== 'granted') dirHandle = null;
+          const req = await handle.requestPermission({ mode: 'readwrite' });
+          if (req !== 'granted') {
+            throw new Error('Permiso de escritura denegado.');
+          }
         }
+        const fileHandle = await handle.getFileHandle(data.archivo, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        await actualizarEstadoCarpetaFacturas(handle);
+        mostrarToast('Se ha guardado');
+      } catch (err) {
+        throw new Error(
+          `Factura ${data.numero} creada en servidor, pero no se guardó localmente.`
+        );
       }
-
-      // Si no hay handle válido, pedir carpeta al usuario y persistirla.
-      if (!dirHandle) {
-        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        try { await idbSet('config', 'carpeta_facturas', dirHandle); } catch (_) { /* no crítico */ }
-      }
-
-      const fileHandle = await dirHandle.getFileHandle(data.archivo, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      mostrarToast('Se ha guardado');
     }
 
     async function guardarCierreEnCarpeta(blob, nombre) {
@@ -1247,6 +1339,7 @@
           body: JSON.stringify({ usuario, password_hash }),
         });
         toggleView(true);
+        await actualizarEstadoCarpetaFacturas();
         await refrescarResumenMensual();
         await refrescarListaAjustes();
         restaurarDraft();
@@ -1292,26 +1385,14 @@
     btnCarpeta.addEventListener('click', async () => {
       resultadoEl.textContent = '';
       errorEl.textContent = '';
-      if (!window.showDirectoryPicker) {
-        errorEl.textContent = 'Tu navegador no soporta selección de carpeta. Los archivos se descargarán automáticamente.';
-        return;
-      }
-      try {
-        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        await idbSet('config', 'carpeta_facturas', dirHandle);
-        actualizarNombreCarpetaLocal(dirHandle.name);
-        resultadoEl.textContent = `Carpeta de destino configurada: ${dirHandle.name}`;
-      } catch (err) {
-        if (err && err.name !== 'AbortError') {
-          errorEl.textContent = 'No se pudo configurar la carpeta de destino.';
-        }
+      const dirHandle = await seleccionarCarpetaFacturas();
+      if (dirHandle) {
+        await actualizarEstadoCarpetaFacturas(dirHandle);
       }
     });
 
     // Inicialización al cargar
-    idbGet('config', 'carpeta_facturas').then(h => {
-      if (h) actualizarNombreCarpetaLocal(h.name);
-    }).catch(() => {});
+    actualizarEstadoCarpetaFacturas().catch(() => {});
 
     // FIXME: Los siguientes event listeners referencian botones que no existen (comentados en FASE 2)
     // Comentados para evitar ReferenceError que rompe todo el script
@@ -1722,6 +1803,16 @@
       }
 
       const btnGenerar = document.getElementById('btn-generar');
+      let dirHandle = null;
+      if (window.showDirectoryPicker) {
+        dirHandle = await asegurarCarpetaFacturas();
+        if (!dirHandle) {
+          resultadoEl.textContent = 'Generación cancelada: La factura no fue guardada';
+          _actualizarBotones();
+          return;
+        }
+      }
+
       // Paso 1: método de pago
       const totalFactura = Number(totalEl.textContent.replace('€','').trim());
       const pago = await abrirModalPago(totalFactura);
@@ -1766,14 +1857,12 @@
         facturasDiaEl.textContent = String(facturasDia);
         acumuladoDia += Number(data.total);
         acumuladoDiaEl.textContent = `${acumuladoDia.toFixed(2)} €`;
+        let guardadoLocalOk = true;
         try {
-          await guardarEnCarpeta(data);
+          await guardarEnCarpeta(data, dirHandle);
         } catch (err) {
-          if (err && err.name === 'AbortError') {
-            resultadoEl.textContent += ' Guardado cancelado por el usuario.';
-            return;
-          }
-          throw err;
+          guardadoLocalOk = false;
+          errorEl.textContent = err.message || `Factura ${data.numero} creada en servidor, pero no se guardó localmente.`;
         }
 
         if (deseaImprimirTicket) {
@@ -1806,6 +1895,10 @@
           }
         }
 
+        if (!guardadoLocalOk && !deseaImprimirTicket) {
+          resultadoEl.textContent = `Factura ${data.numero} generada.`;
+        }
+
         await refrescarResumenMensual();
         resetFormulario();
       } catch (e) {
@@ -1836,6 +1929,7 @@
       }
       if (loggedIn) {
         restaurarDraft();
+        await actualizarEstadoCarpetaFacturas();
         mostrarAvisoUnaVez();
         // ⚠️ FASE 1 (UX no-invasiva): Auto-start de tutorial eliminado
         // El usuario puede iniciar el tutorial haciendo click en el botón "?" del header

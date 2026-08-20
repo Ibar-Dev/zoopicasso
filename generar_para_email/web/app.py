@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 from starlette.middleware.sessions import SessionMiddleware
@@ -56,6 +57,9 @@ _backup_dir_raw = os.getenv("BACKUP_DIR", "").strip()
 BACKUP_DIR: Path | None = Path(_backup_dir_raw).expanduser().resolve() if _backup_dir_raw else None
 BACKUP_INTERVALO_HORAS: int = int(os.getenv("BACKUP_INTERVALO_HORAS", "24"))
 BACKUP_RETENER: int = int(os.getenv("BACKUP_RETENER", "7"))
+WEB_SESSION_SECRET = os.getenv("WEB_SESSION_SECRET", "cambia-esta-clave-en-produccion")
+PRINTER_AGENT_TOKEN_SECRET = os.getenv("PRINTER_AGENT_TOKEN_SECRET", "").strip() or WEB_SESSION_SECRET
+PRINTER_AGENT_TOKEN_TTL = int(os.getenv("PRINTER_AGENT_TOKEN_TTL_SECONDS", "3600"))
 
 # Garantizar que el directorio data existe
 PRECIOS_CATEGORIAS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -113,6 +117,24 @@ def _bool_env(name: str, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _serializer_descarga_agente() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(PRINTER_AGENT_TOKEN_SECRET, salt="printer-agent-download")
+
+
+def _crear_token_descarga_agente(nombre_archivo: str) -> str:
+    return _serializer_descarga_agente().dumps({"archivo": nombre_archivo})
+
+
+def _token_descarga_agente_valido(nombre_archivo: str, token: str | None) -> bool:
+    if not token:
+        return False
+    try:
+        payload = _serializer_descarga_agente().loads(token, max_age=PRINTER_AGENT_TOKEN_TTL)
+    except (BadSignature, SignatureExpired):
+        return False
+    return payload.get("archivo") == nombre_archivo
 
 class LoginPayload(BaseModel):
     usuario: str
@@ -182,16 +204,17 @@ class ColaPersistente:
     
     RESPONSABILIDAD:
       Mantener cola de tickets ESC/POS que sobrevive reinicios de Render.
-      Los bytes se serializan en base64 para almacenarlos en JSON.
+            Los bytes se serializan en base64 para almacenarlos en JSON.
+            Tambien puede guardar el nombre del Excel asociado para el agente local.
     
     COMUNICACIÓN:
       - Entrada: bytes (ESC/POS generados por src/printer.py)
       - Persistencia: data/cola_impresion.json
-      - Salida: bytes (descodificados de base64 para impresora)
+            - Salida: payload serializado con ticket_b64 y archivo_xlsx opcional
     
     MÉTODOS:
-      - append(item: bytes) → Añade ticket y persiste
-      - pop(index=0) → Retira y devuelve ticket, persiste
+            - append(item: bytes, archivo_xlsx=None) → Añade ticket y persiste
+            - pop(index=0) → Retira y devuelve payload, persiste
       - __len__() → Cantidad de tickets en cola
       - __bool__() → True si hay tickets
     """
@@ -199,19 +222,35 @@ class ColaPersistente:
     def __init__(self, ruta: Path | str = "data/cola_impresion.json"):
         self.ruta = Path(ruta) if isinstance(ruta, str) else ruta
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
-        self._datos: list[str] = self._cargar()  # Lista de strings base64
+        self._datos: list[dict[str, str]] = self._cargar()
     
-    def _cargar(self) -> list[str]:
+    def _cargar(self) -> list[dict[str, str]]:
         """Carga cola desde disco JSON. Retorna lista vacía si no existe."""
         if self.ruta.exists():
             try:
                 with open(self.ruta, "r", encoding="utf-8") as f:
                     contenido = json.load(f)
-                    if isinstance(contenido, dict) and "tickets" in contenido:
-                        return contenido["tickets"]
-                    elif isinstance(contenido, list):
-                        return contenido
-                    return []
+                    tickets = contenido.get("tickets") if isinstance(contenido, dict) else contenido
+                    if not isinstance(tickets, list):
+                        return []
+                    normalizados: list[dict[str, str]] = []
+                    for item in tickets:
+                        if isinstance(item, str):
+                            normalizados.append({"ticket_b64": item})
+                            continue
+                        if not isinstance(item, dict):
+                            logger.warning("Item de cola ignorado por formato invalido: %r", item)
+                            continue
+                        ticket_b64 = item.get("ticket_b64") or item.get("ticket")
+                        if not isinstance(ticket_b64, str) or not ticket_b64:
+                            logger.warning("Item de cola ignorado sin ticket_b64 valido: %r", item)
+                            continue
+                        payload = {"ticket_b64": ticket_b64}
+                        archivo_xlsx = item.get("archivo_xlsx")
+                        if isinstance(archivo_xlsx, str) and archivo_xlsx:
+                            payload["archivo_xlsx"] = archivo_xlsx
+                        normalizados.append(payload)
+                    return normalizados
             except Exception as e:
                 logger.error("Error al cargar cola desde %s: %s", self.ruta, e)
                 return []
@@ -225,7 +264,7 @@ class ColaPersistente:
         except Exception as e:
             logger.error("Error al guardar cola en %s: %s", self.ruta, e)
     
-    def append(self, item: bytes) -> None:
+    def append(self, item: bytes, archivo_xlsx: str | None = None) -> None:
         """
         Añade ticket a la cola y persiste.
         
@@ -233,10 +272,13 @@ class ColaPersistente:
             item: bytes en formato ESC/POS
         """
         ticket_b64 = base64.b64encode(item).decode("ascii")
-        self._datos.append(ticket_b64)
+        payload = {"ticket_b64": ticket_b64}
+        if archivo_xlsx:
+            payload["archivo_xlsx"] = archivo_xlsx
+        self._datos.append(payload)
         self._guardar()
     
-    def pop(self, index: int = 0) -> bytes:
+    def pop(self, index: int = 0) -> dict[str, str]:
         """
         Retira ticket de la cola y persiste.
         
@@ -244,11 +286,11 @@ class ColaPersistente:
             index: Índice a remover (default: 0 = FIFO)
         
         Returns:
-            bytes: Datos ESC/POS decodificados
+            dict[str, str]: Payload serializado del ticket
         """
-        ticket_b64 = self._datos.pop(index)
+        payload = self._datos.pop(index)
         self._guardar()
-        return base64.b64decode(ticket_b64)
+        return payload
     
     def __len__(self) -> int:
         """Cantidad de tickets en cola."""
@@ -273,7 +315,7 @@ logger.info("Cola persistente inicializada: %s (%d tickets pendientes)", COLA_IM
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("WEB_SESSION_SECRET", "cambia-esta-clave-en-produccion"),
+    secret_key=WEB_SESSION_SECRET,
     max_age=60 * 60 * 10,
     same_site=os.getenv("WEB_SESSION_SAME_SITE", "lax"),  # type: ignore
     https_only=_bool_env("WEB_SESSION_HTTPS_ONLY", False),
@@ -562,7 +604,7 @@ def generar(payload: FacturaPayload, request: Request) -> dict[str, object]:
     if payload.imprimir_ticket:
         try:
             ticket = generar_ticket_escpos(factura, ancho=42, pago=pago)
-            cola_impresion.append(ticket)
+            cola_impresion.append(ticket, ruta.name)
             ticket_impreso = True
             ticket_estado = "Ticket encolado para impresión."
             logger.info(
@@ -630,21 +672,30 @@ def siguiente_ticket(request: Request) -> JSONResponse:
     ticket = cola_impresion.pop(0)
     logger.info(
         "Ticket despachado (%d bytes, quedan %d en cola)",
-        len(ticket),
+        len(base64.b64decode(ticket["ticket_b64"])),
         len(cola_impresion),
     )
-    return JSONResponse({
+    response = {
         "hay_ticket": True,
-        "ticket_b64": base64.b64encode(ticket).decode("ascii"),
-    })
+        "ticket_b64": ticket["ticket_b64"],
+    }
+    if ticket.get("archivo_xlsx"):
+        archivo_xlsx = ticket["archivo_xlsx"]
+        response["archivo_xlsx"] = archivo_xlsx
+        response["download_url"] = (
+            f"/api/descargar/{archivo_xlsx}?agent_token={_crear_token_descarga_agente(archivo_xlsx)}"
+        )
+    return JSONResponse(response)
 
 @app.get("/api/descargar/{nombre_archivo}")
-def descargar(nombre_archivo: str, request: Request) -> FileResponse:
-    _requiere_login(request)
+def descargar(nombre_archivo: str, request: Request, agent_token: str = "") -> FileResponse:
     ruta = (RUTA_FACTURAS / nombre_archivo).resolve()
     if not str(ruta).startswith(str(RUTA_FACTURAS.resolve())):
         logger.warning("Intento de descarga con nombre inválido: %s", nombre_archivo)
         raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
+    if not request.session.get("logged_in") and not _token_descarga_agente_valido(ruta.name, agent_token):
+        logger.warning("Descarga no autenticada rechazada para %s", nombre_archivo)
+        raise HTTPException(status_code=401, detail="No autenticado")
     if not ruta.exists():
         logger.warning("Archivo solicitado no encontrado: %s", ruta)
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
