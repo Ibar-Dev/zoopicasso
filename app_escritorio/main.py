@@ -3,19 +3,12 @@
 # Ejecutar: uv run main.py  (desde esta carpeta)
 
 import hashlib
-import sys
-from pathlib import Path
 
 import flet as ft
 
-# Permite reutilizar los modulos de generar_para_email (src.* y tickets_src.*)
-# y los paquetes propios de esta app (escritorio.* y ui.*).
-_APP_DIR = Path(__file__).resolve().parent
-_RAIZ = _APP_DIR.parent
-_GENERAR = _RAIZ / "generar_para_email"
-for _ruta in (_GENERAR, _APP_DIR):
-    if str(_ruta) not in sys.path:
-        sys.path.insert(0, str(_ruta))
+from app_escritorio.bootstrap import ensure_project_paths
+
+ensure_project_paths()
 
 import src.settings  # noqa: E402  # logging centralizado y rutas
 
