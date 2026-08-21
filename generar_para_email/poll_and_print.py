@@ -127,7 +127,10 @@ def elegir_carpeta_dialogo() -> Optional[Path]:
 
 
 def pedir_carpeta_consola() -> Optional[Path]:
-    """Fallback sin ventanas: pide la ruta por consola."""
+    """Fallback sin ventanas: pide la ruta por consola si hay TTY disponible."""
+    if not sys.stdin.isatty():
+        return (Path.home() / "Facturas_Tickets").resolve()
+
     print("=" * 70)
     print("CONFIGURACIÓN DE CARPETA")
     print("=" * 70)
@@ -165,6 +168,9 @@ def resolver_carpeta(arg_carpeta: Optional[str]) -> Path:
             config[CARPETA_CONFIG_KEY] = str(carpeta)
             guardar_config(config)
 
+    if not carpeta.exists():
+        carpeta.mkdir(parents=True, exist_ok=True)
+
     return carpeta.resolve()
 
 
@@ -172,65 +178,81 @@ def resolver_carpeta(arg_carpeta: Optional[str]) -> Path:
 # CONFIGURACIÓN
 # ────────────────────────────────────────────────────────────────────────────
 
-parser = argparse.ArgumentParser(
-    description="Agente local de impresión y sincronización de facturas."
-)
-parser.add_argument(
-    "--carpeta",
-    help="Carpeta local donde guardar tickets y facturas (se guarda en la configuración).",
-)
-parser.add_argument(
-    "--elegir-carpeta",
-    action="store_true",
-    help="Abre el selector de carpeta para cambiar dónde se guardan los archivos.",
-)
-parser.add_argument(
-    "--servidor",
-    help="URL base del servidor (se guarda en la configuración).",
-)
-args = parser.parse_args()
-
-config_agente = cargar_config()
-if args.elegir_carpeta:
-    carpeta_nueva = elegir_carpeta_dialogo() or pedir_carpeta_consola()
-    config_agente[CARPETA_CONFIG_KEY] = str(carpeta_nueva)
-    guardar_config(config_agente)
-    print(f"[+] Carpeta configurada: {carpeta_nueva}")
-
-if args.servidor:
-    config_agente[SERVER_URL_CONFIG_KEY] = args.servidor
-    guardar_config(config_agente)
-
-# URL del servidor: --servidor > PRINTER_SERVER_URL > configuración guardada > localhost
-BASE_URL = (
-    args.servidor
-    or os.getenv("PRINTER_SERVER_URL", "").strip()
-    or config_agente.get(SERVER_URL_CONFIG_KEY, "")
-    or "http://localhost:8000"
-)
-
-# Carpeta local donde guardar tickets y archivos (elegida y guardada por el usuario)
-TICKETS_FOLDER = resolver_carpeta(args.carpeta)
-
-# Intervalos (segundos)
-POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "3"))        # Entre consultas
-RECONNECT_DELAY = int(os.getenv("RECONNECT_DELAY", "5"))   # Después de error
-TIMEOUT_REQUEST = 10  # Timeout para requests
-
-# Crear carpeta si no existe
-TICKETS_FOLDER.mkdir(parents=True, exist_ok=True)
-
-# Configurar logging
+RUN_ONCE = False
+DRY_RUN = False
+BASE_URL = "http://localhost:8000"
+TICKETS_FOLDER = Path.home() / "Facturas_Tickets"
 LOG_FILE = TICKETS_FOLDER / "poll_and_print.log"
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
 logger = logging.getLogger(__name__)
+
+
+def configurar_runtime(argv=None):
+    """Configura runtime del agente a partir de CLI y entorno."""
+    global RUN_ONCE, DRY_RUN, BASE_URL, TICKETS_FOLDER, LOG_FILE, logger
+
+    parser = argparse.ArgumentParser(
+        description="Agente local de impresión y sincronización de facturas."
+    )
+    parser.add_argument(
+        "--carpeta",
+        help="Carpeta local donde guardar tickets y facturas (se guarda en la configuración).",
+    )
+    parser.add_argument(
+        "--elegir-carpeta",
+        action="store_true",
+        help="Abre el selector de carpeta para cambiar dónde se guardan los archivos.",
+    )
+    parser.add_argument(
+        "--servidor",
+        help="URL base del servidor (se guarda en la configuración).",
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Consulta una sola vez y sale. Útil para validación rápida del endpoint.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="No imprime ni descarga archivos; solo comprueba si hay tickets pendientes.",
+    )
+    args = parser.parse_args(argv)
+
+    config_agente = cargar_config()
+    if args.elegir_carpeta:
+        carpeta_nueva = elegir_carpeta_dialogo() or pedir_carpeta_consola()
+        config_agente[CARPETA_CONFIG_KEY] = str(carpeta_nueva)
+        guardar_config(config_agente)
+        print(f"[+] Carpeta configurada: {carpeta_nueva}")
+
+    if args.servidor:
+        config_agente[SERVER_URL_CONFIG_KEY] = args.servidor
+        guardar_config(config_agente)
+
+    BASE_URL = (
+        args.servidor
+        or os.getenv("PRINTER_SERVER_URL", "").strip()
+        or config_agente.get(SERVER_URL_CONFIG_KEY, "")
+        or "http://localhost:8000"
+    )
+    TICKETS_FOLDER = resolver_carpeta(args.carpeta)
+    RUN_ONCE = bool(args.once)
+    DRY_RUN = bool(args.dry_run)
+
+    TICKETS_FOLDER.mkdir(parents=True, exist_ok=True)
+    LOG_FILE = TICKETS_FOLDER / "poll_and_print.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(LOG_FILE, encoding="utf-8"),
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+    logger = logging.getLogger(__name__)
+
+    return args
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -424,17 +446,26 @@ class AgenteImpresion:
         """
         if not datos.get("hay_ticket"):
             return False
-        
+
         logger.info("\n" + "="*70)
         logger.info("🎫 NUEVO TICKET DETECTADO")
         logger.info("="*70)
-        
+
         ticket_b64 = datos.get("ticket_b64")
         archivo_xlsx = datos.get("archivo_xlsx")
         download_url = datos.get("download_url")
-        
+
+        if DRY_RUN:
+            logger.info("🧪 Modo dry-run: se valida el ticket sin imprimir ni descargar archivos.")
+            if ticket_b64:
+                logger.info("📦 Ticket detectado: %d bytes en base64", len(ticket_b64))
+            if archivo_xlsx:
+                logger.info("📄 Excel asociado: %s", archivo_xlsx)
+            logger.info("="*70 + "\n")
+            return True
+
         exito = True
-        
+
         # 1. Imprimir ticket
         if ticket_b64:
             if not self.imprimir_ticket(ticket_b64):
@@ -442,14 +473,14 @@ class AgenteImpresion:
         else:
             logger.warning("⚠️  No hay datos de ticket para imprimir")
             exito = False
-        
+
         # 2. Descargar Excel (si existe)
         if archivo_xlsx:
             if not self.descargar_excel(archivo_xlsx, download_url=download_url):
                 exito = False
         else:
             logger.info("ℹ️  Sin archivo Excel asociado")
-        
+
         logger.info("="*70 + "\n")
         return exito
     
@@ -466,7 +497,7 @@ class AgenteImpresion:
     def iniciar(self):
         """
         Inicia el ciclo de polling continuo.
-        
+
         El agente:
           1. Verifica conexión
           2. Consulta tickets
@@ -481,11 +512,12 @@ class AgenteImpresion:
         logger.info(f"📁 Carpeta: {self.carpeta}")
         logger.info(f"⏱️  Intervalo de consulta: {POLL_INTERVAL} segundos")
         logger.info(f"🔌 Timeout de conexión: {TIMEOUT_REQUEST} segundos")
+        logger.info(f"🧪 Dry-run activo: {DRY_RUN}")
         logger.info("="*70 + "\n")
-        
+
         contador_ciclos = 0
         intentos_conexion = 0
-        
+
         while True:
             contador_ciclos += 1
             
@@ -512,8 +544,11 @@ class AgenteImpresion:
                 # Procesar si hay ticket
                 if datos.get("hay_ticket"):
                     self.procesar_ticket(datos)
-                
+
                 # Esperar antes del siguiente ciclo
+                if RUN_ONCE:
+                    logger.info("✅ Consulta única finalizada por --once")
+                    return
                 time.sleep(POLL_INTERVAL)
             
             except KeyboardInterrupt:
@@ -532,13 +567,14 @@ class AgenteImpresion:
 
 def main():
     """Punto de entrada principal."""
-    
+    configurar_runtime()
+
     logger.info(f"Agente iniciado a las {datetime.now().isoformat()}")
     logger.info(f"Python: {sys.version}")
     logger.info(f"Carpeta: {TICKETS_FOLDER}")
     logger.info(f"Log: {LOG_FILE}")
     logger.info(f"Configuración guardada en: {CONFIG_RUTA}")
-    
+
     agente = AgenteImpresion(BASE_URL, TICKETS_FOLDER)
     agente.iniciar()
 
